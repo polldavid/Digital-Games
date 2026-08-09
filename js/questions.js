@@ -66,20 +66,30 @@ const QUESTION_BANK = [
  * A pool of light-hearted dares used when the "dares" option is enabled.
  * Applied to a player who gets a guess wrong (chosen at random, at most one
  * per reveal to keep pace snappy).
+ *
+ * These are all quick, one-and-done bits — no phones, no props, nothing that
+ * carries on into later turns. Do the thing, get a laugh, move on.
  */
 const DARE_BANK = [
-  "Do your best robot dance for 10 seconds.",
-  "Speak in an accent until your next turn.",
-  "Let the group pick your next profile photo pose — strike it now.",
-  "Text your most recent contact a single 🦆 emoji.",
-  "Do 8 jumping jacks right now.",
-  "Sing your answer to the next question instead of saying it.",
-  "Give a 20-second dramatic speech about your favorite snack.",
-  "Do your best impression of someone else in the room.",
-  "Balance something on your head until your next turn.",
-  "Compliment each player in the most over-the-top way possible.",
-  "Talk in a whisper until it's your turn to be in the spotlight.",
-  "Do your best catwalk strut across the room.",
+  "Do your best evil villain laugh.",
+  "Air-guitar a 5-second solo like it's the encore.",
+  "Give yourself a slow, dramatic round of applause.",
+  "Attempt the worm. The attempt is all that matters.",
+  "Strike a runway pose and freeze for 3 seconds.",
+  "Beatbox for 5 seconds — or perish trying.",
+  "Do a slow-motion celebration like you just scored the winning goal.",
+  "Do a dramatic gasp like you just heard life-changing gossip.",
+  "High-five everyone in the room like you just won a trophy.",
+  "Do your best “hey guys, welcome back to my channel” intro.",
+  "Invent a fake middle name and insist it's real for 10 seconds.",
+  "Announce a breaking-news headline about the player in the spotlight.",
+  "Make up a brand-new secret talent for each person in the room.",
+  "Give yourself a superhero name and describe your one power.",
+  "Come up with a band name using the last thing you ate and your socks.",
+  "Do a magician's “ta-daa!” reveal of… your own face.",
+  "Make the ugliest face you can and hold it for 3 seconds.",
+  "Do your best fake sneeze — the room votes if it was convincing.",
+  "Do a wordless impression of the last person who guessed. Vibes only.",
 ];
 
 // Expose to game.js (plain-script global).
