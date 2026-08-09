@@ -1,0 +1,15 @@
+# Dependencies (none required to play — this is vanilla HTML/CSS/JS)
+node_modules/
+package.json
+package-lock.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# Scratch / test artifacts
+scratch-*
+*.tmp
