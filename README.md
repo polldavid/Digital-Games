@@ -1,64 +1,29 @@
-# Do You Really Know Your Friends? 🎉
+# Digital Games 🎲
 
-A digital, **pass-and-play** version of the party game *“Do You Really Know Your Friends?”*
-One phone, one friend in the spotlight, and everyone else guessing how they'll answer.
-Find out who *really* knows the crew best.
+A little arcade of **pass-and-play** party games — one phone, a room full of
+friends, no sign-up and no downloads. The site is a hub: each game lives in its
+own folder and shows up as a card on the landing page.
 
-No sign-up, no backend, no build step — it's a single self-contained web app in
-plain HTML, CSS, and JavaScript.
+No backend, no build step — everything is plain HTML, CSS, and vanilla JavaScript.
 
-![Best with 3–8 friends · Pass-and-play · No sign-up](https://img.shields.io/badge/players-3--8-6c4df6) ![No build step](https://img.shields.io/badge/build-none-43d9a3)
-
----
-
-## How to play
-
-1. **Add your friends** (3–8 players). Everyone shares this one device.
-2. **Spotlight a player.** Each round one friend is in the spotlight and secretly
-   answers a question *about themselves* (e.g. *“What's my go-to comfort food?”*).
-3. **Everyone guesses.** One at a time, the others guess what the spotlight player
-   secretly wrote.
-4. **Reveal & score.** The spotlight player reveals their true answer and marks each
-   guess right or wrong. **Every correct guess scores a point.**
-5. **Rotate.** The spotlight passes to the next friend. Most points at the end wins.
-
-A **“pass the phone”** screen guards every secret step, so answers and guesses stay
-hidden until the big reveal.
-
-### Scoring
-
-- **+1 point** to each player who correctly guesses the spotlight player's answer.
-- **+1 bonus point** to the spotlight player on a *clean sweep* — when the whole group
-  reads them correctly (delightfully predictable!).
-- The game runs a set number of turns per player (1–5, default 2). Highest total wins;
-  ties are shared.
-
-### Optional: Dares 🌶️
-
-Flip on **Dares** in setup and a random friend who guessed wrong each round gets a
-light-hearted dare to perform.
+**Live hub:** https://polldavid.github.io/Digital-Games/
 
 ---
 
-## Running it
+## Games
 
-It's just static files — open `index.html` in any modern browser:
+| Game | Folder | Players | Status |
+| --- | --- | --- | --- |
+| [Do You Really Know Your Friends?](friends/) | `friends/` | 3–8 | ✅ Playable |
+| _More on the way…_ | — | — | 🛠️ Coming soon |
 
-```bash
-# easiest: double-click index.html, or
-open index.html            # macOS
-xdg-open index.html        # Linux
-```
+### Do You Really Know Your Friends?
 
-Or serve it locally (useful on phones over your network):
-
-```bash
-python3 -m http.server 8000
-# then visit http://localhost:8000
-```
-
-Works great on a phone — the layout is mobile-first and designed to be passed
-around the table.
+One friend is in the spotlight and secretly answers a question about themselves
+(e.g. *“What's my go-to comfort food?”*). Everyone else guesses what they wrote;
+every correct guess scores a point. Optional one-and-done **dares** for wrong
+guesses. Find out who *really* knows the crew best.
+See [`friends/`](friends/) for the full how-to-play and scoring.
 
 ---
 
@@ -66,29 +31,42 @@ around the table.
 
 ```
 .
-├── index.html        # All screens (markup); toggled by the game engine
-├── css/
-│   └── styles.css    # Mobile-first styling, animations, theming
-└── js/
-    ├── questions.js  # The question bank + dare bank (easy to extend)
-    └── game.js       # Game state machine: setup → rounds → reveal → scores
+├── index.html              # The hub / landing page (lists all games)
+├── friends/                # Game: Do You Really Know Your Friends?
+│   ├── index.html
+│   ├── css/styles.css
+│   └── js/
+│       ├── questions.js    # Question bank + dare bank
+│       └── game.js         # Game state machine
+├── README.md
+└── .gitignore
 ```
 
-### Adding your own questions
+## Adding a new game
 
-Open `js/questions.js` and add entries to `QUESTION_BANK`. Each question is written
-twice — once for the spotlight player (`me`, first person) and once for the guessers
-(`them`, using the `{name}` token that gets swapped for the spotlight player's name):
+1. Create a new folder at the root (e.g. `trivia/`) with its own `index.html`
+   and assets. Keep all links **relative** so it works in a subfolder.
+2. Add a card for it in the root `index.html` — copy the existing
+   `<a class="game" href="./trivia/">…</a>` block and update the emoji, title,
+   description, and player count. Flip a placeholder card to a real link.
+3. Commit and push — GitHub Pages redeploys automatically, and the new game
+   appears on the hub at `/<your-folder>/`.
 
-```js
-{ c: 'faves', me: "What's my go-to comfort food?", them: "What's {name}'s go-to comfort food?" },
+## Running locally
+
+It's just static files. Serve the repo root and open the hub:
+
+```bash
+python3 -m http.server 8000
+# then visit http://localhost:8000  (hub)
+#            http://localhost:8000/friends/  (the game)
 ```
 
----
+Or open `index.html` directly in a browser.
 
 ## Notes
 
 - **No dependencies.** Pure vanilla JS, no frameworks, no bundler.
-- **Accessible-minded:** honors `prefers-reduced-motion`, uses real buttons/switches
-  with ARIA states, and keeps color contrast high.
-- **State is in-memory** by design — it's a party game for one room, not a saved app.
+- **Accessible-minded:** honors `prefers-reduced-motion`, uses real buttons and
+  ARIA states, and keeps color contrast high.
+- **Mobile-first**, designed to be passed around the table.

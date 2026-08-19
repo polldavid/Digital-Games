@@ -96,6 +96,8 @@ body {
 .hero__subtitle strong { color: var(--text); }
 .hero__actions { display: flex; flex-direction: column; gap: 12px; max-width: 320px; margin: 0 auto; }
 .hero__hint { margin-top: 26px; color: var(--text-faint); font-size: 13px; }
+.hero__back { display: inline-block; margin-top: 18px; color: var(--text-faint); font-size: 14px; font-weight: 600; text-decoration: none; transition: color 0.2s; }
+.hero__back:hover { color: var(--brand-2); }
 
 /* ---------- Panels ---------- */
 .panel {

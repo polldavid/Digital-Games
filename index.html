@@ -2,201 +2,161 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#6C4DF6" />
-  <meta name="description" content="Do You Really Know Your Friends? — a digital pass-and-play party game. Guess how your friends answer, score points, and find out who knows who best." />
-  <title>Do You Really Know Your Friends?</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="stylesheet" href="css/styles.css" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%3F%3C/text%3E%3C/svg%3E" />
+  <meta name="description" content="Digital Games — a little arcade of pass-and-play party games you can play on one phone, no sign-up." />
+  <title>Digital Games</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🎲%3C/text%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --bg-0: #0f0b23; --bg-1: #171233; --bg-2: #211a45;
+      --card: rgba(255, 255, 255, 0.06);
+      --stroke: rgba(255, 255, 255, 0.12);
+      --stroke-strong: rgba(255, 255, 255, 0.22);
+      --text: #f4f1ff; --text-dim: #b6aee0; --text-faint: #8a82b8;
+      --brand: #6c4df6; --brand-2: #a06bff; --accent: #ff7ac6; --gold: #ffcf5c; --green: #43d9a3;
+      --radius: 22px; --radius-sm: 14px;
+      --shadow: 0 18px 50px -20px rgba(0, 0, 0, 0.7);
+      --shadow-brand: 0 14px 40px -12px rgba(108, 77, 246, 0.6);
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --font: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; }
+    body {
+      font-family: var(--font); color: var(--text);
+      background:
+        radial-gradient(1200px 700px at 12% -10%, rgba(160,107,255,0.34), transparent 55%),
+        radial-gradient(1000px 600px at 115% 8%, rgba(255,122,198,0.22), transparent 50%),
+        radial-gradient(900px 900px at 50% 120%, rgba(67,217,163,0.14), transparent 55%),
+        linear-gradient(160deg, var(--bg-0), var(--bg-1) 55%, var(--bg-2));
+      background-attachment: fixed;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100dvh;
+      padding: max(28px, env(safe-area-inset-top)) 20px max(40px, env(safe-area-inset-bottom));
+    }
+    .wrap { width: 100%; max-width: 940px; margin: 0 auto; }
+
+    /* Header */
+    .masthead { text-align: center; padding: 5vh 4px 5vh; }
+    .masthead__badge {
+      display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--brand-2);
+      background: rgba(160,107,255,0.14); border: 1px solid rgba(160,107,255,0.3);
+      padding: 6px 14px; border-radius: 999px; margin-bottom: 20px;
+    }
+    .masthead__title {
+      font-size: clamp(40px, 11vw, 68px); font-weight: 800; letter-spacing: -0.03em; line-height: 1;
+      margin-bottom: 16px;
+    }
+    .masthead__title em {
+      font-style: normal;
+      background: linear-gradient(120deg, var(--accent), var(--gold));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .masthead__sub { color: var(--text-dim); font-size: clamp(15px, 4vw, 18px); max-width: 40ch; margin: 0 auto; line-height: 1.5; }
+
+    /* Section label */
+    .section-label {
+      display: flex; align-items: center; gap: 12px; margin: 8px 4px 18px;
+      color: var(--text-faint); font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    }
+    .section-label::after { content: ""; flex: 1; height: 1px; background: var(--stroke); }
+
+    /* Grid */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+
+    /* Game card */
+    .game {
+      position: relative; display: flex; flex-direction: column;
+      background: var(--card); border: 1px solid var(--stroke); border-radius: var(--radius);
+      padding: 22px; text-decoration: none; color: inherit; overflow: hidden;
+      box-shadow: var(--shadow);
+      transition: transform 0.2s var(--ease), border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+      min-height: 220px;
+    }
+    .game::before {
+      content: ""; position: absolute; inset: 0; opacity: 0.14; pointer-events: none;
+      background: radial-gradient(420px 220px at 85% -10%, var(--card-glow, var(--brand-2)), transparent 70%);
+    }
+    a.game:hover { transform: translateY(-4px); border-color: var(--stroke-strong); box-shadow: 0 26px 60px -24px rgba(0,0,0,0.8); }
+    a.game:focus-visible { outline: 3px solid var(--brand-2); outline-offset: 3px; }
+    .game__emoji {
+      font-size: 42px; width: 66px; height: 66px; border-radius: 18px;
+      display: grid; place-items: center; margin-bottom: 18px;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--stroke);
+    }
+    .game__title { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.15; margin-bottom: 8px; }
+    .game__desc { color: var(--text-dim); font-size: 14.5px; line-height: 1.5; flex: 1; }
+    .game__foot { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
+    .pill {
+      font-size: 12px; font-weight: 700; letter-spacing: 0.04em; padding: 5px 11px; border-radius: 999px;
+      background: rgba(67,217,163,0.14); border: 1px solid rgba(67,217,163,0.34); color: var(--green);
+    }
+    .meta { color: var(--text-faint); font-size: 13px; }
+    .game__cta {
+      margin-left: auto; font-weight: 800; font-size: 14px; color: var(--brand-2);
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .game__cta span { transition: transform 0.2s var(--ease); }
+    a.game:hover .game__cta span { transform: translateX(4px); }
+
+    /* Coming-soon card */
+    .game--soon { border-style: dashed; box-shadow: none; cursor: default; opacity: 0.75; }
+    .game--soon .game__emoji { filter: grayscale(0.4); opacity: 0.8; }
+    .pill--soon { background: rgba(255,207,92,0.12); border-color: rgba(255,207,92,0.3); color: var(--gold); }
+
+    /* Footer */
+    .foot { text-align: center; color: var(--text-faint); font-size: 13px; margin-top: 40px; line-height: 1.6; }
+    .foot a { color: var(--brand-2); text-decoration: none; }
+    .foot a:hover { text-decoration: underline; }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { transition-duration: 0.001ms !important; animation-duration: 0.001ms !important; }
+    }
+  </style>
 </head>
 <body>
-  <div id="app">
-    <!-- Screens are injected/toggled by js/game.js -->
+  <div class="wrap">
+    <header class="masthead">
+      <div class="masthead__badge">Pass &amp; Play</div>
+      <h1 class="masthead__title">Digital <em>Games</em></h1>
+      <p class="masthead__sub">A little arcade of party games for one phone and a room full of friends. No sign-up, no downloads — just pick one and pass it around.</p>
+    </header>
 
-    <!-- ===================== HOME ===================== -->
-    <section class="screen screen--active" id="screen-home">
-      <div class="hero">
-        <div class="hero__badge">Party Game</div>
-        <h1 class="hero__title">Do You <em>Really</em> Know<br />Your Friends?</h1>
-        <p class="hero__subtitle">
-          One phone. One friend in the spotlight. Everyone else guesses how they'll
-          answer. Find out who <strong>really</strong> knows who.
-        </p>
-        <div class="hero__actions">
-          <button class="btn btn--primary btn--lg" data-action="go-setup">Play</button>
-          <button class="btn btn--ghost btn--lg" data-action="go-how">How to play</button>
-        </div>
-        <p class="hero__hint">Best with 3–8 friends • Pass-and-play • No sign-up</p>
-      </div>
-    </section>
+    <main>
+      <div class="section-label">Games</div>
+      <div class="grid">
 
-    <!-- ===================== HOW TO PLAY ===================== -->
-    <section class="screen" id="screen-how">
-      <div class="panel">
-        <h2 class="panel__title">How to play</h2>
-        <ol class="steps">
-          <li><span class="steps__n">1</span><div><strong>Add your friends.</strong> Everyone plays on this one device, passing it around.</div></li>
-          <li><span class="steps__n">2</span><div><strong>Spotlight a player.</strong> Each round one friend is in the spotlight and secretly answers a question about themselves.</div></li>
-          <li><span class="steps__n">3</span><div><strong>Everyone guesses.</strong> One by one, the others guess what the spotlight player secretly wrote.</div></li>
-          <li><span class="steps__n">4</span><div><strong>Reveal &amp; score.</strong> The spotlight player judges each guess. Every correct guess scores a point.</div></li>
-          <li><span class="steps__n">5</span><div><strong>Rotate.</strong> The spotlight passes on. Most points at the end wins bragging rights.</div></li>
-        </ol>
-        <div class="callout">
-          <span class="callout__icon">🔒</span>
-          <div>A <strong>“pass the phone”</strong> screen guards every secret step, so answers and guesses stay hidden until the big reveal.</div>
-        </div>
-        <button class="btn btn--primary btn--block" data-action="go-setup">Got it — let's play</button>
-        <button class="btn btn--ghost btn--block" data-action="go-home">Back</button>
-      </div>
-    </section>
+        <!-- LIVE GAME: Do You Really Know Your Friends? -->
+        <a class="game" href="./friends/" style="--card-glow: var(--accent);">
+          <div class="game__emoji" aria-hidden="true">🎉</div>
+          <h2 class="game__title">Do You Really Know<br />Your Friends?</h2>
+          <p class="game__desc">One friend's in the spotlight and secretly answers a question about themselves — everyone else guesses. Find out who really knows who.</p>
+          <div class="game__foot">
+            <span class="pill">Playable</span>
+            <span class="meta">3–8 players</span>
+            <span class="game__cta">Play <span>→</span></span>
+          </div>
+        </a>
 
-    <!-- ===================== SETUP ===================== -->
-    <section class="screen" id="screen-setup">
-      <div class="panel">
-        <h2 class="panel__title">Who's playing?</h2>
-        <p class="panel__sub">Add 3–8 friends. Tap a color to make it yours.</p>
-
-        <form id="add-player-form" class="add-player" autocomplete="off">
-          <input
-            id="player-name"
-            class="input"
-            type="text"
-            maxlength="16"
-            placeholder="Add a name…"
-            aria-label="Player name"
-          />
-          <button class="btn btn--primary add-player__btn" type="submit" aria-label="Add player">Add</button>
-        </form>
-
-        <ul class="player-list" id="player-list" aria-live="polite"></ul>
-
-        <div class="setup-options">
-          <label class="field">
-            <span class="field__label">Rounds per player</span>
-            <div class="stepper" data-stepper="rounds">
-              <button type="button" class="stepper__btn" data-step="-1" aria-label="Fewer rounds">–</button>
-              <output class="stepper__value" id="rounds-value">2</output>
-              <button type="button" class="stepper__btn" data-step="1" aria-label="More rounds">+</button>
-            </div>
-          </label>
-
-          <label class="field field--switch">
-            <span class="field__label">Dares for wrong guesses <span class="field__hint">optional chaos</span></span>
-            <button type="button" class="switch" id="dares-switch" role="switch" aria-checked="false">
-              <span class="switch__thumb"></span>
-            </button>
-          </label>
+        <!-- PLACEHOLDER: invite future games -->
+        <div class="game game--soon" aria-disabled="true">
+          <div class="game__emoji" aria-hidden="true">🧩</div>
+          <h2 class="game__title">More on the way</h2>
+          <p class="game__desc">This is the shelf for game #2. Each new game lives in its own folder and shows up here as a card.</p>
+          <div class="game__foot">
+            <span class="pill pill--soon">Coming soon</span>
+          </div>
         </div>
 
-        <button class="btn btn--primary btn--block btn--lg" id="start-btn" data-action="start-game" disabled>
-          Start game
-        </button>
-        <button class="btn btn--ghost btn--block" data-action="go-home">Back</button>
       </div>
-    </section>
+    </main>
 
-    <!-- ===================== HANDOFF (pass the phone) ===================== -->
-    <section class="screen screen--handoff" id="screen-handoff">
-      <div class="handoff">
-        <div class="handoff__avatar" id="handoff-avatar">🙂</div>
-        <p class="handoff__pass">Pass the phone to</p>
-        <h2 class="handoff__name" id="handoff-name">Alex</h2>
-        <p class="handoff__role" id="handoff-role">You're in the spotlight!</p>
-        <button class="btn btn--primary btn--block btn--lg" id="handoff-btn">I'm ready</button>
-        <p class="handoff__warn">No peeking, everyone else! 🙈</p>
-      </div>
-    </section>
-
-    <!-- ===================== SPOTLIGHT ANSWER ===================== -->
-    <section class="screen" id="screen-answer">
-      <div class="panel">
-        <div class="tag tag--spotlight" id="answer-tag">✨ Spotlight</div>
-        <p class="round-meta" id="answer-round-meta"></p>
-        <div class="question-card" id="answer-question">Question goes here</div>
-        <p class="panel__sub">Answer honestly — your friends will try to guess this.</p>
-        <textarea
-          id="answer-input"
-          class="input input--area"
-          rows="3"
-          maxlength="120"
-          placeholder="Type your true answer…"
-          aria-label="Your secret answer"
-        ></textarea>
-        <div class="char-count"><span id="answer-count">0</span>/120</div>
-        <button class="btn btn--primary btn--block btn--lg" id="answer-submit" disabled>Lock in my answer</button>
-      </div>
-    </section>
-
-    <!-- ===================== GUESS ===================== -->
-    <section class="screen" id="screen-guess">
-      <div class="panel">
-        <div class="tag" id="guess-tag">🔮 Guessing</div>
-        <p class="round-meta" id="guess-round-meta"></p>
-        <div class="question-card" id="guess-question">Question goes here</div>
-        <p class="panel__sub" id="guess-prompt">What did <strong>Alex</strong> secretly answer?</p>
-        <textarea
-          id="guess-input"
-          class="input input--area"
-          rows="3"
-          maxlength="120"
-          placeholder="Type your guess…"
-          aria-label="Your guess"
-        ></textarea>
-        <div class="char-count"><span id="guess-count">0</span>/120</div>
-        <button class="btn btn--primary btn--block btn--lg" id="guess-submit" disabled>Lock in guess</button>
-      </div>
-    </section>
-
-    <!-- ===================== REVEAL / JUDGE ===================== -->
-    <section class="screen" id="screen-reveal">
-      <div class="panel">
-        <div class="tag tag--reveal">🎉 The Reveal</div>
-        <div class="question-card question-card--sm" id="reveal-question">Question goes here</div>
-
-        <div class="truth">
-          <p class="truth__label" id="truth-label">Alex really said…</p>
-          <p class="truth__answer" id="truth-answer">“…”</p>
-        </div>
-
-        <p class="panel__sub" id="judge-instructions">
-          <strong id="judge-name">Alex</strong>, mark each guess: right or wrong?
-        </p>
-        <ul class="judge-list" id="judge-list"></ul>
-
-        <button class="btn btn--primary btn--block btn--lg" id="reveal-next">Next</button>
-      </div>
-    </section>
-
-    <!-- ===================== SCOREBOARD (interstitial) ===================== -->
-    <section class="screen" id="screen-scores">
-      <div class="panel">
-        <h2 class="panel__title" id="scores-title">Scoreboard</h2>
-        <p class="panel__sub" id="scores-sub"></p>
-        <ol class="scoreboard" id="scoreboard"></ol>
-        <button class="btn btn--primary btn--block btn--lg" id="scores-continue">Continue</button>
-      </div>
-    </section>
-
-    <!-- ===================== GAME OVER ===================== -->
-    <section class="screen" id="screen-over">
-      <div class="panel panel--center">
-        <div class="trophy">🏆</div>
-        <h2 class="over__winner" id="over-winner">Alex wins!</h2>
-        <p class="panel__sub" id="over-sub">Truly the friend who knows all.</p>
-        <ol class="scoreboard" id="final-scoreboard"></ol>
-        <button class="btn btn--primary btn--block btn--lg" data-action="play-again">Play again (same crew)</button>
-        <button class="btn btn--ghost btn--block" data-action="new-crew">New players</button>
-      </div>
-    </section>
-
-    <!-- progress bar shown during play -->
-    <div class="progress" id="progress" hidden>
-      <div class="progress__bar" id="progress-bar"></div>
-    </div>
+    <p class="foot">
+      Built to be passed around the table • Works great on a phone<br />
+      Open source on <a href="https://github.com/polldavid/Digital-Games">GitHub</a>
+    </p>
   </div>
-
-  <script src="js/questions.js"></script>
-  <script src="js/game.js"></script>
 </body>
 </html>

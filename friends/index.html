@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#6C4DF6" />
+  <meta name="description" content="Do You Really Know Your Friends? — a digital pass-and-play party game. Guess how your friends answer, score points, and find out who knows who best." />
+  <title>Do You Really Know Your Friends?</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%3F%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <div id="app">
+    <!-- Screens are injected/toggled by js/game.js -->
+
+    <!-- ===================== HOME ===================== -->
+    <section class="screen screen--active" id="screen-home">
+      <div class="hero">
+        <div class="hero__badge">Party Game</div>
+        <h1 class="hero__title">Do You <em>Really</em> Know<br />Your Friends?</h1>
+        <p class="hero__subtitle">
+          One phone. One friend in the spotlight. Everyone else guesses how they'll
+          answer. Find out who <strong>really</strong> knows who.
+        </p>
+        <div class="hero__actions">
+          <button class="btn btn--primary btn--lg" data-action="go-setup">Play</button>
+          <button class="btn btn--ghost btn--lg" data-action="go-how">How to play</button>
+        </div>
+        <p class="hero__hint">Best with 3–8 friends • Pass-and-play • No sign-up</p>
+        <a class="hero__back" href="../">← All games</a>
+      </div>
+    </section>
+
+    <!-- ===================== HOW TO PLAY ===================== -->
+    <section class="screen" id="screen-how">
+      <div class="panel">
+        <h2 class="panel__title">How to play</h2>
+        <ol class="steps">
+          <li><span class="steps__n">1</span><div><strong>Add your friends.</strong> Everyone plays on this one device, passing it around.</div></li>
+          <li><span class="steps__n">2</span><div><strong>Spotlight a player.</strong> Each round one friend is in the spotlight and secretly answers a question about themselves.</div></li>
+          <li><span class="steps__n">3</span><div><strong>Everyone guesses.</strong> One by one, the others guess what the spotlight player secretly wrote.</div></li>
+          <li><span class="steps__n">4</span><div><strong>Reveal &amp; score.</strong> The spotlight player judges each guess. Every correct guess scores a point.</div></li>
+          <li><span class="steps__n">5</span><div><strong>Rotate.</strong> The spotlight passes on. Most points at the end wins bragging rights.</div></li>
+        </ol>
+        <div class="callout">
+          <span class="callout__icon">🔒</span>
+          <div>A <strong>“pass the phone”</strong> screen guards every secret step, so answers and guesses stay hidden until the big reveal.</div>
+        </div>
+        <button class="btn btn--primary btn--block" data-action="go-setup">Got it — let's play</button>
+        <button class="btn btn--ghost btn--block" data-action="go-home">Back</button>
+      </div>
+    </section>
+
+    <!-- ===================== SETUP ===================== -->
+    <section class="screen" id="screen-setup">
+      <div class="panel">
+        <h2 class="panel__title">Who's playing?</h2>
+        <p class="panel__sub">Add 3–8 friends. Tap a color to make it yours.</p>
+
+        <form id="add-player-form" class="add-player" autocomplete="off">
+          <input
+            id="player-name"
+            class="input"
+            type="text"
+            maxlength="16"
+            placeholder="Add a name…"
+            aria-label="Player name"
+          />
+          <button class="btn btn--primary add-player__btn" type="submit" aria-label="Add player">Add</button>
+        </form>
+
+        <ul class="player-list" id="player-list" aria-live="polite"></ul>
+
+        <div class="setup-options">
+          <label class="field">
+            <span class="field__label">Rounds per player</span>
+            <div class="stepper" data-stepper="rounds">
+              <button type="button" class="stepper__btn" data-step="-1" aria-label="Fewer rounds">–</button>
+              <output class="stepper__value" id="rounds-value">2</output>
+              <button type="button" class="stepper__btn" data-step="1" aria-label="More rounds">+</button>
+            </div>
+          </label>
+
+          <label class="field field--switch">
+            <span class="field__label">Dares for wrong guesses <span class="field__hint">optional chaos</span></span>
+            <button type="button" class="switch" id="dares-switch" role="switch" aria-checked="false">
+              <span class="switch__thumb"></span>
+            </button>
+          </label>
+        </div>
+
+        <button class="btn btn--primary btn--block btn--lg" id="start-btn" data-action="start-game" disabled>
+          Start game
+        </button>
+        <button class="btn btn--ghost btn--block" data-action="go-home">Back</button>
+      </div>
+    </section>
+
+    <!-- ===================== HANDOFF (pass the phone) ===================== -->
+    <section class="screen screen--handoff" id="screen-handoff">
+      <div class="handoff">
+        <div class="handoff__avatar" id="handoff-avatar">🙂</div>
+        <p class="handoff__pass">Pass the phone to</p>
+        <h2 class="handoff__name" id="handoff-name">Alex</h2>
+        <p class="handoff__role" id="handoff-role">You're in the spotlight!</p>
+        <button class="btn btn--primary btn--block btn--lg" id="handoff-btn">I'm ready</button>
+        <p class="handoff__warn">No peeking, everyone else! 🙈</p>
+      </div>
+    </section>
+
+    <!-- ===================== SPOTLIGHT ANSWER ===================== -->
+    <section class="screen" id="screen-answer">
+      <div class="panel">
+        <div class="tag tag--spotlight" id="answer-tag">✨ Spotlight</div>
+        <p class="round-meta" id="answer-round-meta"></p>
+        <div class="question-card" id="answer-question">Question goes here</div>
+        <p class="panel__sub">Answer honestly — your friends will try to guess this.</p>
+        <textarea
+          id="answer-input"
+          class="input input--area"
+          rows="3"
+          maxlength="120"
+          placeholder="Type your true answer…"
+          aria-label="Your secret answer"
+        ></textarea>
+        <div class="char-count"><span id="answer-count">0</span>/120</div>
+        <button class="btn btn--primary btn--block btn--lg" id="answer-submit" disabled>Lock in my answer</button>
+      </div>
+    </section>
+
+    <!-- ===================== GUESS ===================== -->
+    <section class="screen" id="screen-guess">
+      <div class="panel">
+        <div class="tag" id="guess-tag">🔮 Guessing</div>
+        <p class="round-meta" id="guess-round-meta"></p>
+        <div class="question-card" id="guess-question">Question goes here</div>
+        <p class="panel__sub" id="guess-prompt">What did <strong>Alex</strong> secretly answer?</p>
+        <textarea
+          id="guess-input"
+          class="input input--area"
+          rows="3"
+          maxlength="120"
+          placeholder="Type your guess…"
+          aria-label="Your guess"
+        ></textarea>
+        <div class="char-count"><span id="guess-count">0</span>/120</div>
+        <button class="btn btn--primary btn--block btn--lg" id="guess-submit" disabled>Lock in guess</button>
+      </div>
+    </section>
+
+    <!-- ===================== REVEAL / JUDGE ===================== -->
+    <section class="screen" id="screen-reveal">
+      <div class="panel">
+        <div class="tag tag--reveal">🎉 The Reveal</div>
+        <div class="question-card question-card--sm" id="reveal-question">Question goes here</div>
+
+        <div class="truth">
+          <p class="truth__label" id="truth-label">Alex really said…</p>
+          <p class="truth__answer" id="truth-answer">“…”</p>
+        </div>
+
+        <p class="panel__sub" id="judge-instructions">
+          <strong id="judge-name">Alex</strong>, mark each guess: right or wrong?
+        </p>
+        <ul class="judge-list" id="judge-list"></ul>
+
+        <button class="btn btn--primary btn--block btn--lg" id="reveal-next">Next</button>
+      </div>
+    </section>
+
+    <!-- ===================== SCOREBOARD (interstitial) ===================== -->
+    <section class="screen" id="screen-scores">
+      <div class="panel">
+        <h2 class="panel__title" id="scores-title">Scoreboard</h2>
+        <p class="panel__sub" id="scores-sub"></p>
+        <ol class="scoreboard" id="scoreboard"></ol>
+        <button class="btn btn--primary btn--block btn--lg" id="scores-continue">Continue</button>
+      </div>
+    </section>
+
+    <!-- ===================== GAME OVER ===================== -->
+    <section class="screen" id="screen-over">
+      <div class="panel panel--center">
+        <div class="trophy">🏆</div>
+        <h2 class="over__winner" id="over-winner">Alex wins!</h2>
+        <p class="panel__sub" id="over-sub">Truly the friend who knows all.</p>
+        <ol class="scoreboard" id="final-scoreboard"></ol>
+        <button class="btn btn--primary btn--block btn--lg" data-action="play-again">Play again (same crew)</button>
+        <button class="btn btn--ghost btn--block" data-action="new-crew">New players</button>
+      </div>
+    </section>
+
+    <!-- progress bar shown during play -->
+    <div class="progress" id="progress" hidden>
+      <div class="progress__bar" id="progress-bar"></div>
+    </div>
+  </div>
+
+  <script src="js/questions.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
