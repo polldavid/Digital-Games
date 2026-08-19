@@ -1,0 +1,31 @@
+/* =========================================================
+   Shared theme toggle — used by the hub and every game.
+   The button colors itself from each page's own tokens
+   (--card / --stroke-strong / --text), so it fits in
+   whichever palette is active.
+   ========================================================= */
+
+.theme-toggle {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  right: 14px;
+  z-index: 200;
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  cursor: pointer;
+  font-size: 19px; line-height: 1;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--stroke-strong);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 22px -10px rgba(0, 0, 0, 0.45);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s cubic-bezier(0.22,1,0.36,1), background 0.2s, border-color 0.2s;
+}
+.theme-toggle:hover { transform: scale(1.07); }
+.theme-toggle:active { transform: scale(0.93); }
+.theme-toggle:focus-visible { outline: 3px solid var(--brand-2, #a06bff); outline-offset: 3px; }
+
+/* Smooth the switch between themes without animating every load. */
+body { transition: background-color 0.3s ease, color 0.3s ease; }

@@ -74,6 +74,16 @@ python3 -m http.server 8000
 
 Or open `index.html` directly in a browser.
 
+## Light & dark mode
+
+Every page supports light and dark themes. On first visit it follows the
+device's system setting; a **toggle in the top-right corner** (🌙 / ☀️) lets
+players switch, and the choice is remembered across games and visits. The
+theming is shared: `theme.css` (the toggle button) and `theme.js` (the
+controller) live at the repo root, and each page defines its own light palette
+via a `:root[data-theme="light"]` block. A tiny inline script in each page's
+`<head>` applies the saved theme before first paint, so there's no flash.
+
 ## Notes
 
 - **No dependencies.** Pure vanilla JS, no frameworks, no bundler.

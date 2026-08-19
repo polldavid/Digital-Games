@@ -359,3 +359,47 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }
+
+/* =========================================================
+   Light theme (append-only; dark remains the default).
+   ========================================================= */
+:root { color-scheme: dark; }
+:root[data-theme="light"] {
+  --card: rgba(255, 255, 255, 0.82);
+  --stroke: rgba(35, 22, 60, 0.10);
+  --stroke-strong: rgba(35, 22, 60, 0.17);
+  --text: #241a3d;
+  --text-dim: #5c5480;
+  --text-faint: #8b83a8;
+  --brand: #6c4df6;
+  --brand-2: #7b53ee;
+  --accent: #e0559e;
+  --gold: #c98a1a;
+  --green: #1fa579;
+  --red: #e0475a;
+  --shadow: 0 18px 50px -22px rgba(90, 60, 150, 0.26);
+  --shadow-brand: 0 14px 40px -12px rgba(108, 77, 246, 0.35);
+  color-scheme: light;
+}
+:root[data-theme="light"] body {
+  background:
+    radial-gradient(1200px 700px at 15% -10%, rgba(160, 107, 255, 0.16), transparent 55%),
+    radial-gradient(1000px 600px at 110% 10%, rgba(224, 85, 158, 0.12), transparent 50%),
+    radial-gradient(900px 900px at 50% 120%, rgba(67, 217, 163, 0.10), transparent 55%),
+    linear-gradient(160deg, #f5f2fe, #efe9fb 55%, #f3eefc);
+}
+/* Surfaces that were hard-coded translucent-white → subtle dark-on-light */
+:root[data-theme="light"] .btn--ghost,
+:root[data-theme="light"] .player-chip,
+:root[data-theme="light"] .judge-item,
+:root[data-theme="light"] .judge-btn,
+:root[data-theme="light"] .stepper__btn { background: rgba(35, 22, 60, 0.045); }
+:root[data-theme="light"] .btn--ghost:hover,
+:root[data-theme="light"] .stepper__btn:hover { background: rgba(35, 22, 60, 0.09); }
+:root[data-theme="light"] .score-row { background: rgba(35, 22, 60, 0.04); }
+:root[data-theme="light"] .input { background: #ffffff; }
+:root[data-theme="light"] .switch { background: rgba(35, 22, 60, 0.16); }
+:root[data-theme="light"] .progress { background: rgba(35, 22, 60, 0.10); }
+/* Keep filled purple controls legible in light mode (their bg stays dark). */
+:root[data-theme="light"] .btn--primary,
+:root[data-theme="light"] .steps__n { color: #ffffff; }
