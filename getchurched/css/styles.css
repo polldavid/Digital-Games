@@ -249,6 +249,28 @@ body {
 .btn--skip:hover { background: rgba(255,255,255,0.12); }
 .btn--correct { background: linear-gradient(120deg, #37c98d, var(--green)); color: #06251a; box-shadow: 0 12px 34px -12px rgba(75, 214, 160, 0.6); font-size: 18px; }
 
+/* ---------- Sing-Off ---------- */
+.singoff { margin: auto; width: 100%; max-width: 440px; display: flex; flex-direction: column; padding: 3vh 4px; }
+.singoff__top { display: flex; justify-content: center; margin-bottom: 14px; }
+.singoff__progress { color: var(--text-faint); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.singoff__prompt { text-align: center; color: var(--text-dim); font-size: 15px; line-height: 1.45; margin: 16px auto 16px; max-width: 34ch; }
+.singoff__teams { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.sing-team-btn {
+  cursor: pointer; font-family: inherit; font-weight: 800; font-size: 16px; color: var(--text);
+  padding: 18px 12px; border-radius: var(--radius-sm); overflow-wrap: anywhere;
+  border: 1px solid color-mix(in srgb, var(--tc, var(--gold)) 55%, transparent);
+  background: color-mix(in srgb, var(--tc, var(--gold)) 18%, transparent);
+  transition: transform 0.15s var(--ease), box-shadow 0.2s var(--ease);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.sing-team-btn:hover { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tc, var(--gold)) 30%, transparent); }
+.sing-team-btn:active { transform: scale(0.96); }
+.sing-team-btn.flash { animation: singflash 0.5s var(--ease); }
+@keyframes singflash { 0% { transform: scale(1); } 40% { transform: scale(1.06); box-shadow: 0 0 0 6px color-mix(in srgb, var(--tc, var(--gold)) 34%, transparent); } 100% { transform: scale(1); } }
+.singoff__scores { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
+.sing-mini__chip { font-size: 13px; font-weight: 600; color: var(--text-dim); padding: 5px 11px 5px 9px; border-radius: 999px; background: rgba(255,255,255,0.05); border: 1px solid var(--stroke); border-left: 3px solid var(--tc, var(--gold)); }
+.sing-mini__chip strong { color: var(--text); margin-left: 5px; font-variant-numeric: tabular-nums; }
+
 /* ---------- Turn summary ---------- */
 .turn-emoji { font-size: 56px; margin-bottom: 6px; }
 .recap { list-style: none; display: flex; flex-direction: column; gap: 6px; margin: 4px 0 20px; text-align: left; max-height: 210px; overflow-y: auto; }

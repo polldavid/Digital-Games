@@ -20,7 +20,7 @@
         <p class="hero__subtitle">
           Three games in one — <strong>Sing</strong>, <strong>Act</strong>, and
           <strong>Explain</strong> your way to the most points. Team vs team, one
-          phone, 30 seconds on the clock.
+          phone, all glory to the scoreboard.
         </p>
         <div class="hero__actions">
           <button class="btn btn--primary btn--lg" data-action="go-setup">Play</button>
@@ -67,7 +67,7 @@
         </div>
         <div class="mode-picker" id="mode-picker" role="group" aria-label="Choose a mode"></div>
 
-        <label class="field">
+        <label class="field" id="field-seconds">
           <span class="field__label">Seconds per turn</span>
           <div class="segmented" id="seg-seconds" role="group" aria-label="Seconds per turn">
             <button type="button" class="seg" data-seconds="30">30</button>
@@ -126,6 +126,23 @@
           <button class="btn btn--skip" id="btn-skip">Skip</button>
           <button class="btn btn--correct" id="btn-correct">✓ Got it</button>
         </div>
+      </div>
+    </section>
+
+    <!-- ===================== SING-OFF ===================== -->
+    <section class="screen" id="screen-singoff">
+      <div class="singoff" style="--mode: var(--amber);">
+        <div class="singoff__top">
+          <div class="singoff__progress" id="sing-progress">Card 1 of 6</div>
+        </div>
+        <div class="word-card" id="sing-word-card">
+          <div class="word-card__hint">🎵 Sing a Christian song with…</div>
+          <div class="word-card__word" id="sing-word">Word</div>
+        </div>
+        <p class="singoff__prompt">Every team, sing! Who got a real Christian song with the word?</p>
+        <div class="singoff__teams" id="sing-teams"><!-- team buttons injected --></div>
+        <button class="btn btn--skip btn--block" id="sing-nobody">Nobody got it →</button>
+        <div class="singoff__scores" id="sing-mini"><!-- mini scoreboard injected --></div>
       </div>
     </section>
 

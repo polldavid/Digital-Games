@@ -30,10 +30,10 @@
   };
   var nextTeamId = 1;
 
-  var SCREENS = ['home', 'how', 'setup', 'ready', 'play', 'turn', 'scores', 'over'];
+  var SCREENS = ['home', 'how', 'setup', 'ready', 'play', 'singoff', 'turn', 'scores', 'over'];
   function show(screen) {
     SCREENS.forEach(function (s) { var n = $('#screen-' + s); if (n) n.classList.toggle('screen--active', s === screen); });
-    var playing = ['ready', 'play', 'turn', 'scores'].indexOf(screen) !== -1;
+    var playing = ['ready', 'play', 'singoff', 'turn', 'scores'].indexOf(screen) !== -1;
     $('#progress').hidden = !playing;
     window.scrollTo(0, 0);
   }
@@ -87,7 +87,7 @@
       { key: 'sing', label: MODE_INFO.sing.label, emoji: MODE_INFO.sing.emoji, sub: 'Yellow', color: MODE_INFO.sing.color },
       { key: 'act', label: MODE_INFO.act.label, emoji: MODE_INFO.act.emoji, sub: 'Red', color: MODE_INFO.act.color },
       { key: 'explain', label: MODE_INFO.explain.label, emoji: MODE_INFO.explain.emoji, sub: 'Blue', color: MODE_INFO.explain.color },
-      { key: 'mixed', label: 'Mixed', emoji: '🎲', sub: 'A bit of everything', color: '#F6C453' },
+      { key: 'mixed', label: 'Mixed', emoji: '🎲', sub: 'Act + Explain', color: '#F6C453' },
     ];
     opts.forEach(function (o) {
       var b = el('button', 'mode-opt' + (state.mode === o.key ? ' is-on' : ''));
@@ -97,9 +97,17 @@
         state.mode = o.key;
         $all('.mode-opt', picker).forEach(function (x) { x.classList.remove('is-on'); });
         b.classList.add('is-on');
+        updateSecondsVisibility();
       });
       picker.appendChild(b);
     });
+    updateSecondsVisibility();
+  }
+
+  // The per-turn timer only applies to Act/Explain — hide it for the Sing-Off.
+  function updateSecondsVisibility() {
+    var f = $('#field-seconds');
+    if (f) f.style.display = state.mode === 'sing' ? 'none' : '';
   }
 
   function renderHowCards() {
@@ -141,16 +149,74 @@
   function startGame() {
     if (state.teams.length < 2) return;
     state.teams.forEach(function (t) { t.score = 0; });
+    buildDecks();
+    if (state.mode === 'sing') { startSingOff(); return; }
     state.turnIndex = 0;
     buildSchedule();
-    buildDecks();
     beginTurn();
   }
 
+  // Mixed shuffles the two "perform & guess" modes; Sing-Off is its own format.
   function resolveMode() {
     if (state.mode !== 'mixed') return state.mode;
-    var pool = ['sing', 'act', 'explain'];
+    var pool = ['act', 'explain'];
     return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  // =====================================================
+  // SING-OFF (Sing mode): one shared word per card; the team that
+  // sings a real Christian song containing it takes the point.
+  // =====================================================
+  function startSingOff() {
+    var total = state.roundsPerTeam * state.teams.length;
+    state.sing = { total: total, index: 0, current: null };
+    showSingCard();
+  }
+
+  function showSingCard() {
+    var s = state.sing;
+    if (s.index >= s.total) { endGame(); return; }
+    $('#progress').hidden = false;
+    $('#progress-bar').style.width = Math.round((s.index / s.total) * 100) + '%';
+
+    s.current = nextWord('sing');
+    $('#sing-word').textContent = s.current;
+    var card = $('#sing-word-card');
+    card.classList.remove('pulse'); void card.offsetWidth; card.classList.add('pulse');
+    $('#sing-progress').textContent = 'Card ' + (s.index + 1) + ' of ' + s.total;
+
+    renderSingTeams();
+    renderSingMini();
+    show('singoff');
+  }
+
+  function renderSingTeams() {
+    var wrap = $('#sing-teams'); wrap.innerHTML = '';
+    state.teams.forEach(function (t) {
+      var b = el('button', 'sing-team-btn', esc(t.name));
+      b.type = 'button'; b.style.setProperty('--tc', t.color);
+      b.addEventListener('click', function () {
+        b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash');
+        awardSing(t.id);
+      });
+      wrap.appendChild(b);
+    });
+  }
+
+  function renderSingMini() {
+    var wrap = $('#sing-mini'); wrap.innerHTML = '';
+    state.teams.slice().sort(function (a, b) { return b.score - a.score; }).forEach(function (t) {
+      var chip = el('span', 'sing-mini__chip', esc(t.name) + ' <strong>' + t.score + '</strong>');
+      chip.style.setProperty('--tc', t.color);
+      wrap.appendChild(chip);
+    });
+  }
+
+  function awardSing(teamId) {
+    if (teamId) teamById(teamId).score += 1;
+    state.sing.index += 1;
+    // Small delay so the flash animation is visible before advancing.
+    setTimeout(showSingCard, teamId ? 180 : 0);
   }
 
   // =====================================================
@@ -392,6 +458,7 @@
     });
 
     $('#ready-start').addEventListener('click', startPlay);
+    $('#sing-nobody').addEventListener('click', function () { awardSing(null); });
     $('#btn-correct').addEventListener('click', function () { recordResult(true); });
     $('#btn-skip').addEventListener('click', function () { recordResult(false); });
     $('#turn-continue').addEventListener('click', advanceAfterTurn);

@@ -56,12 +56,12 @@ const WORD_BANKS = {
 const MODE_INFO = {
   sing: {
     key: 'sing',
-    label: 'Sing',
+    label: 'Sing-Off',
     emoji: '🎵',
     color: '#F6C453', // amber
     tag: 'Yellow',
-    short: 'Sing a Christian song with this word',
-    how: 'Your team has to sing a real Christian song that includes the word on screen. Get as many as you can before time runs out!',
+    short: 'Teams race to sing a song with the word',
+    how: 'A word appears and every team races to sing a real Christian song that includes it. The first team to sing one wins the point — then on to the next word!',
     verb: 'Sang it',
   },
   act: {
