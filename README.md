@@ -15,6 +15,7 @@ No backend, no build step — everything is plain HTML, CSS, and vanilla JavaScr
 | Game | Folder | Players | Status |
 | --- | --- | --- | --- |
 | [Do You Really Know Your Friends?](friends/) | `friends/` | 3–8 | ✅ Playable |
+| [Get ChurchED](getchurched/) | `getchurched/` | 2+ teams | ✅ Playable |
 | _More on the way…_ | — | — | 🛠️ Coming soon |
 
 ### Do You Really Know Your Friends?
@@ -24,6 +25,15 @@ One friend is in the spotlight and secretly answers a question about themselves
 every correct guess scores a point. Optional one-and-done **dares** for wrong
 guesses. Find out who *really* knows the crew best.
 See [`friends/`](friends/) for the full how-to-play and scoring.
+
+### Get ChurchED
+
+A digital take on the Christian party game — three games in one: **Sing**,
+**Act**, and **Explain**. Teams face a 30-second timer: sing a Christian song
+containing the word, act out a Bible scene as charades, or describe a person /
+place / concept without saying it. Every word your team gets is a point; most
+points after all rounds wins. Pick a single mode or **Mixed**.
+See [`getchurched/`](getchurched/) to play.
 
 ---
 

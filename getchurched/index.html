@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#2A1849" />
+  <meta name="description" content="Get ChurchED — a digital pass-and-play Christian party game. Sing, Act, and Explain your way to the most points. Team vs team on one phone." />
+  <title>Get ChurchED</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9C%9D%EF%B8%8F%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ===================== HOME ===================== -->
+    <section class="screen screen--active" id="screen-home">
+      <div class="hero">
+        <div class="hero__badge">Christian Party Game</div>
+        <h1 class="hero__title">Get <em>ChurchED</em></h1>
+        <p class="hero__subtitle">
+          Three games in one — <strong>Sing</strong>, <strong>Act</strong>, and
+          <strong>Explain</strong> your way to the most points. Team vs team, one
+          phone, 30 seconds on the clock.
+        </p>
+        <div class="hero__actions">
+          <button class="btn btn--primary btn--lg" data-action="go-setup">Play</button>
+          <button class="btn btn--ghost btn--lg" data-action="go-how">How to play</button>
+        </div>
+        <a class="hero__back" href="../">← All games</a>
+      </div>
+    </section>
+
+    <!-- ===================== HOW TO PLAY ===================== -->
+    <section class="screen" id="screen-how">
+      <div class="panel">
+        <h2 class="panel__title">How to play</h2>
+        <p class="panel__sub">Split into teams. On your turn, hold the phone and race the 30-second clock — every word your team gets is a point.</p>
+
+        <div class="mode-cards" id="how-mode-cards"><!-- injected --></div>
+
+        <ol class="steps">
+          <li><span class="steps__n">1</span><div><strong>Make teams.</strong> Two or more teams, gathered around one phone.</div></li>
+          <li><span class="steps__n">2</span><div><strong>Take your turn.</strong> A word appears — Sing, Act, or Explain it so your team can shout the answer.</div></li>
+          <li><span class="steps__n">3</span><div><strong>Tap ✓ for each one</strong> your team gets, or <strong>Skip</strong> to move on. Beat the clock!</div></li>
+          <li><span class="steps__n">4</span><div><strong>Pass the phone</strong> to the next team and repeat.</div></li>
+          <li><span class="steps__n">5</span><div><strong>Most points</strong> after all the rounds wins. 🏆</div></li>
+        </ol>
+        <button class="btn btn--primary btn--block" data-action="go-setup">Let's play</button>
+        <button class="btn btn--ghost btn--block" data-action="go-home">Back</button>
+      </div>
+    </section>
+
+    <!-- ===================== SETUP ===================== -->
+    <section class="screen" id="screen-setup">
+      <div class="panel">
+        <h2 class="panel__title">Set up the match</h2>
+        <p class="panel__sub">Add at least two teams.</p>
+
+        <form id="add-team-form" class="add-row" autocomplete="off">
+          <input id="team-name" class="input" type="text" maxlength="18" placeholder="Add a team name…" aria-label="Team name" />
+          <button class="btn btn--primary add-row__btn" type="submit" aria-label="Add team">Add</button>
+        </form>
+        <ul class="team-list" id="team-list" aria-live="polite"></ul>
+
+        <div class="field">
+          <span class="field__label">Mode</span>
+        </div>
+        <div class="mode-picker" id="mode-picker" role="group" aria-label="Choose a mode"></div>
+
+        <label class="field">
+          <span class="field__label">Seconds per turn</span>
+          <div class="segmented" id="seg-seconds" role="group" aria-label="Seconds per turn">
+            <button type="button" class="seg" data-seconds="30">30</button>
+            <button type="button" class="seg" data-seconds="45">45</button>
+            <button type="button" class="seg" data-seconds="60">60</button>
+          </div>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Rounds per team</span>
+          <div class="stepper" data-stepper="rounds">
+            <button type="button" class="stepper__btn" data-step="-1" aria-label="Fewer rounds">–</button>
+            <output class="stepper__value" id="rounds-value">3</output>
+            <button type="button" class="stepper__btn" data-step="1" aria-label="More rounds">+</button>
+          </div>
+        </label>
+
+        <button class="btn btn--primary btn--block btn--lg" id="start-btn" data-action="start-game" disabled>Start match</button>
+        <button class="btn btn--ghost btn--block" data-action="go-home">Back</button>
+      </div>
+    </section>
+
+    <!-- ===================== READY (pass phone) ===================== -->
+    <section class="screen screen--ready" id="screen-ready">
+      <div class="ready">
+        <p class="ready__pass">Pass the phone to</p>
+        <h2 class="ready__team" id="ready-team">Team One</h2>
+        <div class="ready__mode" id="ready-mode-chip"><!-- mode chip --></div>
+        <p class="ready__how" id="ready-how">How this mode works…</p>
+        <div class="ready__meta" id="ready-meta"></div>
+        <button class="btn btn--primary btn--block btn--lg" id="ready-start">Start our turn</button>
+        <p class="ready__warn" id="ready-warn"></p>
+      </div>
+    </section>
+
+    <!-- ===================== PLAY ===================== -->
+    <section class="screen screen--play" id="screen-play">
+      <div class="play">
+        <div class="play__top">
+          <div class="play__team" id="play-team">Team One</div>
+          <div class="play__mode" id="play-mode-chip"></div>
+        </div>
+        <div class="timer" id="timer">
+          <svg viewBox="0 0 120 120" class="timer__ring" aria-hidden="true">
+            <circle class="timer__track" cx="60" cy="60" r="54" />
+            <circle class="timer__progress" id="timer-progress" cx="60" cy="60" r="54" />
+          </svg>
+          <div class="timer__num" id="timer-num">30</div>
+        </div>
+        <div class="word-card" id="word-card">
+          <div class="word-card__hint" id="word-hint">Sing a song with…</div>
+          <div class="word-card__word" id="word-text">Word</div>
+        </div>
+        <div class="play__score">This turn: <strong id="turn-score">0</strong></div>
+        <div class="play__actions">
+          <button class="btn btn--skip" id="btn-skip">Skip</button>
+          <button class="btn btn--correct" id="btn-correct">✓ Got it</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== TURN SUMMARY ===================== -->
+    <section class="screen" id="screen-turn">
+      <div class="panel panel--center">
+        <div class="turn-emoji" id="turn-emoji">🎉</div>
+        <h2 class="panel__title" id="turn-title">Team One scored 5!</h2>
+        <p class="panel__sub" id="turn-sub"></p>
+        <ul class="recap" id="turn-recap"></ul>
+        <button class="btn btn--primary btn--block btn--lg" id="turn-continue">Continue</button>
+      </div>
+    </section>
+
+    <!-- ===================== SCOREBOARD ===================== -->
+    <section class="screen" id="screen-scores">
+      <div class="panel">
+        <h2 class="panel__title" id="scores-title">Scoreboard</h2>
+        <p class="panel__sub" id="scores-sub"></p>
+        <ol class="scoreboard" id="scoreboard"></ol>
+        <button class="btn btn--primary btn--block btn--lg" id="scores-continue">Continue</button>
+      </div>
+    </section>
+
+    <!-- ===================== GAME OVER ===================== -->
+    <section class="screen" id="screen-over">
+      <div class="panel panel--center">
+        <div class="trophy">🏆</div>
+        <h2 class="over__winner" id="over-winner">Team One wins!</h2>
+        <p class="panel__sub" id="over-sub"></p>
+        <ol class="scoreboard" id="final-scoreboard"></ol>
+        <button class="btn btn--primary btn--block btn--lg" data-action="play-again">Rematch (same teams)</button>
+        <button class="btn btn--ghost btn--block" data-action="new-teams">New teams</button>
+        <a class="over__back" href="../">← Back to all games</a>
+      </div>
+    </section>
+
+    <div class="progress" id="progress" hidden><div class="progress__bar" id="progress-bar"></div></div>
+  </div>
+
+  <script src="js/words.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
