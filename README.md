@@ -16,6 +16,7 @@ No backend, no build step — everything is plain HTML, CSS, and vanilla JavaScr
 | --- | --- | --- | --- |
 | [Do You Really Know Your Friends?](friends/) | `friends/` | 3–8 | ✅ Playable |
 | [Get ChurchED](getchurched/) | `getchurched/` | 2+ teams | ✅ Playable |
+| [Flip 7 Scorer](flip7/) | `flip7/` | 2–12 | ✅ Playable |
 | _More on the way…_ | — | — | 🛠️ Coming soon |
 
 ### Do You Really Know Your Friends?
@@ -35,6 +36,18 @@ place / concept without saying it. Every word your team gets is a point; most
 points after all rounds wins. Pick a single mode or **Mixed**.
 See [`getchurched/`](getchurched/) to play.
 
+### Flip 7 Scorer
+
+A scoring platform for the card game **Flip 7** — the companion to a physical
+deck rather than a game of its own. Tap the cards each player flipped and it
+does the maths: number cards summed, `×2` doubling them, `+2…+10` added after,
+a **Flip 7** bonus for seven different numbers, and a bust wiping the round to
+zero. It keeps a running leaderboard to 200, an editable round-by-round
+history, and end-of-game stats — and it survives a refresh, so a knocked phone
+doesn't lose the game. It even warns you when a round claims more copies of a
+card than the 94-card deck actually holds.
+See [`flip7/`](flip7/) to score a game.
+
 ---
 
 ## Project structure
@@ -42,12 +55,25 @@ See [`getchurched/`](getchurched/) to play.
 ```
 .
 ├── index.html              # The hub / landing page (lists all games)
+├── theme.css / theme.js    # Shared light/dark toggle
 ├── friends/                # Game: Do You Really Know Your Friends?
 │   ├── index.html
 │   ├── css/styles.css
 │   └── js/
 │       ├── questions.js    # Question bank + dare bank
 │       └── game.js         # Game state machine
+├── getchurched/            # Game: Get ChurchED
+│   ├── index.html
+│   ├── css/styles.css
+│   └── js/
+│       ├── words.js        # Word banks per mode
+│       └── game.js         # Timer + turn engine
+├── flip7/                  # Tool: Flip 7 Scorer
+│   ├── index.html
+│   ├── css/styles.css
+│   └── js/
+│       ├── rules.js        # Deck definition + scoring maths (pure functions)
+│       └── app.js          # Board, scoring sheet, history, persistence
 ├── README.md
 └── .gitignore
 ```

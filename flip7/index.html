@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0B1020" />
+  <meta name="description" content="Flip 7 Scorer — a pass-and-play scoring platform for the card game Flip 7. Tap the cards each player flipped and it does the maths: ×2, modifiers, busts and the Flip 7 bonus, round by round, first to 200." />
+  <title>Flip 7 Scorer</title>
+  <script>try{var t=localStorage.getItem('dg-theme')||((window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="../theme.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E7%EF%B8%8F%E2%83%A3%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <button class="theme-toggle" data-theme-toggle aria-label="Toggle light or dark mode">🌙</button>
+  <div id="app">
+
+    <!-- ===================== HOME ===================== -->
+    <section class="screen screen--active" id="screen-home">
+      <div class="hero">
+        <div class="hero__cards" aria-hidden="true">
+          <span class="mini-card mini-card--a">7</span>
+          <span class="mini-card mini-card--b">×2</span>
+          <span class="mini-card mini-card--c">12</span>
+        </div>
+        <div class="hero__badge">Scoring Platform</div>
+        <h1 class="hero__title">Flip <em>7</em></h1>
+        <p class="hero__subtitle">
+          Keep score for the card game without a pen. Tap the cards each player
+          flipped — it handles <strong>×2</strong>, modifiers, busts and the
+          <strong>Flip 7 bonus</strong>, round after round, all the way to 200.
+        </p>
+
+        <div class="resume" id="resume-card" hidden>
+          <div class="resume__top">
+            <span class="resume__dot" aria-hidden="true"></span>
+            <span class="resume__label">Game in progress</span>
+          </div>
+          <p class="resume__meta" id="resume-meta">Round 3 · 4 players</p>
+          <button class="btn btn--primary btn--block" data-action="resume">Resume game</button>
+          <button class="btn btn--link btn--block" data-action="discard">Start a new game instead</button>
+        </div>
+
+        <div class="hero__actions" id="hero-actions">
+          <button class="btn btn--primary btn--lg" id="new-game-btn" data-action="go-setup">New game</button>
+          <button class="btn btn--ghost btn--lg" data-action="go-how">Rules &amp; scoring</button>
+        </div>
+        <a class="link-back" href="../">← All games</a>
+      </div>
+    </section>
+
+    <!-- ===================== RULES ===================== -->
+    <section class="screen" id="screen-how">
+      <div class="panel">
+        <h2 class="panel__title">Rules &amp; scoring</h2>
+        <p class="panel__sub">The short version — enough to settle an argument mid-round.</p>
+
+        <ol class="steps">
+          <li><span class="steps__n">1</span><div><strong>Flip or stay.</strong> On your turn take another card, or stay and bank what you've got.</div></li>
+          <li><span class="steps__n">2</span><div><strong>A duplicate number busts you.</strong> Your whole round scores <strong>0</strong> — modifiers and all.</div></li>
+          <li><span class="steps__n">3</span><div><strong>Seven different numbers is a Flip 7.</strong> Worth <strong>+15</strong>, and the round ends there and then.</div></li>
+          <li><span class="steps__n">4</span><div><strong>First to 200</strong> after a completed round wins. 🏆</div></li>
+        </ol>
+
+        <h3 class="panel__h3">How a round is counted</h3>
+        <div class="formula">
+          <div class="formula__row"><span class="formula__k">Number cards</span><span class="formula__v">added up</span></div>
+          <div class="formula__row"><span class="formula__k">×2</span><span class="formula__v">doubles that total — the numbers only</span></div>
+          <div class="formula__row"><span class="formula__k">+2 … +10</span><span class="formula__v">added <em>after</em> the doubling</span></div>
+          <div class="formula__row"><span class="formula__k">Flip 7</span><span class="formula__v">+15, added last</span></div>
+          <div class="formula__row formula__row--bust"><span class="formula__k">Bust</span><span class="formula__v">0 — nothing else counts</span></div>
+        </div>
+        <p class="example">
+          Example: <strong>5 + 9 + 10</strong> with a <strong>×2</strong> and a
+          <strong>+4</strong> → (24 × 2) + 4 = <strong>52</strong>.
+        </p>
+
+        <h3 class="panel__h3">Action cards</h3>
+        <ul class="actions-list" id="actions-list"><!-- injected --></ul>
+
+        <h3 class="panel__h3">The deck</h3>
+        <p class="panel__sub panel__sub--tight">94 cards. Card <strong>N</strong> appears <strong>N</strong> times — twelve 12s, one lonely 0 — so the scorer warns you if a round claims more copies than exist.</p>
+        <div class="deck-strip" id="deck-strip"><!-- injected --></div>
+
+        <button class="btn btn--primary btn--block" data-action="go-setup">Start scoring</button>
+        <button class="btn btn--ghost btn--block" data-action="go-back">Back</button>
+      </div>
+    </section>
+
+    <!-- ===================== SETUP ===================== -->
+    <section class="screen" id="screen-setup">
+      <div class="panel">
+        <h2 class="panel__title">Who's playing?</h2>
+        <p class="panel__sub">Add two or more players, in the order you sit around the table.</p>
+
+        <form id="add-player-form" class="add-row" autocomplete="off">
+          <input id="player-name" class="input" type="text" maxlength="16" placeholder="Add a player…" aria-label="Player name" />
+          <button class="btn btn--primary add-row__btn" type="submit">Add</button>
+        </form>
+        <ul class="player-list" id="player-list" aria-live="polite"></ul>
+
+        <label class="field">
+          <span class="field__label">Play to</span>
+          <div class="segmented" id="seg-target" role="group" aria-label="Target score">
+            <button type="button" class="seg" data-target="100">100</button>
+            <button type="button" class="seg" data-target="200">200</button>
+            <button type="button" class="seg" data-target="300">300</button>
+          </div>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Flip 7 bonus</span>
+          <div class="stepper">
+            <button type="button" class="stepper__btn" data-bonus-step="-5" aria-label="Lower the Flip 7 bonus">–</button>
+            <output class="stepper__value" id="bonus-value">15</output>
+            <button type="button" class="stepper__btn" data-bonus-step="5" aria-label="Raise the Flip 7 bonus">+</button>
+          </div>
+        </label>
+
+        <button class="btn btn--primary btn--block btn--lg" id="start-btn" data-action="start-game" disabled>Start game</button>
+        <button class="btn btn--ghost btn--block" data-action="go-home">Back</button>
+      </div>
+    </section>
+
+    <!-- ===================== ROUND BOARD ===================== -->
+    <section class="screen screen--wide" id="screen-round">
+      <div class="board">
+        <header class="board__head">
+          <div>
+            <div class="board__round" id="board-round">Round 1</div>
+            <div class="board__hint" id="board-hint">Tap a player to score their cards</div>
+          </div>
+          <button class="icon-btn" data-action="go-history" aria-label="Score history">📋</button>
+        </header>
+
+        <div class="flip7-banner" id="flip7-banner" hidden>
+          <strong>Flip 7!</strong> <span id="flip7-who">Ana</span> ended the round — everyone else banks what they had.
+        </div>
+
+        <ul class="entries" id="entries"><!-- injected --></ul>
+
+        <div class="board__foot">
+          <button class="btn btn--primary btn--block btn--lg" id="finish-round" disabled>Finish round</button>
+          <div class="board__foot-row">
+            <button class="btn btn--link" data-action="undo-round" id="undo-round">Undo last round</button>
+            <button class="btn btn--link btn--danger" data-action="quit-game">End game</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ROUND SUMMARY ===================== -->
+    <section class="screen" id="screen-summary">
+      <div class="panel">
+        <h2 class="panel__title" id="summary-title">Round 1 done</h2>
+        <p class="panel__sub" id="summary-sub"></p>
+        <ol class="standings" id="summary-standings"></ol>
+        <button class="btn btn--primary btn--block btn--lg" id="summary-continue">Next round</button>
+        <button class="btn btn--ghost btn--block" data-action="go-history">Full score history</button>
+        <button class="btn btn--link btn--block" data-action="undo-round">Reopen this round</button>
+      </div>
+    </section>
+
+    <!-- ===================== HISTORY ===================== -->
+    <section class="screen screen--wide" id="screen-history">
+      <div class="panel">
+        <h2 class="panel__title">Score history</h2>
+        <p class="panel__sub">Every round so far. Tap any score to fix it — the totals catch up.</p>
+        <div class="table-scroll">
+          <table class="history" id="history-table"></table>
+        </div>
+        <p class="empty" id="history-empty" hidden>No rounds scored yet.</p>
+        <button class="btn btn--ghost btn--block" id="history-share">Copy results as text</button>
+        <button class="btn btn--primary btn--block" data-action="go-back">Back</button>
+      </div>
+    </section>
+
+    <!-- ===================== GAME OVER ===================== -->
+    <section class="screen" id="screen-over">
+      <div class="panel panel--center">
+        <div class="trophy">🏆</div>
+        <h2 class="over__winner" id="over-winner">Ana wins!</h2>
+        <p class="panel__sub" id="over-sub"></p>
+        <ol class="standings standings--final" id="final-standings"></ol>
+
+        <h3 class="panel__h3">Game stats</h3>
+        <div class="stats" id="stats"></div>
+
+        <button class="btn btn--primary btn--block btn--lg" data-action="rematch">Rematch (same players)</button>
+        <button class="btn btn--ghost btn--block" data-action="go-history">Score history</button>
+        <button class="btn btn--ghost btn--block" data-action="new-players">New players</button>
+        <a class="link-back" href="../">← Back to all games</a>
+      </div>
+    </section>
+  </div>
+
+  <!-- ===================== SCORING SHEET ===================== -->
+  <div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-name">
+    <div class="sheet__backdrop" data-sheet-close></div>
+    <div class="sheet__panel" role="document">
+      <header class="sheet__head">
+        <div class="sheet__who">
+          <span class="dot" id="sheet-dot"></span>
+          <h2 class="sheet__name" id="sheet-name">Ana</h2>
+          <span class="sheet__round" id="sheet-round">Round 1</span>
+        </div>
+        <button class="icon-btn" data-sheet-close aria-label="Close">✕</button>
+      </header>
+
+      <div class="readout" id="readout">
+        <div class="readout__total" id="readout-total">0</div>
+        <div class="readout__sum" id="readout-sum">No cards yet</div>
+      </div>
+
+      <div class="flip7-flag" id="flip7-flag" hidden>🎉 Flip 7 — seven different numbers!</div>
+
+      <div class="tabs" role="tablist" aria-label="How to enter this score">
+        <button class="tab tab--on" data-tab="cards" role="tab" aria-selected="true">Tap the cards</button>
+        <button class="tab" data-tab="manual" role="tab" aria-selected="false">Type a total</button>
+      </div>
+
+      <div class="tabpane" id="pane-cards">
+        <div class="pane__label">Number cards <span class="pane__hint" id="cards-count">0 of 7</span></div>
+        <div class="card-grid" id="number-grid"></div>
+        <div class="pane__label">Modifiers</div>
+        <div class="mod-grid" id="mod-grid"></div>
+      </div>
+
+      <div class="tabpane" id="pane-manual" hidden>
+        <div class="pane__label">Round total</div>
+        <div class="keypad" id="keypad"></div>
+      </div>
+
+      <button class="bust-btn" id="bust-btn" aria-pressed="false">
+        <span class="bust-btn__emoji" aria-hidden="true">💥</span>
+        <span><strong>Busted</strong><em>Flipped a duplicate — scores 0</em></span>
+      </button>
+
+      <div class="sheet__foot">
+        <button class="btn btn--ghost" id="sheet-clear">Clear</button>
+        <button class="btn btn--primary sheet__save" id="sheet-save">Save score</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="js/rules.js"></script>
+  <script src="js/app.js"></script>
+  <script src="../theme.js"></script>
+</body>
+</html>
