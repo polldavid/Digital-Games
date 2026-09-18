@@ -66,20 +66,23 @@
         <div class="formula">
           <div class="formula__row"><span class="formula__k">Number cards</span><span class="formula__v">added up</span></div>
           <div class="formula__row"><span class="formula__k">×2</span><span class="formula__v">doubles that total — the numbers only</span></div>
+          <div class="formula__row"><span class="formula__k">÷2</span><span class="formula__v">halves it instead, rounding down <b class="tag">Vengeance</b></span></div>
           <div class="formula__row"><span class="formula__k">+2 … +10</span><span class="formula__v">added <em>after</em> the doubling</span></div>
+          <div class="formula__row"><span class="formula__k">−2 … −10</span><span class="formula__v">taken off after it — a round can finish below zero <b class="tag">Vengeance</b></span></div>
           <div class="formula__row"><span class="formula__k">Flip 7</span><span class="formula__v">+15, added last</span></div>
           <div class="formula__row formula__row--bust"><span class="formula__k">Bust</span><span class="formula__v">0 — nothing else counts</span></div>
         </div>
         <p class="example">
           Example: <strong>5 + 9 + 10</strong> with a <strong>×2</strong> and a
-          <strong>+4</strong> → (24 × 2) + 4 = <strong>52</strong>.
+          <strong>+4</strong> → (24 × 2) + 4 = <strong>52</strong>.<br />
+          With a <strong>−6</strong> as well → 48 + 4 − 6 = <strong>46</strong>.
         </p>
 
         <h3 class="panel__h3">Action cards</h3>
         <ul class="actions-list" id="actions-list"><!-- injected --></ul>
 
         <h3 class="panel__h3">The deck</h3>
-        <p class="panel__sub panel__sub--tight">94 cards. Card <strong>N</strong> appears <strong>N</strong> times — twelve 12s, one lonely 0 — so the scorer warns you if a round claims more copies than exist.</p>
+        <p class="panel__sub panel__sub--tight">Card <strong>N</strong> appears <strong>N</strong> times — twelve 12s, one lonely 0 — so the scorer warns you if a round claims more copies than exist. The <b class="tag">Vengeance</b> cards below only appear when that deck is picked at setup.</p>
         <div class="deck-strip" id="deck-strip"><!-- injected --></div>
 
         <button class="btn btn--primary btn--block" data-action="go-setup">Start scoring</button>
@@ -98,6 +101,14 @@
           <button class="btn btn--primary add-row__btn" type="submit">Add</button>
         </form>
         <ul class="player-list" id="player-list" aria-live="polite"></ul>
+
+        <label class="field">
+          <span class="field__label">Deck</span>
+          <div class="segmented" id="seg-deck" role="group" aria-label="Which deck">
+            <button type="button" class="seg" data-vengeance="0">Base</button>
+            <button type="button" class="seg" data-vengeance="1">Vengeance</button>
+          </div>
+        </label>
 
         <label class="field">
           <span class="field__label">Play to</span>
@@ -223,7 +234,9 @@
         <div class="pane__label">Number cards <span class="pane__hint" id="cards-count">0 of 7</span></div>
         <div class="card-grid" id="number-grid"></div>
         <div class="pane__label">Modifiers</div>
-        <div class="mod-grid" id="mod-grid"></div>
+        <div class="mod-grid mod-grid--add" id="mod-grid-add"></div>
+        <div class="mod-grid mod-grid--sub" id="mod-grid-sub" hidden></div>
+        <div class="mod-grid mod-grid--mult" id="mod-grid-mult"></div>
       </div>
 
       <div class="tabpane" id="pane-manual" hidden>

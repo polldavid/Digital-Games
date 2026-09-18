@@ -9,6 +9,7 @@
   'use strict';
 
   var R = window.Flip7Rules;
+  var fmt = R.formatScore;   // negative scores print with a real minus sign
   var STORE_KEY = 'flip7-game-v1';
   var MAX_PLAYERS = 12;
   var COLORS = ['#FF5A4E', '#FFC93C', '#35D6A4', '#56B6F7', '#9B7BFF', '#FF8AC4',
@@ -28,12 +29,13 @@
   var state = newGame([]);
   var ui = { stack: [], screen: 'home', sheet: null };
 
-  function newGame(players, target, bonus) {
+  function newGame(players, target, bonus, vengeance) {
     return {
       v: 1,
       players: players || [],
       target: target || R.DEFAULT_TARGET,
       bonus: bonus == null ? R.DEFAULT_BONUS : bonus,
+      vengeance: vengeance !== false,   // Vengeance deck unless explicitly off
       rounds: [],     // completed rounds: [{ entries: { playerId: entry } }]
       draft: {},      // the round being scored right now
       finished: false,
@@ -51,6 +53,7 @@
       var s = JSON.parse(raw);
       if (!s || !s.players || s.players.length < 2) return null;
       s.rounds = s.rounds || []; s.draft = s.draft || {};
+      if (s.vengeance == null) s.vengeance = false;   // games saved before Vengeance existed
       s.nextId = s.nextId || s.players.length + 1;
       return s;
     } catch (e) { return null; }
@@ -171,7 +174,7 @@
         '<b>' + n + '</b><i>×' + R.numberCopies(n) + '</i>'));
     });
     R.MODIFIERS.forEach(function (m) {
-      strip.appendChild(el('span', 'deck-chip deck-chip--mod',
+      strip.appendChild(el('span', 'deck-chip deck-chip--mod' + (m.vengeance ? ' deck-chip--veng' : ''),
         '<b>' + m.label + '</b><i>×' + m.copies + '</i>'));
     });
   }
@@ -179,7 +182,7 @@
   // =====================================================
   // Setup
   // =====================================================
-  var setup = { players: [], target: R.DEFAULT_TARGET, bonus: R.DEFAULT_BONUS, nextId: 1 };
+  var setup = { players: [], target: R.DEFAULT_TARGET, bonus: R.DEFAULT_BONUS, vengeance: true, nextId: 1 };
 
   function pickColor() {
     var used = setup.players.map(function (p) { return p.color; });
@@ -227,6 +230,9 @@
     $all('#seg-target .seg').forEach(function (b) {
       b.classList.toggle('seg--on', Number(b.getAttribute('data-target')) === setup.target);
     });
+    $all('#seg-deck .seg').forEach(function (b) {
+      b.classList.toggle('seg--on', (b.getAttribute('data-vengeance') === '1') === !!setup.vengeance);
+    });
     $('#bonus-value').textContent = setup.bonus;
     $('#start-btn').disabled = setup.players.length < 2;
   }
@@ -234,7 +240,7 @@
   function startGame() {
     if (setup.players.length < 2) return;
     state = newGame(setup.players.map(function (p) { return { id: p.id, name: p.name, color: p.color }; }),
-                    setup.target, setup.bonus);
+                    setup.target, setup.bonus, setup.vengeance);
     state.nextId = setup.nextId;
     save();
     renderBoard();
@@ -253,7 +259,7 @@
     var leader = standings()[0];
     $('#board-hint').innerHTML = state.rounds.length === 0
       ? 'Tap a player to score their cards'
-      : esc(leader.player.name) + ' leads on ' + leader.total + ' · playing to ' + state.target;
+      : esc(leader.player.name) + ' leads on ' + fmt(leader.total) + ' · playing to ' + state.target;
 
     var flip7Player = null;
     state.players.forEach(function (p) {
@@ -276,15 +282,17 @@
       main.type = 'button';
       var chipClass = 'chip chip--empty', chipText = '—';
       if (entered) {
+        chipText = fmt(s.total);
         if (s.busted) { chipClass = 'chip chip--bust'; chipText = 'Bust'; }
-        else if (s.flip7) { chipClass = 'chip chip--flip7'; chipText = s.total + ''; }
-        else { chipClass = 'chip chip--ok'; chipText = s.total + ''; }
+        else if (s.flip7) { chipClass = 'chip chip--flip7'; }
+        else if (s.total < 0) { chipClass = 'chip chip--neg'; }
+        else { chipClass = 'chip chip--ok'; }
       }
       main.innerHTML =
         '<span class="dot" style="background:' + p.color + '"></span>' +
         '<span class="entry__text">' +
           '<strong>' + esc(p.name) + '</strong>' +
-          '<em>' + (entered ? esc(R.describe(entry, opts())) : t[p.id] + ' pts · ' + ordinal(rankOf(p.id))) + '</em>' +
+          '<em>' + (entered ? esc(R.describe(entry, opts())) : fmt(t[p.id]) + ' pts · ' + ordinal(rankOf(p.id))) + '</em>' +
         '</span>' +
         '<span class="entry__right">' +
           '<span class="' + chipClass + '">' + chipText + '</span>' +
@@ -349,15 +357,15 @@
       if (!best || s.total > best.total) best = { player: p, total: s.total, flip7: s.flip7 };
     });
     var behind = rows.length > 1 ? (leader.total - rows[1].total) : 0;
-    var lead = 'leads on ' + leader.total +
+    var lead = 'leads on ' + fmt(leader.total) +
       (behind > 0 ? ', ' + behind + ' clear' : ' (level at the top)') +
       ' · ' + Math.max(0, state.target - leader.total) + ' to go.';
     var won = best && best.total > 0;
     $('#summary-sub').innerHTML = won && best.player.id === leader.player.id
-      ? '<strong>' + esc(best.player.name) + '</strong> took the round with ' + best.total +
+      ? '<strong>' + esc(best.player.name) + '</strong> took the round with ' + fmt(best.total) +
         (best.flip7 ? ' (Flip 7!)' : '') + ' and ' + lead
       : (won
-          ? '<strong>' + esc(best.player.name) + '</strong> took the round with ' + best.total +
+          ? '<strong>' + esc(best.player.name) + '</strong> took the round with ' + fmt(best.total) +
             (best.flip7 ? ' (Flip 7!)' : '') + '. '
           : 'Nobody scored — brutal round. ') +
         '<strong>' + esc(leader.player.name) + '</strong> ' + lead;
@@ -375,10 +383,12 @@
       if (roundIndex != null) {
         var s = scoreOf(row.player.id, roundIndex);
         var cls = s.busted ? 'delta delta--bust' : (s.flip7 ? 'delta delta--flip7' : 'delta');
-        deltaHtml = '<span class="' + cls + '">' + (s.busted ? 'bust' : '+' + s.total) + '</span>';
+        if (!s.busted && s.total < 0) cls = 'delta delta--bust';
+        deltaHtml = '<span class="' + cls + '">' +
+          (s.busted ? 'bust' : (s.total < 0 ? fmt(s.total) : '+' + s.total)) + '</span>';
       } else {
         var st = playerStats(row.player.id);
-        detailHtml = '<em class="standing__detail">best ' + st.best + ' · ' + plural(st.busts, 'bust') +
+        detailHtml = '<em class="standing__detail">best ' + fmt(st.best) + ' · ' + plural(st.busts, 'bust') +
           (st.flip7s ? ' · ' + st.flip7s + '× Flip 7' : '') + '</em>';
       }
       li.innerHTML =
@@ -386,7 +396,7 @@
         '<span class="dot" style="background:' + row.player.color + '"></span>' +
         '<span class="standing__text"><strong>' + esc(row.player.name) + '</strong>' + detailHtml + '</span>' +
         deltaHtml +
-        '<span class="standing__total">' + row.total + '</span>';
+        '<span class="standing__total">' + fmt(row.total) + '</span>';
       node.appendChild(li);
     });
   }
@@ -423,8 +433,9 @@
         var s = R.scoreEntry(round.entries[p.id], opts());
         running[p.id] += s.total;
         var td = el('td');
-        var b = el('button', 'cell' + (s.busted ? ' cell--bust' : (s.flip7 ? ' cell--flip7' : '')),
-          s.busted ? '0' : String(s.total));
+        var b = el('button', 'cell' + (s.busted ? ' cell--bust'
+          : (s.flip7 ? ' cell--flip7' : (s.total < 0 ? ' cell--neg' : ''))),
+          s.busted ? '0' : fmt(s.total));
         b.type = 'button';
         b.setAttribute('aria-label', 'Edit ' + p.name + ', round ' + (i + 1));
         b.addEventListener('click', function () { openSheet(p.id, i); });
@@ -441,7 +452,7 @@
     var t = totals();
     var top = Math.max.apply(null, state.players.map(function (p) { return t[p.id]; }));
     state.players.forEach(function (p) {
-      fr.appendChild(el('td', 'history__total' + (t[p.id] === top ? ' history__total--lead' : ''), String(t[p.id])));
+      fr.appendChild(el('td', 'history__total' + (t[p.id] === top ? ' history__total--lead' : ''), fmt(t[p.id])));
     });
     tfoot.appendChild(fr);
     table.appendChild(tfoot);
@@ -450,7 +461,7 @@
   function shareText() {
     var rows = standings();
     var lines = ['Flip 7 — ' + (state.finished ? 'final scores' : 'scores after ' + state.rounds.length + ' rounds')];
-    rows.forEach(function (r) { lines.push(r.rank + '. ' + r.player.name + ' — ' + r.total); });
+    rows.forEach(function (r) { lines.push(r.rank + '. ' + r.player.name + ' — ' + fmt(r.total)); });
     var g = gameStats();
     lines.push('');
     lines.push(plural(state.rounds.length, 'round') + ' · ' + plural(g.flip7s, 'Flip 7') +
@@ -481,27 +492,28 @@
   // Stats & game over
   // =====================================================
   function playerStats(playerId) {
-    var st = { total: 0, best: 0, busts: 0, flip7s: 0, rounds: state.rounds.length };
+    var st = { total: 0, best: null, busts: 0, flip7s: 0, rounds: state.rounds.length };
     state.rounds.forEach(function (round) {
       var s = R.scoreEntry(round.entries[playerId], opts());
       st.total += s.total;
-      if (s.total > st.best) st.best = s.total;
+      if (st.best === null || s.total > st.best) st.best = s.total;
       if (s.busted) st.busts++;
       if (s.flip7 && !s.busted) st.flip7s++;
     });
+    if (st.best === null) st.best = 0;
     st.average = st.rounds ? Math.round(st.total / st.rounds) : 0;
     return st;
   }
 
   function gameStats() {
-    var g = { busts: 0, flip7s: 0, best: { total: -1, name: '—' }, rounds: state.rounds.length };
+    var g = { busts: 0, flip7s: 0, best: null, rounds: state.rounds.length };
     state.players.forEach(function (p) {
       var st = playerStats(p.id);
       g.busts += st.busts;
       g.flip7s += st.flip7s;
-      if (st.best > g.best.total) g.best = { total: st.best, name: p.name };
+      if (!g.best || st.best > g.best.total) g.best = { total: st.best, name: p.name };
     });
-    if (g.best.total < 0) g.best = { total: 0, name: '—' };
+    if (!g.best) g.best = { total: 0, name: '—' };
     return g;
   }
 
@@ -513,8 +525,8 @@
       : winners[0].player.name + ' wins!';
 
     var st = playerStats(winners[0].player.id);
-    $('#over-sub').innerHTML = winners[0].total + ' points in ' + state.rounds.length + ' rounds' +
-      (st.best ? ' · best round ' + st.best : '') + ' · played to ' + state.target + '.';
+    $('#over-sub').innerHTML = fmt(winners[0].total) + ' points in ' + state.rounds.length + ' rounds' +
+      (st.best ? ' · best round ' + fmt(st.best) : '') + ' · played to ' + state.target + '.';
 
     renderStandings($('#final-standings'), rows, null);
 
@@ -523,7 +535,7 @@
     stats.innerHTML = '';
     [
       { k: 'Rounds played', v: g.rounds },
-      { k: 'Biggest round', v: g.best.total, sub: g.best.name },
+      { k: 'Biggest round', v: fmt(g.best.total), sub: g.best.name },
       { k: 'Flip 7s', v: g.flip7s },
       { k: 'Total busts', v: g.busts }
     ].forEach(function (s) {
@@ -610,10 +622,17 @@
       grid.appendChild(b);
     });
 
-    var mods = $('#mod-grid');
-    mods.innerHTML = '';
+    $('#mod-grid-add').innerHTML = '';
+    $('#mod-grid-sub').innerHTML = '';
+    $('#mod-grid-mult').innerHTML = '';
     R.MODIFIERS.forEach(function (m) {
-      var b = el('button', 'card card--mod' + (m.type === 'mult' ? ' card--mult' : ''), '<span class="card__n">' + m.label + '</span>');
+      var negative = m.type === 'add' && m.value < 0;
+      var cls = 'card card--mod' +
+        (m.type === 'mult' ? ' card--mult' : '') +
+        (m.type === 'div' ? ' card--div' : '') +
+        (negative ? ' card--neg' : '');
+      var mods = $(m.type === 'mult' || m.type === 'div' ? '#mod-grid-mult' : (negative ? '#mod-grid-sub' : '#mod-grid-add'));
+      var b = el('button', cls, '<span class="card__n">' + m.label + '</span>');
       b.type = 'button';
       b.setAttribute('data-mod', m.key);
       b.addEventListener('click', function () {
@@ -628,18 +647,19 @@
 
     var pad = $('#keypad');
     pad.innerHTML = '';
-    ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '⌫'].forEach(function (k) {
-      var b = el('button', 'key' + (k === 'C' || k === '⌫' ? ' key--util' : ''), k);
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9', '±', '0', '⌫'].forEach(function (k) {
+      var b = el('button', 'key' + (k === '±' || k === '⌫' ? ' key--util' : ''), k);
       b.type = 'button';
       b.addEventListener('click', function () {
         var e = ui.sheet.entry;
         e.mode = 'manual';
         e.busted = false;
-        var cur = String(e.total || 0);
-        if (k === 'C') cur = '0';
-        else if (k === '⌫') cur = cur.length > 1 ? cur.slice(0, -1) : '0';
-        else cur = (cur === '0' ? '' : cur) + k;
-        e.total = Math.min(999, parseInt(cur, 10) || 0);
+        // Track magnitude and sign apart, so ± works at any point in typing.
+        var cur = Math.abs(e.total || 0), neg = (e.total || 0) < 0;
+        if (k === '⌫') cur = Math.floor(cur / 10);
+        else if (k === '±') neg = !neg;
+        else cur = Math.min(999, parseInt(String(cur) + k, 10) || 0);
+        e.total = neg ? -cur : cur;
         renderSheet();
       });
       pad.appendChild(b);
@@ -663,7 +683,8 @@
     // Readout
     $('#readout').classList.toggle('readout--bust', !!e.busted);
     $('#readout').classList.toggle('readout--flip7', !!s.flip7 && !e.busted);
-    $('#readout-total').textContent = e.busted ? '0' : s.total;
+    $('#readout').classList.toggle('readout--neg', !e.busted && s.total < 0);
+    $('#readout-total').textContent = e.busted ? '0' : fmt(s.total);
     $('#readout-sum').textContent = e.busted
       ? 'Busted — the round scores nothing'
       : (e.mode === 'manual' ? 'Typed in by hand' : R.describe(e, opts()));
@@ -684,7 +705,13 @@
       else b.removeAttribute('title');
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
-    $all('#mod-grid .card').forEach(function (b) {
+    var veng = !!state.vengeance;
+    $('#mod-grid-sub').hidden = !veng;
+    $('#mod-grid-mult').classList.toggle('mod-grid--solo', !veng);
+    var divCard = $('#mod-grid-mult .card[data-mod="d2"]');
+    if (divCard) divCard.hidden = !veng;
+
+    $all('.mod-grid .card').forEach(function (b) {
       var key = b.getAttribute('data-mod');
       var on = e.mods.indexOf(key) !== -1;
       b.classList.toggle('card--on', on);
@@ -760,7 +787,7 @@
           // Reuse the last line-up as a starting point.
           setup.players = state.players.map(function (p) { return { id: p.id, name: p.name, color: p.color }; });
           setup.nextId = state.nextId;
-          setup.target = state.target; setup.bonus = state.bonus;
+          setup.target = state.target; setup.bonus = state.bonus; setup.vengeance = state.vengeance;
         }
         renderSetup(); show('setup'); break;
       case 'go-back': back(); break;
@@ -781,7 +808,7 @@
         }
         break;
       case 'rematch':
-        state = newGame(state.players, state.target, state.bonus);
+        state = newGame(state.players, state.target, state.bonus, state.vengeance);
         save(); renderBoard(); ui.stack = ['home']; show('round');
         break;
       case 'new-players':
@@ -808,6 +835,12 @@
     $all('#seg-target .seg').forEach(function (b) {
       b.addEventListener('click', function () {
         setup.target = Number(b.getAttribute('data-target'));
+        renderSetup();
+      });
+    });
+    $all('#seg-deck .seg').forEach(function (b) {
+      b.addEventListener('click', function () {
+        setup.vengeance = b.getAttribute('data-vengeance') === '1';
         renderSetup();
       });
     });

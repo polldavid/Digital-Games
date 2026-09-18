@@ -24,7 +24,14 @@
     { key: 'p6',  label: '+6',  type: 'add',  value: 6,  copies: 1 },
     { key: 'p8',  label: '+8',  type: 'add',  value: 8,  copies: 1 },
     { key: 'p10', label: '+10', type: 'add',  value: 10, copies: 1 },
-    { key: 'x2',  label: '×2', type: 'mult', value: 2, copies: 1 }
+    { key: 'x2',  label: '×2',  type: 'mult', value: 2,  copies: 1 },
+    // ---- Vengeance ----
+    { key: 'm2',  label: '−2',  type: 'add',  value: -2,  copies: 1, vengeance: true },
+    { key: 'm4',  label: '−4',  type: 'add',  value: -4,  copies: 1, vengeance: true },
+    { key: 'm6',  label: '−6',  type: 'add',  value: -6,  copies: 1, vengeance: true },
+    { key: 'm8',  label: '−8',  type: 'add',  value: -8,  copies: 1, vengeance: true },
+    { key: 'm10', label: '−10', type: 'add',  value: -10, copies: 1, vengeance: true },
+    { key: 'd2',  label: '÷2',  type: 'div',  value: 2,   copies: 1, vengeance: true }
   ];
 
   var ACTIONS = [
@@ -72,7 +79,7 @@
   function scoreEntry(entry, opts) {
     var bonusValue = (opts && opts.flip7Bonus != null) ? opts.flip7Bonus : DEFAULT_BONUS;
     var out = {
-      busted: false, flip7: false, numberSum: 0, doubled: false,
+      busted: false, flip7: false, numberSum: 0, doubled: false, halved: false,
       addBonus: 0, flip7Bonus: 0, cardCount: 0, total: 0, manual: false
     };
     if (!entry) return out;
@@ -80,7 +87,7 @@
     if (entry.mode === 'manual') {
       out.manual = true;
       out.busted = !!entry.busted;
-      out.total = out.busted ? 0 : Math.max(0, entry.total || 0);
+      out.total = out.busted ? 0 : (entry.total || 0);
       return out;
     }
 
@@ -95,17 +102,28 @@
       var m = MOD_BY_KEY[key];
       if (!m) return;
       if (m.type === 'mult') out.doubled = true;
-      else out.addBonus += m.value;
+      else if (m.type === 'div') out.halved = true;
+      else out.addBonus += m.value;   // signed: Vengeance cards carry a negative value
     });
 
     if (out.busted) { out.total = 0; return out; }
 
     out.flip7Bonus = out.flip7 ? bonusValue : 0;
-    out.total = out.numberSum * (out.doubled ? 2 : 1) + out.addBonus + out.flip7Bonus;
+
+    // x2 and ÷2 act on the number cards only. Halving rounds DOWN; with both
+    // cards in hand they cancel exactly. The +/- modifiers and the Flip 7
+    // bonus land afterwards, and the result is allowed to go negative.
+    var base = out.numberSum;
+    if (out.doubled) base = base * 2;
+    if (out.halved) base = Math.floor(base / 2);
+    out.total = base + out.addBonus + out.flip7Bonus;
     return out;
   }
 
-  /* A short human-readable sum, e.g. "5+9+10 = 24 x2 +4 +15". */
+  /* Scores print with a real minus sign, not a hyphen. */
+  function formatScore(n) { return n < 0 ? '−' + Math.abs(n) : String(n); }
+
+  /* A short human-readable sum, e.g. "5+9+10 ×2 +4 −6 = 46". */
   function describe(entry, opts) {
     var s = scoreEntry(entry, opts);
     if (s.busted) return 'Busted — 0 points';
@@ -116,9 +134,14 @@
     var numbers = (entry.numbers || []).slice().sort(function (a, b) { return a - b; });
     if (numbers.length) parts.push(numbers.join('+'));
     if (s.doubled) parts.push('×2');
-    if (s.addBonus) parts.push('+' + s.addBonus);
+    if (s.halved) parts.push('÷2');
+    (entry.mods || [])
+      .map(function (k) { return MOD_BY_KEY[k]; })
+      .filter(function (m) { return m && m.type === 'add'; })
+      .sort(function (a, b) { return b.value - a.value; })
+      .forEach(function (m) { parts.push(m.label); });
     if (s.flip7Bonus) parts.push('+' + s.flip7Bonus);
-    return parts.join(' ') + ' = ' + s.total;
+    return parts.join(' ') + ' = ' + formatScore(s.total);
   }
 
   /* Has this entry actually been filled in? */
@@ -166,6 +189,7 @@
     deckSize: deckSize,
     scoreEntry: scoreEntry,
     describe: describe,
+    formatScore: formatScore,
     isEntered: isEntered,
     cardsClaimed: cardsClaimed,
     numberOverdrawn: numberOverdrawn,

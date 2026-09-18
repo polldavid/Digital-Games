@@ -42,7 +42,9 @@ A scoring platform for the card game **Flip 7** — the companion to a physical
 deck rather than a game of its own. Tap the cards each player flipped and it
 does the maths: number cards summed, `×2` doubling them, `+2…+10` added after,
 a **Flip 7** bonus for seven different numbers, and a bust wiping the round to
-zero. It keeps a running leaderboard to 200, an editable round-by-round
+zero. Pick the **Vengeance** deck at setup and the `−2…−10` penalties and `÷2`
+appear too — `÷2` halves the number cards rounding down, penalties come off
+after the multiplier, and a round can finish below zero. It keeps a running leaderboard to 200, an editable round-by-round
 history, and end-of-game stats — and it survives a refresh, so a knocked phone
 doesn't lose the game. It even warns you when a round claims more copies of a
 card than the 94-card deck actually holds.
