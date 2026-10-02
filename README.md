@@ -17,6 +17,7 @@ No backend, no build step — everything is plain HTML, CSS, and vanilla JavaScr
 | [Do You Really Know Your Friends?](friends/) | `friends/` | 3–8 | ✅ Playable |
 | [Get ChurchED](getchurched/) | `getchurched/` | 2+ teams | ✅ Playable |
 | [Flip 7 Scorer](flip7/) | `flip7/` | 2–12 | ✅ Playable |
+| [Baby Log](baby/) | `baby/` | Parents | ✅ Usable |
 | _More on the way…_ | — | — | 🛠️ Coming soon |
 
 ### Do You Really Know Your Friends?
@@ -48,6 +49,19 @@ doesn't lose the game. It even warns you when a round claims more copies of a
 card than the 94-card deck actually holds.
 See [`flip7/`](flip7/) to score a game.
 
+### Baby Log
+
+Not a game — an all-in-one **newborn tracker** for tired parents. One-tap
+logging for feeds (breast timer with L/R switching, bottle, solids), diapers
+(with a poop-colour guide), sleep, pumping, tummy time, medicine, temperature
+and growth. It reminds you when the next feed, nap window or medicine dose is
+due, checks the last 24 hours against age norms (*"is my baby eating
+enough?"*), and has an **Answers** section built around the questions new
+parents search for most — including a *"Why is my baby crying?"* helper that
+ranks likely causes from the baby's own log, and a built-in white-noise
+machine. Supports twins, works offline, installs to the home screen, and keeps
+all data on the device. See [`baby/`](baby/) for details.
+
 ---
 
 ## Project structure
@@ -74,6 +88,15 @@ See [`flip7/`](flip7/) to score a game.
 │   └── js/
 │       ├── rules.js        # Deck definition + scoring maths (pure functions)
 │       └── app.js          # Board, scoring sheet, history, persistence
+├── baby/                   # Tool: Baby Log (installable PWA)
+│   ├── index.html
+│   ├── manifest.webmanifest / sw.js   # install + offline
+│   ├── css/styles.css
+│   └── js/
+│       ├── guide.js        # Age-based norms & answers (pure, tested)
+│       ├── store.js        # State, persistence, reminder engine
+│       ├── sound.js        # White-noise generator (Web Audio)
+│       └── ui.js · forms.js · views.js · help.js · app.js   # UI
 ├── README.md
 └── .gitignore
 ```

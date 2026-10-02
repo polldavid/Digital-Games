@@ -133,6 +133,7 @@
 
   var api = {
     SOUNDS: SOUNDS, play: play, stop: stop, volume: volume, chime: chime,
+    unlock: function () { ac(); },
     playing: function () { return current; },
     endsAt: function () { return endsAt; },
     onchange: null

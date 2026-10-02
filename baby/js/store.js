@@ -184,7 +184,7 @@
     now = now || Date.now();
     var t = timers();
     var b = t.breast;
-    if (!b) { t.breast = { side: side, start: now, segStart: now, accL: 0, accR: 0, paused: false }; return t.breast; }
+    if (!b) { t.breast = { side: side, firstSide: side, start: now, segStart: now, accL: 0, accR: 0, paused: false }; return t.breast; }
     bankBreast(b, now);
     b.side = side; b.paused = false; b.segStart = now;
     return b;
@@ -226,8 +226,8 @@
     // Breast timer counts as "feeding now".
     var b = timers(id).breast;
     if (b) return { time: b.start, end: null, live: true };
-    var f = last('feed', null, id);
-    return f ? { time: f.time, end: f.end, id: f.id } : null;
+    var f = last('feed', function (e) { return e.data.kind !== 'solids'; }, id);
+    return f ? { time: f.time, end: f.end, id: f.id, event: f } : null;
   }
 
   function feedIntervalH(now, id) {
