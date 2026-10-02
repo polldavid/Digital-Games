@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0E1424" />
+  <meta name="description" content="Baby Log — an all-in-one newborn tracker: feeds, diapers, sleep, pumping, medicine, temperature and growth, with reminders and answers to the questions parents search most. Private, offline, no sign-up." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Baby Log" />
+  <title>Baby Log</title>
+  <script>try{var t=localStorage.getItem('dg-theme')||((window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="../theme.css" />
+</head>
+<body>
+  <button class="theme-toggle" data-theme-toggle aria-label="Toggle light or dark mode">🌙</button>
+
+  <!-- ===================== WELCOME / FIRST RUN ===================== -->
+  <section class="welcome" id="welcome" hidden>
+    <div class="welcome__inner">
+      <div class="welcome__art" aria-hidden="true">
+        <span>🍼</span><span>👶</span><span>🌙</span>
+      </div>
+      <h1 class="welcome__title">Baby <em>Log</em></h1>
+      <p class="welcome__sub">Feeds, diapers, sleep and everything in between — timed, tracked and gently reminded. Plus straight answers to the questions every new parent googles at 3&nbsp;a.m.</p>
+
+      <form class="card form" id="welcome-form" autocomplete="off">
+        <h2 class="form__title">Who are we looking after?</h2>
+        <label class="field">
+          <span class="field__label">Baby’s name</span>
+          <input class="input" name="name" required maxlength="30" placeholder="e.g. Ava" />
+        </label>
+        <label class="field">
+          <span class="field__label">Date of birth</span>
+          <input class="input" type="date" name="birth" required />
+        </label>
+        <fieldset class="field">
+          <legend class="field__label">Feeding</legend>
+          <div class="seg" role="radiogroup">
+            <label><input type="radio" name="feeding" value="breast" checked /><span>Breast</span></label>
+            <label><input type="radio" name="feeding" value="formula" /><span>Formula</span></label>
+            <label><input type="radio" name="feeding" value="mixed" /><span>Both</span></label>
+          </div>
+        </fieldset>
+        <button class="btn btn--primary btn--block btn--lg" type="submit">Start tracking</button>
+        <p class="fineprint">Everything stays on this device. No account, no ads, works offline.</p>
+      </form>
+      <button class="btn btn--link" type="button" data-action="import-open">Restore from a backup</button>
+      <a class="link-back" href="../">← All games &amp; tools</a>
+    </div>
+  </section>
+
+  <!-- ===================== APP ===================== -->
+  <div class="app" id="app" hidden>
+    <header class="topbar">
+      <button class="babychip" data-action="baby-switch" aria-label="Switch baby" id="babychip"></button>
+      <button class="iconbtn" data-action="go" data-view="settings" data-focus="reminders" aria-label="Reminders" id="bell">🔔<span class="iconbtn__badge" id="bell-badge" hidden></span></button>
+    </header>
+
+    <div class="banner" id="banner" hidden role="alert"></div>
+
+    <main class="views">
+      <section class="view" id="view-today" aria-label="Today"></section>
+      <section class="view" id="view-log" aria-label="History" hidden></section>
+      <section class="view" id="view-trends" aria-label="Trends" hidden></section>
+      <section class="view" id="view-help" aria-label="Answers" hidden></section>
+      <section class="view" id="view-settings" aria-label="Settings" hidden></section>
+    </main>
+
+    <nav class="tabbar" aria-label="Sections">
+      <button class="tab tab--active" data-action="go" data-view="today"><span class="tab__icon">🏠</span><span class="tab__label">Today</span></button>
+      <button class="tab" data-action="go" data-view="log"><span class="tab__icon">📋</span><span class="tab__label">History</span></button>
+      <button class="tab" data-action="go" data-view="trends"><span class="tab__icon">📈</span><span class="tab__label">Trends</span></button>
+      <button class="tab" data-action="go" data-view="help"><span class="tab__icon">💡</span><span class="tab__label">Answers</span></button>
+      <button class="tab" data-action="go" data-view="settings"><span class="tab__icon">⚙️</span><span class="tab__label">Settings</span></button>
+    </nav>
+  </div>
+
+  <!-- Bottom sheet for logging / editing / help topics -->
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheet__scrim" data-action="sheet-close"></div>
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="sheet__grab" aria-hidden="true"></div>
+      <div class="sheet__head">
+        <h2 class="sheet__title" id="sheet-title"></h2>
+        <button class="iconbtn" data-action="sheet-close" aria-label="Close">✕</button>
+      </div>
+      <div class="sheet__body" id="sheet-body"></div>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <div class="tip" id="tip" role="tooltip" hidden></div>
+  <input type="file" id="import-file" accept="application/json,.json" hidden />
+
+  <script src="../theme.js"></script>
+  <script src="js/guide.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
