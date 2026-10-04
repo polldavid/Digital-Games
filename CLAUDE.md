@@ -1,0 +1,75 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+A static-site hub ("Digital Games") of phone-first web apps, deployed with **GitHub Pages from `main`**: pushing to `main` publishes to https://polldavid.github.io/Digital-Games/. Each app lives in its own folder with its own `index.html` and shows up as a card on the root `index.html`:
+
+- `friends/`, `getchurched/` — pass-and-play party games (`js/game.js` state machine + a word/question bank file)
+- `flip7/` — card-game scorer (`js/rules.js` pure scoring maths, `js/app.js` UI + persistence)
+- `baby/` — **Baby Log**, a newborn tracker PWA, by far the largest app; most work happens here (see below and `baby/README.md`)
+
+There is **no build step, no bundler, no framework, and no runtime npm dependencies**. Everything is plain HTML/CSS and ES5-style vanilla JS (`var`, IIFEs, string-concatenated HTML). Keep it that way. `.gitignore` excludes `package.json` and `node_modules/`, so dev-only packages (Playwright) are installed with `--no-save` and never committed.
+
+## Commands
+
+```bash
+# Serve locally (service worker and notifications need http://, not file://)
+python3 -m http.server 8000          # then open http://localhost:8000/baby/
+
+# Baby Log unit tests — pure Node, no install. Stops at the first failing assert.
+node baby/tests/unit.test.js
+
+# Baby Log browser smoke test (Playwright/Chromium at iPhone size; serves the repo itself)
+npm i --no-save playwright && npx playwright install chromium   # one-time
+node baby/tests/e2e.smoke.js           # HEADED=1 to watch
+
+# Quick syntax check of every Baby Log module
+for f in baby/js/*.js; do node --check "$f"; done
+```
+
+The tests are plain scripts, not a framework — there is no per-test filter; to focus on one area, run the script and read the step that fails (the smoke test prints a `•` line per step).
+
+## Shared conventions across apps
+
+- **All links and asset paths are relative** (apps are served from a subfolder on Pages).
+- **Theming**: `theme.css` + `theme.js` at the root provide the light/dark toggle (`<button data-theme-toggle>`), persisted in `localStorage['dg-theme']`. Every page also has a tiny inline `<head>` script that sets `data-theme` before first paint. Each app's stylesheet defines its **dark palette on `:root`** and overrides tokens under `:root[data-theme="light"]` — style through the CSS custom properties, never hard-coded colors.
+- `localStorage` keys are namespaced per app (`dg-theme`, `flip7-game-v1`, `dg-babylog-v1`).
+- Adding an app: new folder with its own `index.html`, then copy an `<a class="game" href="./folder/">` card in the root `index.html` and add a row to the README table.
+
+## Baby Log architecture (`baby/`)
+
+**Script load order matters** (see `baby/index.html`): each file attaches a global, and later files read earlier ones.
+
+| Layer | Files → global | Notes |
+|---|---|---|
+| Pure logic (no DOM) | `guide.js` → `BabyGuide`, `store.js` → `BabyStore`, `rx.js` → `BabyRx` | Dual-export: `module.exports` under Node, globals in the browser — this is what `tests/unit.test.js` requires. Keep them DOM-free. |
+| Browser services | `sound.js` → `BabySound` (Web Audio white noise + chime), `files.js` → `BabyFiles` (photos in IndexedDB) | |
+| UI | `ui.js` (creates `window.BabyApp`, helpers on `App.h`), `forms.js` → `BabyForms`, `views.js` → `BabyViews`, `help.js` → `BabyHelp`, `health.js` → `BabyHealth` | Render functions return HTML strings. |
+| Wiring | `app.js` | Boot, the `ACTIONS` map, submit/change handlers, reminder loop, settings view, import/export. |
+
+**State** (`store.js`): one object in `localStorage['dg-babylog-v1']`:
+`babies[]`, `activeBaby`, `events[]` (`{id, baby, type, time, end, data}`, kept sorted by `time`), `timers[babyId]` (running sleep/breast/pump/tummy timers stored as start timestamps, so they survive reloads and a locked phone), `custom[]` reminders, `fired`/`snoozed` reminder bookkeeping, `health[babyId]` (profile, appointments, `rx` prescriptions, vaccines, docs), and `settings`.
+- Units are stored canonically — **ml, °C, kg, cm, epoch ms** — and converted only for display (`App.h.vol/temp/weight/len` and their `*FromDisplay` inverses).
+- `normalize()` rebuilds `settings` **only from the keys in `defaults().settings`** — a new setting must be added to `defaults()` or it is silently dropped on the next load.
+- Photos are not in `localStorage`: records hold a `photoId`, the JPEG lives in IndexedDB (`files.js`), and JSON backups embed photos as base64 (`app.js` export/import).
+
+**Reminders**: `BabyStore.reminders(now, babyId)` derives every reminder (feed interval from age, diaper, nap window, medicine spacing, prescription doses, appointments, vaccines due, custom) with a stable `key`. `due()` returns those past due and not yet fired; `markFired()` records `key@at` so each fires once (a snooze moves `at`). `app.js` polls every 15 s and on `visibilitychange`, shows the in-app banner, chime, vibration and (if permitted) a notification via the service worker. Feed/diaper/tummy/vitamin-D reminders are held while the baby's sleep timer runs, and no sound plays while a baby sleeps or during quiet night hours.
+
+**Rendering & events** (all in `app.js` / `ui.js`):
+- `App.render()` re-renders the active tab with `innerHTML`; `App.commit()` = save → sync alerts → render → re-render the open sheet. After mutating `BabyStore.get()`, call `commit()`.
+- Event delegation only: elements carry `data-action="name"` (dispatched to `ACTIONS[name]` in `app.js`), `data-action-change` for change events, and `data-setting="key"` for settings inputs. Forms are handled in `onSubmit` by `id`: `#sheet-form` goes through the `FORMS` registry in `forms.js` (each type has `html(ev, preset)`, `parse(form)`, optional `mount(body)`), and Health forms go through `saveHealthForm`.
+- Bottom sheets: `App.h.openSheet({title, html: fn, mount})`. The `html` function is re-run on every `commit()`, which discards un-saved typing — when a change must keep the user's input, update the DOM in place instead (see `doc-photo`, `unit-toggle`).
+- Live clocks update every second via attributes `data-ago`, `data-elapsed`, `data-since`, `data-until`, `data-breast`, `data-pump` (handled by `tick()` in `ui.js`), not by re-rendering.
+- The sticky Save bar (`.sheet-save`) must be a direct child of the form to stick; wrappers around it use `display: contents` (`[data-panel-save]`).
+- Every interactive element should keep a ≥44px tap target; the smoke test checks there is no horizontal scroll at 320px.
+
+**Service worker** (`baby/sw.js`): caches the app shell for offline use. **Bump `VERSION` whenever any cached file changes, and add new files to `FILES`**, or installed copies keep serving stale code.
+
+**External code at runtime**: only Tesseract.js 7.0.0 (prescription OCR), lazy-loaded from jsDelivr on the first scan; the photo is pre-processed in `health.js` (`enhance()`) and the text parsed by `rx.js`. Nothing else is fetched; all data stays on the device.
+
+**Product rules the code relies on**:
+- Health guidance in `guide.js` (feeding/sleep/diaper norms, fever thresholds, vaccine schedules for PH and US, milestones) follows AAP/CDC/WHO/NHS/DOH/PIDSP material; screens present it as general information with a "call your pediatrician" disclaimer.
+- The app **never suggests medicine doses** — it only records what was given and enforces spacing/max-per-day that the parent or prescription supplies.
+- Scanned prescriptions are **never saved without the parent confirming** the drafted lines.

@@ -155,6 +155,14 @@ tested without a browser.
 If you change any cached file, bump `VERSION` in `sw.js` so installed copies
 update.
 
+## Tests
+
+```bash
+node baby/tests/unit.test.js        # pure logic: guide.js, store.js, rx.js — no install needed
+npm i --no-save playwright && npx playwright install chromium   # one-time
+node baby/tests/e2e.smoke.js        # main flows in Chromium at iPhone size (HEADED=1 to watch)
+```
+
 ## App stores (later)
 
 The web version is built to be wrapped without a rewrite:
