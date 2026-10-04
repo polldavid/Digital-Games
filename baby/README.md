@@ -28,6 +28,12 @@ reminders (once, daily, or every N hours — e.g. antibiotics every 8h). Each
 shows as an in-app banner with **Log / Snooze / Dismiss**, a soft chime,
 vibration, and a phone notification if allowed.
 
+Reminders respect a sleeping baby: while the sleep timer runs, feed, diaper,
+tummy-time and vitamin D reminders wait until the baby wakes. The one
+exception follows newborn guidance: babies under 2 weeks get a "time to wake
+for a feed" nudge at about 4 hours. No sound ever plays while a baby is asleep,
+and **Quiet at night** (on by default) makes 10 pm – 7 am alerts vibrate-only.
+
 > Web apps can only fire reminders while they're open or in the background —
 > phones may pause a fully closed web app. The app says so in Settings.
 > Reliable closed-app alerts need native local notifications (see *App
@@ -57,12 +63,20 @@ disclaimer.
 
 ## Also
 
-- **Today dashboard:** live timers, last feed / diaper / sleep tiles, next
-  side, "is baby getting enough?" checks, upcoming reminders, today's log.
+- **Today dashboard:** live timers, eight one-tap log buttons (the rest under
+  *More*), last feed / diaper / sleep tiles, next side, "is baby getting
+  enough?" checks, upcoming reminders, today's log.
+- **Made for one tired thumb:** Save is pinned to the bottom of every form,
+  sheets close with a swipe down or the phone's Back button, tap targets are
+  at least 44 px, and text meets WCAG AA contrast in light and dark mode.
+- **Install tip:** iPhone users get a one-time "Add to Home Screen" tip (needed
+  there for notifications, and it stops Safari clearing the logs); Android
+  gets an Install button.
 - **Trends:** daily rhythm map (sleep blocks and feeds per day), sleep, feeds,
   diapers, bottle and pumping charts with the normal range shaded, growth
   chart, and a table view.
-- **Twins and siblings:** multiple babies, quick switching; reminders cover
+- **Twins and siblings:** multiple babies, quick switching, and "also log
+  for…" on feeds, diapers, sleep, tummy time, baths and notes; reminders cover
   every baby.
 - **Share & sync by hand:** a text summary of the last 24h for a partner or
   sitter; JSON backup/import (merges, never overwrites) to move logs between

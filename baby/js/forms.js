@@ -22,8 +22,19 @@
   function noteField(v) {
     return '<label class="field"><span class="field__label">Note (optional)</span><input class="input" name="note" maxlength="140" value="' + esc(v || '') + '" placeholder="Anything worth remembering" /></label>';
   }
+  // Twins: offer to log the same entry for the other baby (or babies).
+  var TWIN_TYPES = { feed: 1, diaper: 1, sleep: 1, tummy: 1, bath: 1, note: 1 };
+  var currentType = null;
+  function alsoFor(ev) {
+    var st = S.get();
+    if (ev || !TWIN_TYPES[currentType] || st.babies.length < 2) return '';
+    return '<div class="field">' + st.babies.filter(function (b) { return b.id !== st.activeBaby; }).map(function (b) {
+      return '<label class="check-line"><input type="checkbox" name="alsoFor" value="' + b.id + '" /> Also log for ' + esc(b.name) + '</label>';
+    }).join('') + '</div>';
+  }
+  // The Save row sticks to the bottom of the sheet, so it's always one tap away.
   function footer(ev) {
-    return '<div class="btn-row">' +
+    return alsoFor(ev) + '<div class="btn-row sheet-save">' +
       (ev ? '<button type="button" class="btn btn--danger" data-action="event-delete" data-id="' + ev.id + '">Delete</button>' : '') +
       '<button type="submit" class="btn btn--primary btn--lg">' + (ev ? 'Save changes' : 'Save') + '</button></div>';
   }
@@ -264,7 +275,9 @@
   var MED = {
     title: function (ev) { return ev ? 'Edit medicine' : 'Medicine'; },
     html: function (ev) {
-      var d = ev ? ev.data : {}, medId = d.medId || 'acetaminophen', p = G.medicine(medId);
+      // Start on the medicine last given; for young babies, vitamin D (the everyday one).
+      var lastMed = S.last('med');
+      var d = ev ? ev.data : {}, medId = d.medId || (lastMed ? lastMed.data.medId : days() < 91 ? 'vitd' : 'acetaminophen'), p = G.medicine(medId);
       return '<label class="field"><span class="field__label">Medicine</span><select class="input" name="medId">' +
         G.MEDICINES.map(function (m) { return '<option value="' + m.id + '"' + (m.id === medId ? ' selected' : '') + '>' + esc(m.label) + '</option>'; }).join('') + '</select></label>' +
         '<label class="field" data-custom' + (medId === 'custom' ? '' : ' hidden') + '><span class="field__label">Name</span><input class="input" name="name" maxlength="40" value="' + esc(medId === 'custom' ? d.name || '' : '') + '" placeholder="e.g. Amoxicillin" /></label>' +
@@ -293,7 +306,7 @@
         }
         form.querySelector('[data-custom]').hidden = id !== 'custom';
         var out = [], now = Date.now(), dd = days();
-        if (dd < p.minAgeDays || (id === 'acetaminophen' && dd < 91)) out.push(h.note('urgent', 'Check with a doctor first', p.warn));
+        if (dd < p.minAgeDays || (id === 'acetaminophen' && dd < 91)) out.push(h.note('warn', 'Check with a doctor first', p.warn));
         else if (p.warn) out.push('<p class="faint">' + esc(p.warn) + '</p>');
         var ms = editingId ? null : S.medStatus(medKey(id, val(form, 'name')), now);
         if (ms) {
@@ -401,6 +414,7 @@
   function open(type, ev, preset) {
     var F = FORMS[type];
     if (!F) return;
+    currentType = type;
     h.openSheet({
       kind: 'form', type: type, eventId: ev ? ev.id : null,
       title: function () { return F.title(ev); },
@@ -423,9 +437,14 @@
     if (r.error) { h.toast(r.error); return null; }
     if (!r.time) { h.toast('Pick a time.'); return null; }
     if (r.time > Date.now() + 5 * MIN) { h.toast('That time is in the future.'); return null; }
+    api.lastCopies = [];
     if (ev) return S.updateEvent(id, { time: r.time, end: r.end !== undefined ? r.end : ev.end, data: r.data });
-    return S.addEvent({ type: type, time: r.time, end: r.end || null, data: r.data });
+    var saved = S.addEvent({ type: type, time: r.time, end: r.end || null, data: r.data });
+    h.$all('input[name="alsoFor"]:checked', form).forEach(function (c) {
+      api.lastCopies.push(S.addEvent({ baby: c.value, type: type, time: r.time, end: r.end || null, data: JSON.parse(JSON.stringify(r.data)) }));
+    });
+    return saved;
   }
 
-  window.BabyForms = { open: open, save: save, FORMS: FORMS, nextSide: nextSide, breastLive: breastLive };
+  var api = window.BabyForms = { open: open, save: save, FORMS: FORMS, nextSide: nextSide, breastLive: breastLive, lastCopies: [] };
 })();

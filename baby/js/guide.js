@@ -35,7 +35,7 @@
   // "Day 3", "2 weeks, 4 days", "3 months, 1 week", "1 year, 2 months"
   function ageLabel(days) {
     if (days == null) return '';
-    if (days < 14) return days === 0 ? 'Born today' : 'Day ' + (days + 1);
+    if (days < 14) return days === 0 ? 'Born today' : days === 1 ? '1 day old' : days + ' days old';
     var plural = function (n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); };
     if (days < 84) {
       var w = Math.floor(days / 7), d = days % 7;

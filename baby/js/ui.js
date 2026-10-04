@@ -10,7 +10,13 @@
   var G = window.BabyGuide, S = window.BabyStore;
   var MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
 
+  var ua = navigator.userAgent || '';
   var App = window.BabyApp = {
+    platform: {
+      ios: /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
+      standalone: !!(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches))
+    },
+    installPrompt: null,
     ui: { view: 'today', historyType: 'all', historyDays: 7, trendDays: 7, sheet: null, alerts: [] },
     commit: null,   // set by app.js: save + re-render
     render: null
@@ -176,13 +182,20 @@
   }
 
   /* ---------- Bottom sheet ---------- */
-  var lastFocus = null;
+  // Each open sheet gets a history entry, so the phone's Back button (or
+  // gesture) closes the sheet instead of leaving the app.
+  var lastFocus = null, ignorePop = false;
   function openSheet(spec) {
     // spec: { title, kind, html: fn() | string, mount?: fn(body) }
     App.ui.sheet = spec;
     var sheet = $('#sheet');
-    if (sheet.hidden) lastFocus = document.activeElement;
+    if (sheet.hidden) {
+      lastFocus = document.activeElement;
+      try { if (!(history.state && history.state.babySheet)) history.pushState({ babySheet: 1 }, ''); } catch (e) {}
+    }
+    $('.sheet__panel').style.transform = '';
     sheet.hidden = false;
+    document.body.classList.add('sheet-open');
     document.body.style.overflow = 'hidden';
     renderSheet();
     var f = $('.sheet__panel [autofocus]') || $('.sheet__panel .iconbtn');
@@ -199,15 +212,55 @@
     if (spec.mount) spec.mount(body);
     tick();
   }
-  function closeSheet() {
+  function closeSheet(fromBack) {
     var spec = App.ui.sheet;
+    if (!spec && $('#sheet').hidden) return;
     App.ui.sheet = null;
+    if (fromBack !== true) try { if (history.state && history.state.babySheet) { ignorePop = true; history.back(); } } catch (e) {}
     $('#sheet').hidden = true;
+    document.body.classList.remove('sheet-open');
     $('#sheet-body').innerHTML = '';
     document.body.style.overflow = '';
     if (spec && spec.onclose) spec.onclose();
     if (lastFocus && lastFocus.focus) try { lastFocus.focus({ preventScroll: true }); } catch (e) {}
   }
+
+  function initSheetGestures() {
+    window.addEventListener('popstate', function () {
+      if (ignorePop) {
+        ignorePop = false;
+        // A new sheet opened before the old one's Back finished: give it its own entry.
+        if (App.ui.sheet) try { history.pushState({ babySheet: 1 }, ''); } catch (e) {}
+        return;
+      }
+      if (App.ui.sheet) { closeSheet(true); if (App.render) App.render(); }
+    });
+    // Swipe the sheet's handle or title bar down to close it.
+    var panel = $('.sheet__panel'), startY = null, dy = 0;
+    function down(e) {
+      if (!e.target.closest('.sheet__grab, .sheet__head') || e.target.closest('button')) return;
+      startY = e.clientY; dy = 0; panel.style.transition = 'none';
+      try { panel.setPointerCapture(e.pointerId); } catch (x) {}
+    }
+    function move(e) {
+      if (startY == null) return;
+      dy = Math.max(0, e.clientY - startY);
+      panel.style.transform = 'translateY(' + dy + 'px)';
+    }
+    function up() {
+      if (startY == null) return;
+      startY = null; panel.style.transition = '';
+      if (dy > 90) { closeSheet(); if (App.render) App.render(); }
+      else panel.style.transform = '';
+    }
+    panel.addEventListener('pointerdown', down);
+    panel.addEventListener('pointermove', move);
+    panel.addEventListener('pointerup', up);
+    panel.addEventListener('pointercancel', up);
+  }
+
+  // "2 min", "1h 5m" — friendlier than a stopwatch for "how long ago / how long awake".
+  function since(ms) { return ms < 60000 ? '<1 min' : G.fmtDur(ms / MIN); }
 
   /* ---------- Live clocks ----------
      [data-ago="ms"]      -> "12 min ago"
@@ -218,6 +271,7 @@
     var now = Date.now();
     $all('[data-ago]').forEach(function (n) { n.textContent = ago(+n.getAttribute('data-ago'), now); });
     $all('[data-elapsed]').forEach(function (n) { n.textContent = clock(now - +n.getAttribute('data-elapsed')); });
+    $all('[data-since]').forEach(function (n) { n.textContent = since(now - +n.getAttribute('data-since')); });
     $all('[data-until]').forEach(function (n) { n.textContent = until(+n.getAttribute('data-until'), now); });
     var b = S.get().activeBaby && S.timers().breast;
     if (b) {
@@ -277,7 +331,7 @@
     weightUnit: weightUnit, weightToDisplay: weightToDisplay, weightFromDisplay: weightFromDisplay, weight: weight,
     lenUnit: lenUnit, lenToDisplay: lenToDisplay, lenFromDisplay: lenFromDisplay, len: len,
     TYPES: TYPES, REACTIONS: REACTIONS, describe: describe,
-    toast: toast, openSheet: openSheet, renderSheet: renderSheet, closeSheet: closeSheet, tick: tick, initTips: initTips,
+    toast: toast, openSheet: openSheet, renderSheet: renderSheet, closeSheet: closeSheet, tick: tick, initTips: initTips, initSheetGestures: initSheetGestures, since: since,
     statusPill: statusPill, note: note, sw: sw, timeField: timeField,
     MIN: MIN, HOUR: HOUR, DAY: DAY
   };

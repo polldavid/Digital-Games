@@ -33,7 +33,9 @@
         diaperRemind: false, diaperIntervalH: 3,
         napRemind: true,
         vitdRemind: false, vitdTime: '09:00',
-        tummyRemind: false, tummyTime: '16:00'
+        tummyRemind: false, tummyTime: '16:00',
+        quietNight: true,                        // 10pm–7am: vibrate only, no chime
+        installTipDismissed: false
       }
     };
   }
@@ -308,17 +310,26 @@
     var name = b.name || 'Baby';
     var days = ageDays(now, id);
 
+    // A sleeping baby is never "due" for a diaper change, tummy time or vitamin D —
+    // those wait until they wake. Feeds only interrupt sleep for young newborns.
+    var asleep = isAsleep(id);
+
     // Next feed — from the START of the last feed, like a pediatrician counts it.
     if (st.feedRemind) {
       var lf = lastFeedAnchor(id);
       if (lf && !lf.live) {
         var iv = feedIntervalH(now, id);
-        out.push({ key: 'feed:' + lf.id, kind: 'feed', icon: '🍼', title: 'Feed due', text: name + ' last fed ' + G.fmtDur((now - lf.time) / MIN) + ' ago (every ~' + G.fmtHours(iv) + ').', at: lf.time + iv * HOUR });
+        if (!asleep) {
+          out.push({ key: 'feed:' + lf.id, kind: 'feed', icon: '🍼', title: 'Feed due', text: name + ' last fed ' + G.fmtDur((now - lf.time) / MIN) + ' ago (every ~' + G.fmtHours(iv) + ').', at: lf.time + iv * HOUR });
+        } else if (days < 14) {
+          // Newborns shouldn't go more than ~4 hours between feeds until back to birth weight.
+          out.push({ key: 'feedwake:' + lf.id, kind: 'feed', icon: '🍼', title: 'Time to wake for a feed', text: name + ' last fed ' + G.fmtDur((now - lf.time) / MIN) + ' ago. Newborns under 2 weeks shouldn’t go more than about 4 hours between feeds.', at: Math.max(lf.time + iv * HOUR, lf.time + 4 * HOUR) });
+        }
       }
     }
 
     // Diaper check.
-    if (st.diaperRemind) {
+    if (st.diaperRemind && !asleep) {
       var ld = last('diaper', null, id);
       if (ld) out.push({ key: 'diaper:' + ld.id, kind: 'diaper', icon: '🧷', title: 'Diaper check', text: 'Last change was ' + G.fmtDur((now - ld.time) / MIN) + ' ago.', at: ld.time + st.diaperIntervalH * HOUR });
     }
@@ -345,7 +356,7 @@
     });
 
     // Daily vitamin D (skipped if already logged today).
-    if (st.vitdRemind) {
+    if (st.vitdRemind && !asleep) {
       var start = startOfDay(now);
       var given = events({ baby: id, type: 'med', from: start }).some(function (e) { return e.data.medId === 'vitd'; });
       var at = hm(st.vitdTime, now);
@@ -354,7 +365,7 @@
     }
 
     // Tummy time daily nudge if under goal.
-    if (st.tummyRemind) {
+    if (st.tummyRemind && !asleep) {
       var goal = G.tummyGoalMin(days);
       if (goal) {
         var doneMin = daySummary(startOfDay(now), now, id).tummyMs / MIN;

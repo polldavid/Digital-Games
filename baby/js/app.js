@@ -59,17 +59,24 @@
     if (changed) { S.save(); renderBanner(); if (App.ui.view === 'today' && !App.ui.sheet) softRender(); }
   }
 
+  // No sounds while any baby is asleep, or at night if the parent asked for quiet.
+  function quietNow() {
+    var st = S.get(), hr = new Date().getHours();
+    if (st.babies.some(function (b) { return S.isAsleep(b.id); })) return true;
+    return !!st.settings.quietNight && (hr >= 22 || hr < 7);
+  }
+
   function raiseAlert(r, b) {
-    var st = S.get().settings, many = S.get().babies.length > 1;
+    var st = S.get().settings, many = S.get().babies.length > 1, quiet = quietNow();
     var title = r.icon + ' ' + r.title + (many ? ' · ' + b.name : '');
     if (st.notify && 'Notification' in window && Notification.permission === 'granted') {
-      var opts = { body: r.text, tag: r.key, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', renotify: true, vibrate: [200, 100, 200], data: { url: location.href } };
+      var opts = { body: r.text, tag: r.key, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', renotify: true, silent: quiet, vibrate: [200, 100, 200], data: { url: location.href } };
       try {
         if (swReg && swReg.showNotification) swReg.showNotification(title, opts);
         else new Notification(title, opts);
       } catch (e) { /* some browsers only allow SW notifications */ }
     }
-    if (st.chime) Snd.chime();
+    if (st.chime && !quiet) Snd.chime();
     if (navigator.vibrate) try { navigator.vibrate([200, 100, 200]); } catch (e) {}
     App.ui.alerts = App.ui.alerts.filter(function (a) { return a.key !== r.key; });
     App.ui.alerts.unshift(r);
@@ -166,9 +173,10 @@
 
     // Reminders
     html += '<div class="section-title" id="set-reminders">Reminders</div><div class="card">' +
-      row('Phone notifications', perm === 'granted' && s.notify ? 'On — alerts show even when you’re in another app.' : perm === 'denied' ? 'Blocked in browser settings. In-app alerts still work.' : perm === 'unsupported' ? 'Not supported here. In-app alerts and the chime still work.' : 'Get alerts while you’re in another app.',
+      row('Phone notifications', perm === 'granted' && s.notify ? 'On — alerts show even when you’re in another app.' : perm === 'denied' ? 'Blocked in browser settings. In-app alerts still work.' : perm === 'unsupported' ? (App.platform.ios && !App.platform.standalone ? 'On iPhone, add Baby Log to your Home Screen first (Share → Add to Home Screen), then open it from there.' : 'Not supported here. In-app alerts and the chime still work.') : 'Get alerts while you’re in another app.',
         perm === 'granted' ? h.sw('notify', s.notify, 'Notifications') : perm === 'default' ? '<button class="btn btn--sm btn--primary" data-action="notify-enable">Turn on</button>' : '') +
-      row('Chime', 'A soft two-note sound with each reminder.', h.sw('chime', s.chime, 'Chime')) +
+      row('Chime', 'A soft two-note sound with each reminder. Never plays while a baby is asleep.', h.sw('chime', s.chime, 'Chime')) +
+      row('Quiet at night', '10 pm – 7 am: vibrate and banner only, no sound.', h.sw('quietNight', s.quietNight, 'Quiet at night')) +
       row('🍼 Next feed', 'Counted from the start of the last feed.', h.sw('feedRemind', s.feedRemind, 'Feed reminder')) +
       (s.feedRemind ? row('&nbsp;&nbsp;&nbsp;Every', '', sel('feedIntervalH', [[0, 'Auto (~' + G.fmtHours(autoH) + ')'], [1.5, '1½ hours'], [2, '2 hours'], [2.5, '2½ hours'], [3, '3 hours'], [3.5, '3½ hours'], [4, '4 hours'], [5, '5 hours'], [6, '6 hours']], s.feedIntervalH)) : '') +
       row('🧷 Diaper check', 'After the last change.', h.sw('diaperRemind', s.diaperRemind, 'Diaper reminder')) +
@@ -225,7 +233,7 @@
           '<div class="field"><span class="field__label">Feeding</span><div class="seg">' + [['breast', 'Breast'], ['formula', 'Formula'], ['mixed', 'Both']].map(function (o) { return '<label><input type="radio" name="feeding" value="' + o[0] + '"' + ((b ? b.feeding : 'breast') === o[0] ? ' checked' : '') + ' /><span>' + o[1] + '</span></label>'; }).join('') + '</div></div>' +
           '<label class="field"><span class="field__label">Birth weight (' + h.weightUnit() + ', optional)</span><input class="input" type="number" step="any" min="0" inputmode="decimal" name="bw" value="' + (b && b.birthWeightKg ? h.weightToDisplay(b.birthWeightKg) : '') + '" /></label>' +
           '<div class="field"><span class="field__label">Icon</span><div class="chips">' + EMOJIS.map(function (e) { return '<label class="chip"><input type="radio" name="emoji" value="' + e + '"' + ((b ? b.emoji : '👶') === e ? ' checked' : '') + ' style="display:none" />' + e + '</label>'; }).join('') + '</div></div>' +
-          '<div class="btn-row">' + (b ? '<button type="button" class="btn btn--danger" data-action="baby-delete" data-id="' + b.id + '">Delete</button>' : '') + '<button class="btn btn--primary btn--lg" type="submit">' + (b ? 'Save' : 'Add baby') + '</button></div></form>';
+          '<div class="btn-row sheet-save">' + (b ? '<button type="button" class="btn btn--danger" data-action="baby-delete" data-id="' + b.id + '">Delete</button>' : '') + '<button class="btn btn--primary btn--lg" type="submit">' + (b ? 'Save' : 'Add baby') + '</button></div></form>';
       },
       mount: function (body) {
         var form = body.querySelector('form');
@@ -264,7 +272,7 @@
           h.timeField('anchor', r && r.anchor ? r.anchor : Date.now(), 'Starting from (last time it was done)') + '</div>' +
           '<div data-rep="daily"><label class="field"><span class="field__label">At</span><input class="input" type="time" name="time" value="' + esc(r && r.time ? r.time : '09:00') + '" /></label></div>' +
           '<div data-rep="once"><label class="field"><span class="field__label">At</span><input class="input" type="datetime-local" name="at" value="' + h.toLocalInput(r && r.at ? r.at : Date.now() + HOUR) + '" /></label></div>' +
-          '<div class="btn-row">' + (r ? '<button type="button" class="btn btn--danger" data-action="custom-delete" data-id="' + r.id + '">Delete</button>' : '') + '<button class="btn btn--primary btn--lg" type="submit">Save</button></div></form>';
+          '<div class="btn-row sheet-save">' + (r ? '<button type="button" class="btn btn--danger" data-action="custom-delete" data-id="' + r.id + '">Delete</button>' : '') + '<button class="btn btn--primary btn--lg" type="submit">Save</button></div></form>';
       },
       mount: function (body) {
         var form = body.querySelector('form');
@@ -355,6 +363,7 @@
       F.open(type);
     },
     'log-solids': function () { F.open('feed', null, { kind: 'solids' }); },
+    'log-more': function () { h.openSheet({ title: 'Log something else', html: function () { return V.moreActions(S.ageDays(Date.now())); } }); },
     'log-vitd': function () {
       var e = S.addEvent({ type: 'med', time: Date.now(), data: { medId: 'vitd', name: 'Vitamin D drops', dose: '', intervalH: 24, maxPerDay: 1, remind: false } });
       commit(); h.toast('Vitamin D logged ☀️', { label: 'Undo', fn: function () { S.removeEvent(e.id); commit(); } });
@@ -376,7 +385,7 @@
     'sleep-toggle': function () { if (S.isAsleep()) sleepStop(); else sleepStart(); },
     'sleep-start': function () { sleepStart(); if (App.ui.sheet && App.ui.sheet.type === 'sleep') h.closeSheet(); dismissKind('nap'); },
     'sleep-stop': function () { sleepStop(); if (App.ui.sheet && App.ui.sheet.type === 'sleep') h.closeSheet(); },
-    'tummy-toggle': function () { if (S.timers().tummy) tummyStop(); else tummyStart(); },
+    'tummy-toggle': function () { if (App.ui.sheet) h.closeSheet(); if (S.timers().tummy) tummyStop(); else tummyStart(); },
     'tummy-start': function () { tummyStart(); dismissKind('tummy'); },
     'tummy-stop': function () { tummyStop(); if (App.ui.sheet && App.ui.sheet.type === 'tummy') h.closeSheet(); },
 
@@ -454,6 +463,12 @@
     },
 
     'notify-enable': requestNotify,
+    'install-dismiss': function () { S.get().settings.installTipDismissed = true; commit(); },
+    'install-prompt': function () {
+      var ev = App.installPrompt; if (!ev) return;
+      ev.prompt();
+      (ev.userChoice || Promise.resolve()).then(function () { App.installPrompt = null; S.get().settings.installTipDismissed = true; commit(); });
+    },
     'custom-add': function () { customSheet(null); },
     'custom-edit': function (n) { customSheet(n.getAttribute('data-id')); },
     'custom-delete': function (n) { var id = n.getAttribute('data-id'); S.get().custom = S.get().custom.filter(function (r) { return r.id !== id; }); h.closeSheet(); commit(); },
@@ -532,8 +547,9 @@
       var ev = F.save(f);
       if (!ev) return;
       h.closeSheet(); commit();
-      var d = h.describe(ev);
-      h.toast((editing ? 'Updated · ' : 'Saved · ') + d.title, editing ? null : { label: 'Undo', fn: function () { S.removeEvent(ev.id); commit(); } });
+      var d = h.describe(ev), copies = F.lastCopies.slice();
+      var also = copies.length ? ' (also ' + copies.map(function (c) { return S.baby(c.baby).name; }).join(', ') + ')' : '';
+      h.toast((editing ? 'Updated · ' : 'Saved · ') + d.title + also, editing ? null : { label: 'Undo', fn: function () { S.removeEvent(ev.id); copies.forEach(function (c) { S.removeEvent(c.id); }); commit(); } });
       if (d.flag && !editing) setTimeout(function () { h.toast('⚠️ Worth a look — open it in History for details'); }, 600);
     } else if (f.id === 'welcome-form' || f.id === 'baby-form') {
       e.preventDefault();
@@ -551,7 +567,7 @@
         S.addBaby(data);
       }
       h.closeSheet(); App.ui.view = App.ui.view || 'today'; commit();
-      if (f.id === 'welcome-form') h.toast('Welcome, ' + name + ' 💛');
+      if (f.id === 'welcome-form') { window.scrollTo(0, 0); h.toast('Welcome, ' + name + ' 💛'); }
     } else if (f.id === 'custom-form') {
       e.preventDefault();
       var fd2 = new FormData(f), rid = f.getAttribute('data-id');
@@ -578,6 +594,7 @@
   function boot() {
     S.load();
     h.initTips();
+    h.initSheetGestures();
     document.addEventListener('click', onClick);
     document.addEventListener('change', onChange);
     document.addEventListener('input', onInput);
@@ -585,7 +602,8 @@
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && App.ui.sheet) { h.closeSheet(); render(); } });
     document.addEventListener('pointerdown', function unlock() { Snd.unlock(); document.removeEventListener('pointerdown', unlock); });
     $('#import-file').addEventListener('change', function (e) { var f = e.target.files[0]; if (f) importFile(f); e.target.value = ''; });
-    var bf = $('#welcome-form input[name="birth"]'); if (bf) { bf.max = h.todayISO(); bf.value = h.todayISO(); }
+    var bf = $('#welcome-form input[name="birth"]'); if (bf) bf.max = h.todayISO();
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); App.installPrompt = e; if (App.ui.view === 'today') softRender(); });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) { checkReminders(); softRender(); } });
 
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {

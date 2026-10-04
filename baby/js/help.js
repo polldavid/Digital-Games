@@ -162,7 +162,7 @@
     title: 'Fever: when to call',
     html: function () {
       var d = days(), lt = S.last('temp');
-      var html = '<p class="lead">A fever is a temperature of <strong>38.0 °C / 100.4 °F or higher</strong>. What to do depends a lot on age — ' + name() + ' is ' + esc(G.ageLabel(d).toLowerCase()) + '.</p>';
+      var html = '<p class="lead">A fever is a temperature of <strong>38.0 °C / 100.4 °F or higher</strong>. What to do depends a lot on age — ' + name() + ' is ' + esc(G.ageLabel(d).toLowerCase()) + (d >= 14 ? ' old' : '') + '.</p>';
       if (d < 91) html += h.note('urgent', 'Under 3 months: any fever is an emergency', 'Call your pediatrician right away or go to the emergency department for 38.0 °C / 100.4 °F or higher, even if baby seems fine. Don’t give fever medicine first.');
       if (lt) { var f = G.feverCheck(lt.data.tempC, S.ageDays(lt.time)); html += h.note(f.level, 'Last reading: ' + h.temp(lt.data.tempC) + ' · ' + h.ago(lt.time), f.text); }
       html += '<div class="card card--flat"><div class="card__title">Quick check</div><div class="stepper"><button type="button" class="btn" data-action="step" data-target="qtemp" data-step="-0.1" aria-label="Lower">−</button><div class="stepper__v"><input class="stepper__input" id="qtemp" name="qtemp" type="number" step="0.1" inputmode="decimal" value="' + h.tempToDisplay(37.0) + '" aria-label="Temperature" /><small>' + h.tempUnit() + '</small></div><button type="button" class="btn" data-action="step" data-target="qtemp" data-step="0.1" aria-label="Higher">+</button></div><div id="qtemp-out" style="margin-top:10px"></div>' +

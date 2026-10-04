@@ -36,7 +36,11 @@
     // Feed
     var lf = S.lastFeedAnchor(), iv = S.feedIntervalH(now);
     var feedV, feedS;
-    if (lf && lf.live) { feedV = 'Feeding now'; feedS = '<span class="tile__s tile__s--ok">Timer running</span>'; }
+    if (lf && lf.live) {
+      var prev = S.last('feed', function (e) { return e.data.kind !== 'solids'; });
+      feedV = prev ? '<span data-ago="' + prev.time + '">' + h.ago(prev.time, now) + '</span>' : '—';
+      feedS = '<span class="tile__s">' + (prev ? 'Previous feed, ' + esc(h.describe(prev).title.toLowerCase()) : 'First feed in progress') + '</span>';
+    }
     else if (lf) {
       var nextAt = lf.time + iv * HOUR, side = window.BabyForms.nextSide();
       feedV = '<span data-ago="' + lf.time + '">' + h.ago(lf.time, now) + '</span>';
@@ -50,19 +54,19 @@
     out.push(tile('diaper', '🧷 Diaper', ld ? '<span data-ago="' + ld.time + '">' + h.ago(ld.time, now) + '</span>' : '—', '<span class="tile__s">' + (ld ? esc(h.describe(ld).title) : 'No changes yet') + '</span>'));
 
     // Sleep / wake window
-    var t = S.timers(), sv, ss;
-    if (t.sleep) { sv = '<span data-elapsed="' + t.sleep.start + '">' + h.clock(now - t.sleep.start) + '</span>'; ss = '<span class="tile__s">Asleep since ' + h.fmtTime(t.sleep.start) + '</span>'; }
+    var t = S.timers(), sv, ss, sk = '😴 Sleep';
+    if (t.sleep) { sk = '😴 Asleep'; sv = '<span data-since="' + t.sleep.start + '">' + h.since(now - t.sleep.start) + '</span>'; ss = '<span class="tile__s">Since ' + h.fmtTime(t.sleep.start) + '</span>'; }
     else {
       var woke = S.awakeSince(now);
       if (woke) {
         var nap = G.nextNap(days, woke, now);
-        sv = 'Awake <span data-elapsed="' + woke + '">' + h.clock(now - woke) + '</span>';
+        sk = '😴 Awake for'; sv = '<span data-since="' + woke + '">' + h.since(now - woke) + '</span>';
         ss = nap.state === 'early' ? '<span class="tile__s">Nap window ' + h.fmtTime(nap.from) + '–' + h.fmtTime(nap.to) + '</span>'
           : nap.state === 'window' ? '<span class="tile__s tile__s--ok">In the nap window now</span>'
           : '<span class="tile__s tile__s--due">Past wake window (' + nap.wake[1] + ' min)</span>';
       } else { sv = '—'; ss = '<span class="tile__s">Log a sleep to see wake windows</span>'; }
     }
-    out.push(tile('sleep', '😴 Sleep', sv, ss));
+    out.push(tile('sleep', sk, sv, ss));
 
     // Medicine if any in the last 24h, else tummy time.
     var lm = S.last('med');
@@ -85,26 +89,51 @@
     return '<button class="tile" data-action="log" data-type="' + type + '"><span class="tile__k">' + k + '</span><span class="tile__v">' + v + '</span>' + s + '</button>';
   }
 
-  function quickActions(days) {
+  // The seven things parents log most, plus "More" for the rest — two rows,
+  // so they stay on screen even with a timer card above them.
+  function quickItems(days) {
     var t = S.timers();
-    var qa = [
+    var tummy = ['tummy', '🤸', t.tummy ? 'Stop tummy' : 'Tummy', !!t.tummy, 'tummy-toggle'];
+    var solids = ['solids', '🥣', 'Solids', false, 'log-solids'];
+    var main = [
       ['feed', '🍼', t.breast ? 'Feeding…' : 'Feed', !!t.breast, 'log'],
       ['diaper', '🧷', 'Diaper', false, 'log'],
       ['sleep', t.sleep ? '☀️' : '🌙', t.sleep ? 'Woke up' : 'Sleep', !!t.sleep, 'sleep-toggle'],
+      G.tummyGoalMin(days) && days < 150 ? tummy : solids,
       ['pump', '🧴', 'Pump', false, 'log'],
-      ['tummy', '🤸', t.tummy ? 'Stop tummy' : 'Tummy', !!t.tummy, 'tummy-toggle'],
-      ['solids', '🥣', 'Solids', false, 'log-solids'],
       ['med', '💊', 'Medicine', false, 'log'],
-      ['temp', '🌡️', 'Temp', false, 'log'],
+      ['temp', '🌡️', 'Temp', false, 'log']
+    ];
+    var more = [
+      main[3] === tummy ? solids : tummy,
       ['growth', '📏', 'Growth', false, 'log'],
       ['bath', '🛁', 'Bath', false, 'log'],
       ['milestone', '⭐', 'Milestone', false, 'log'],
-      ['note', '📝', 'Note', false, 'log']
+      ['note', '📝', 'Note', false, 'log'],
+      ['sounds', '🎶', 'Sleep sounds', !!window.BabySound.playing(), 'help-sounds']
     ];
-    if (days < 120) { qa.splice(5, 1); qa.push(['sounds', '🎶', 'Sounds', !!window.BabySound.playing(), 'help-sounds']); }
-    return '<div class="qa-grid">' + qa.map(function (q) {
+    return { main: main, more: more };
+  }
+  function qaButtons(list) {
+    return list.map(function (q) {
       return '<button class="qa' + (q[3] ? ' qa--on' : '') + '" data-action="' + q[4] + '" data-type="' + q[0] + '"><span class="qa__icon">' + q[1] + '</span><span class="qa__label">' + q[2] + '</span></button>';
-    }).join('') + '</div>';
+    }).join('');
+  }
+  function quickActions(days) {
+    var it = quickItems(days);
+    var moreOn = it.more.some(function (q) { return q[3]; });
+    return '<div class="qa-grid">' + qaButtons(it.main) +
+      '<button class="qa' + (moreOn ? ' qa--on' : '') + '" data-action="log-more"><span class="qa__icon">➕</span><span class="qa__label">More</span></button></div>';
+  }
+  function moreActions(days) { return '<div class="qa-grid qa-grid--3">' + qaButtons(quickItems(days).more) + '</div>'; }
+
+  // One-time tip: installing matters for notifications (iPhone) and for keeping logs (Safari).
+  function installTip() {
+    var P = App.platform;
+    if (P.standalone || S.get().settings.installTipDismissed) return '';
+    if (P.ios) return '<div class="card tipcard"><div class="tipcard__t">📲 Add Baby Log to your Home Screen</div><p class="muted small">In Safari, tap <strong>Share</strong> <span aria-hidden="true">⬆︎</span> then <strong>Add to Home Screen</strong>, and open it from the new icon. On iPhone that’s what lets reminders arrive as notifications — and it stops Safari clearing your logs if you don’t visit for a week.</p><div class="btn-row"><button class="btn btn--sm" data-action="install-dismiss">Got it</button></div></div>';
+    if (App.installPrompt) return '<div class="card tipcard"><div class="tipcard__t">📲 Install Baby Log</div><p class="muted small">Opens like an app, works offline, and sends reminders as notifications.</p><div class="btn-row"><button class="btn btn--sm" data-action="install-dismiss">Not now</button><button class="btn btn--sm btn--primary" data-action="install-prompt">Install</button></div></div>';
+    return '';
   }
 
   // "Is baby getting enough?" — the last 24 hours against age norms.
@@ -147,7 +176,7 @@
       var overdue = r.at <= now;
       return '<div class="row' + (r.done ? ' row--done' : '') + '"><span class="row__icon">' + r.icon + '</span><div class="row__main"><div class="row__t">' + esc(r.title) + '</div><div class="row__s">' + esc(r.text) + '</div></div>' +
         '<div class="row__time"><strong>' + h.fmtTime(r.at) + '</strong><span data-until="' + r.at + '">' + h.until(r.at, now) + '</span>' +
-        (!r.done || overdue ? '<br><button class="btn btn--link btn--sm" data-action="snooze" data-key="' + esc(r.key) + '" data-at="' + r.at + '">Snooze 15m</button>' : '') + '</div></div>';
+        (overdue ? '<br><button class="btn btn--link btn--sm" data-action="snooze" data-key="' + esc(r.key) + '" data-at="' + r.at + '">Snooze 15m</button>' : '') + '</div></div>';
     }).join('') + '</div>';
   }
 
@@ -165,9 +194,10 @@
     var rem = S.reminders(now).filter(function (r) { return !r.done; }).slice(0, 4);
     var todays = S.events({ from: S.startOfDay(now) }).filter(function (e) { return e.time >= S.startOfDay(now); }).reverse();
     return liveCards(now) +
-      '<button class="cry-cta" data-action="help" data-topic="cry"><span class="cry-cta__icon">😭</span><span><span class="cry-cta__t">Crying? Find out why</span><br><span class="cry-cta__s">Checks ' + esc(b.name) + '’s log for the likely reasons</span></span><span class="cry-cta__go">›</span></button>' +
+      quickActions(days) +
       tiles(now, days) +
-      '<div class="section-title">Quick log</div>' + quickActions(days) +
+      '<button class="cry-cta" data-action="help" data-topic="cry"><span class="cry-cta__icon">😭</span><span class="cry-cta__t">Crying? See the likely reasons</span><span class="cry-cta__go">›</span></button>' +
+      installTip() +
       '<div class="section-title">Last 24 hours <button class="btn--link" data-action="help" data-topic="enough">What’s normal?</button></div>' +
       '<div class="card">' + checks(now, days) + '</div>' +
       '<div class="section-title">Coming up <button class="btn--link" data-action="go" data-view="settings" data-focus="reminders">Manage</button></div>' +
@@ -322,5 +352,5 @@
   }
   function stat(v, k) { return '<div class="stat"><div class="stat__v">' + v + '</div><div class="stat__k">' + k + '</div></div>'; }
 
-  window.BabyViews = { today: today, history: history, trends: trends, checks: checks, reminderRows: reminderRows, dayStats: dayStats };
+  window.BabyViews = { moreActions: moreActions, today: today, history: history, trends: trends, checks: checks, reminderRows: reminderRows, dayStats: dayStats };
 })();
