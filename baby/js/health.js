@@ -413,7 +413,7 @@
         }
         html += '<form class="form" id="scan-form">';
         scan.meds.forEach(function (m, i) {
-          html += '<fieldset class="card card--flat scanmed"><label class="check-line"><input type="checkbox" name="' + i + ':include" checked /> <strong>Medicine ' + (i + 1) + '</strong>' + (Rx.describe(m) ? ' <span class="faint">· ' + esc(Rx.describe(m)) + '</span>' : '') + '</label>' + rxFields(m, i) + '</fieldset>';
+          html += '<fieldset class="card card--flat scanmed"><label class="check-line"><input type="checkbox" name="' + i + ':include" checked /> <span><strong>' + esc(m.name || 'Medicine ' + (i + 1)) + '</strong>' + (Rx.describe(m) ? '<br><span class="faint">' + esc(Rx.describe(m)) + '</span>' : '') + '</span></label>' + rxFields(m, i) + '</fieldset>';
         });
         html += '<button type="button" class="btn btn--block" data-action="scan-add">＋ Add another medicine</button>' +
           '<label class="field"><span class="field__label">Prescribed by (optional)</span><input class="input" name="prescriber" maxlength="60" value="' + esc(scan.doctor || hl().profile.doctor || '') + '" /></label>';
