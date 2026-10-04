@@ -46,6 +46,7 @@ The tests are plain scripts, not a framework — there is no per-test filter; to
 |---|---|---|
 | Pure logic (no DOM) | `guide.js` → `BabyGuide`, `store.js` → `BabyStore`, `rx.js` → `BabyRx` | Dual-export: `module.exports` under Node, globals in the browser — this is what `tests/unit.test.js` requires. Keep them DOM-free. |
 | Browser services | `sound.js` → `BabySound` (Web Audio white noise + chime), `files.js` → `BabyFiles` (photos in IndexedDB) | |
+| Platform | `native.js` → `BabyNative` (loads after `health.js`, before `app.js`) | Everything that differs in the Capacitor app-store shell: scheduled local notifications, file save/share, text share, a Preferences copy of the state. Each function feature-detects its plugin and falls back to the web behaviour, so the PWA is unchanged. Route new platform-specific code through here, not `app.js`. |
 | UI | `ui.js` (creates `window.BabyApp`, helpers on `App.h`), `forms.js` → `BabyForms`, `views.js` → `BabyViews`, `help.js` → `BabyHelp`, `health.js` → `BabyHealth` | Render functions return HTML strings. |
 | Wiring | `app.js` | Boot, the `ACTIONS` map, submit/change handlers, reminder loop, settings view, import/export. |
 
@@ -54,20 +55,25 @@ The tests are plain scripts, not a framework — there is no per-test filter; to
 - Units are stored canonically — **ml, °C, kg, cm, epoch ms** — and converted only for display (`App.h.vol/temp/weight/len` and their `*FromDisplay` inverses).
 - `normalize()` rebuilds `settings` **only from the keys in `defaults().settings`** — a new setting must be added to `defaults()` or it is silently dropped on the next load.
 - Photos are not in `localStorage`: records hold a `photoId`, the JPEG lives in IndexedDB (`files.js`), and JSON backups embed photos as base64 (`app.js` export/import).
+- `save()` returns `false` and calls `S.onSaveError` when storage is full/blocked (the app shows a persistent "Not saved" banner); `commit()` uses `S.saveSoon()` (after paint, ≤120 ms) and `S.flush()` runs on `pagehide`/hidden. `events({from, to})` binary-searches the sorted list — keep `events[]` sorted (`addEvent`/`updateEvent`/import already do).
 
 **Reminders**: `BabyStore.reminders(now, babyId)` derives every reminder (feed interval from age, diaper, nap window, medicine spacing, prescription doses, appointments, vaccines due, custom) with a stable `key`. `due()` returns those past due and not yet fired; `markFired()` records `key@at` so each fires once (a snooze moves `at`). `app.js` polls every 15 s and on `visibilitychange`, shows the in-app banner, chime, vibration and (if permitted) a notification via the service worker. Feed/diaper/tummy/vitamin-D reminders are held while the baby's sleep timer runs, and no sound plays while a baby sleeps or during quiet night hours.
 
 **Rendering & events** (all in `app.js` / `ui.js`):
-- `App.render()` re-renders the active tab with `innerHTML`; `App.commit()` = save → sync alerts → render → re-render the open sheet. After mutating `BabyStore.get()`, call `commit()`.
+- `App.render()` rebuilds the active tab with `App.h.patch()`, which replaces only the top-level blocks whose HTML changed (focus, open `<details>` and loaded photos survive); `App.commit()` = sync alerts → render → re-render the open sheet → `saveSoon()` → native reminder sync. After mutating `BabyStore.get()`, call `commit()`.
+- Destructive actions confirm with `App.h.ask({title, text, ok, danger}, onYes)` (a `<dialog>`), never `window.confirm()`. Validation errors go through `App.h.fieldError(form, name, msg)` (inline, `aria-invalid`, focus); FORMS `parse()` returns `{ field, error }`.
+- Tabs keep one history entry above a root `{babyView:'today', root:true}` state, so Android Back goes tab → Today → out; sheets push their own entry. When closing a sheet and then navigating, wrap the navigation in `App.h.afterHistory(fn)`.
 - Event delegation only: elements carry `data-action="name"` (dispatched to `ACTIONS[name]` in `app.js`), `data-action-change` for change events, and `data-setting="key"` for settings inputs. Forms are handled in `onSubmit` by `id`: `#sheet-form` goes through the `FORMS` registry in `forms.js` (each type has `html(ev, preset)`, `parse(form)`, optional `mount(body)`), and Health forms go through `saveHealthForm`.
 - Bottom sheets: `App.h.openSheet({title, html: fn, mount})`. The `html` function is re-run on every `commit()`, which discards un-saved typing — when a change must keep the user's input, update the DOM in place instead (see `doc-photo`, `unit-toggle`).
 - Live clocks update every second via attributes `data-ago`, `data-elapsed`, `data-since`, `data-until`, `data-breast`, `data-pump` (handled by `tick()` in `ui.js`), not by re-rendering.
 - The sticky Save bar (`.sheet-save`) must be a direct child of the form to stick; wrappers around it use `display: contents` (`[data-panel-save]`).
 - Every interactive element should keep a ≥44px tap target; the smoke test checks there is no horizontal scroll at 320px.
+- **Text size follows the phone**: write every `font-size` as `calc(N * var(--u))` (N = the old px value), never raw px. `--u` is 1px at default and grows with iOS Dynamic Type / browser text size (cap 2×); inputs use `max(16px, …)` so iOS doesn't zoom. Android WebViews also scale text on their own, so new layouts must survive 2× text: use min-heights, wrapping rows and `auto-fit` grids, not fixed heights. Emoji inside fixed circles use `min(var(--u), 1.2px)`.
+- **Phones and tablets**: `App.h.regions()` wraps each view into `.pane--lead` (blocks before the first `.section-title`) and `.pane--groups` (one `section.group` per title + its cards); `patch()` patches inside `[data-region]` wrappers. On ≥768px Today shows the two panes side by side, Health/Settings flow groups into two columns, Trends grids its charts, and sheets become centred panels. ≥1000px wide (or a phone in landscape) swaps the bottom tab bar for a left rail. New views get this for free if they use `section-title` + card blocks.
 
 **Service worker** (`baby/sw.js`): caches the app shell for offline use. **Bump `VERSION` whenever any cached file changes, and add new files to `FILES`**, or installed copies keep serving stale code.
 
-**External code at runtime**: only Tesseract.js 7.0.0 (prescription OCR), lazy-loaded from jsDelivr on the first scan; the photo is pre-processed in `health.js` (`enhance()`) and the text parsed by `rx.js`. Nothing else is fetched; all data stays on the device.
+**External code at runtime**: only Tesseract.js 7.0.0 (prescription OCR), lazy-loaded from jsDelivr on the first scan with an SRI hash (`TESSERACT_SRI` in `health.js` — update it if the version changes); the photo is pre-processed in `health.js` (`enhance()`) and the text parsed by `rx.js`. Nothing else is fetched; all data stays on the device.
 
 **Product rules the code relies on**:
 - Health guidance in `guide.js` (feeding/sleep/diaper norms, fever thresholds, vaccine schedules for PH and US, milestones) follows AAP/CDC/WHO/NHS/DOH/PIDSP material; screens present it as general information with a "call your pediatrician" disclaimer.

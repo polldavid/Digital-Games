@@ -128,11 +128,11 @@
         var per = lw.data.weightKg * 150, cap = 960;
         html += h.note('info', 'Formula rule of thumb for ' + name(), 'About 150 ml per kg (2½ oz per lb) a day → roughly ' + h.vol(Math.min(per, cap)) + ' in 24 hours at ' + h.weight(lw.data.weightKg) + '. Most babies shouldn’t need more than about ' + h.vol(cap) + ' a day. Let baby lead — this is a guide, not a target.');
       }
-      html += '<table class="tbl"><thead><tr><th>Age</th><th class="num">Breast feeds</th><th class="num">Formula feeds</th><th class="num">Bottle size</th></tr></thead><tbody>' +
+      html += '<div class="tbl-wrap" tabindex="0" role="region" aria-label="Table (scrolls sideways)"><table class="tbl"><thead><tr><th>Age</th><th class="num">Breast feeds</th><th class="num">Formula feeds</th><th class="num">Bottle size</th></tr></thead><tbody>' +
         G.FEEDING.map(function (row) {
           var hl = row === G.FEEDING.filter(function (r) { return d < r.upTo; })[0];
           return '<tr' + (hl ? ' class="tbl__hl"' : '') + '><td>' + row.label + '</td><td class="num">' + row.breast[0] + '–' + row.breast[1] + '</td><td class="num">' + row.formula[0] + '–' + row.formula[1] + '</td><td class="num">' + (row.ml[1] ? h.volToDisplay(row.ml[0]) + '–' + h.vol(row.ml[1]) : '—') + '</td></tr>';
-        }).join('') + '</tbody></table>';
+        }).join('') + '</tbody></table></div>';
       html += '<div class="prose"><h3>Hunger cues — feed before the crying</h3>' + list(['<strong>Early:</strong> stirring, mouth opening, turning head, rooting', '<strong>Mid:</strong> stretching, more movement, hand to mouth', '<strong>Late:</strong> crying, agitated — calm baby first, then feed']) +
         '<h3>Full cues</h3>' + list(['Slowing down, pushing the nipple or bottle away', 'Turning away, relaxed open hands, falling asleep']) +
         '<p>Newborns should be woken to feed if it’s been about 4 hours, until they’re back to birth weight. Baby Log’s feed reminder uses ' + name() + '’s age (change it in Settings).</p></div>';
@@ -232,7 +232,7 @@
       '<div class="qcards">' + G.QUESTIONS.map(function (q) {
         return '<button class="qcard" data-action="help" data-topic="' + q.tool + '"><span class="qcard__icon">' + q.icon + '</span><span class="qcard__q">' + esc(q.q) + '</span><span class="qcard__go">›</span></button>';
       }).join('') + '</div>' +
-      '<div class="section-title">Sleep sounds</div>' + soundPlayer().replace('card card--flat', 'card') +
+      '<div class="section-title"><h2>Sleep sounds</h2></div>' + soundPlayer().replace('card card--flat', 'card') +
       '<p class="disclaimer">Baby Log offers general information based on guidance from the AAP, CDC, WHO and NHS. It isn’t medical advice and can’t diagnose anything. If you’re worried about your baby, call your pediatrician — or emergency services in an emergency.</p>';
   }
 

@@ -11,10 +11,13 @@
   var MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
 
   var ua = navigator.userAgent || '';
+  // Inside the Capacitor shell (App Store / Play Store builds) the page is already an app.
+  var native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
   var App = window.BabyApp = {
     platform: {
       ios: /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
-      standalone: !!(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches))
+      native: native,
+      standalone: native || !!(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches))
     },
     installPrompt: null,
     ui: { view: 'today', historyType: 'all', historyDays: 7, trendDays: 7, sheet: null, alerts: [] },
@@ -29,8 +32,16 @@
   function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
 
   /* ---------- Time ---------- */
-  function fmtTime(t) { return new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
-  function fmtDate(t) { return new Date(t).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }); }
+  // toLocale*String builds a new formatter on every call (~50 µs); History
+  // formats hundreds of times per render, so reuse one of each.
+  function formatter(opts) {
+    var f = null;
+    try { f = new Intl.DateTimeFormat([], opts); } catch (e) {}
+    return function (t) { return f ? f.format(t) : new Date(t).toLocaleString([], opts); };
+  }
+  var fmtTime = formatter({ hour: 'numeric', minute: '2-digit' });
+  var fmtDate = formatter({ weekday: 'short', month: 'short', day: 'numeric' });
+  var fmtNarrowDay = formatter({ weekday: 'narrow' });
   function dayLabel(t, now) {
     var d0 = S.startOfDay(now || Date.now()), d = S.startOfDay(t);
     if (d === d0) return 'Today';
@@ -40,7 +51,7 @@
   function shortDay(t, now) {
     var d0 = S.startOfDay(now || Date.now()), d = S.startOfDay(t);
     if (d === d0) return 'Today';
-    return new Date(t).toLocaleDateString([], { weekday: 'narrow' }) + new Date(t).getDate();
+    return fmtNarrowDay(t) + new Date(t).getDate();
   }
   function ago(t, now) {
     var m = ((now || Date.now()) - t) / MIN;
@@ -177,26 +188,203 @@
     n.innerHTML = '<span>' + esc(msg) + '</span>' + (action ? '<button type="button">' + esc(action.label) + '</button>' : '');
     if (action) n.querySelector('button').addEventListener('click', function () { action.fn(); n.remove(); });
     wrap.appendChild(n);
-    setTimeout(function () { n.style.opacity = '0'; n.style.transition = 'opacity .3s'; }, action ? 5200 : 2600);
-    setTimeout(function () { n.remove(); }, action ? 5600 : 3000);
+    // Long enough to read — and reach Undo — with a baby in one arm.
+    setTimeout(function () { n.style.opacity = '0'; n.style.transition = 'opacity .3s'; }, action ? 8000 : 4200);
+    setTimeout(function () { n.remove(); }, action ? 8400 : 4600);
+  }
+
+  /* ---------- Field errors ----------
+     Mark the field, say what's wrong right under it, and move focus there.
+     A toast alone vanishes before a tired parent finds the problem. */
+  function fieldError(form, name, msg) {
+    clearFieldErrors(form);
+    var el = name && form && form.elements[name];
+    if (el && el.length && !el.tagName) el = el[0]; // radio group
+    if (!el || el.type === 'hidden') { toast(msg); return; }
+    var id = 'err-' + name;
+    el.setAttribute('aria-invalid', 'true');
+    el.setAttribute('aria-describedby', id);
+    var p = document.createElement('p');
+    p.className = 'field__error'; p.id = id; p.setAttribute('role', 'alert'); p.textContent = msg;
+    // Below the whole control: a stepper row (− value +) or the field around the input.
+    var anchor = el.closest('.stepper') || el.closest('.field') || el;
+    if (anchor.nextElementSibling && anchor.nextElementSibling.classList.contains('stepper-extra')) anchor = anchor.nextElementSibling;
+    anchor.parentNode.insertBefore(p, anchor.nextSibling);
+    var det = el.closest('details'); if (det) det.open = true;
+    try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
+    p.scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' });
+  }
+  function clearFieldErrors(form) {
+    if (!form) return;
+    $all('.field__error', form).forEach(function (n) { n.remove(); });
+    $all('[aria-invalid]', form).forEach(function (n) { n.removeAttribute('aria-invalid'); n.removeAttribute('aria-describedby'); });
+  }
+  function reducedMotion() { return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }
+
+  /* ---------- Confirm ----------
+     A styled <dialog> instead of window.confirm(): confirm() blocks the page,
+     can't be styled, and shows the site address inside an installed app.
+     ask({ title, text, ok, danger }, onYes) */
+  function ask(opts, onYes) {
+    var dlg = $('#confirm');
+    if (!dlg || !dlg.showModal) { if (window.confirm(opts.text || opts.title)) onYes(); return; }
+    $('#confirm-title').textContent = opts.title || 'Are you sure?';
+    $('#confirm-text').textContent = opts.text || '';
+    $('#confirm-text').hidden = !opts.text;
+    var ok = $('#confirm-ok');
+    ok.textContent = opts.ok || 'OK';
+    ok.className = 'btn btn--lg ' + (opts.danger ? 'btn--danger' : 'btn--primary');
+    var back = document.activeElement, done = false, form = dlg.querySelector('form');
+    // Answer from the click itself (submit/cancel fire synchronously); the
+    // `close` event can arrive late when the page is backgrounded.
+    function finish(yes) {
+      if (done) return;
+      done = true;
+      form.onsubmit = dlg.oncancel = dlg.onclose = null;
+      if (dlg.open) dlg.close();
+      if (back && back.isConnected) try { back.focus({ preventScroll: true }); } catch (e) {}
+      if (yes) onYes();
+    }
+    form.onsubmit = function (e) { e.preventDefault(); var s = e.submitter || document.activeElement; finish(!!(s && s.value === 'ok')); };
+    dlg.oncancel = function (e) { e.preventDefault(); finish(false); };   // Escape
+    dlg.onclose = function () { finish(dlg.returnValue === 'ok'); };    // closed some other way (Back)
+    dlg.returnValue = '';
+    dlg.showModal();
+    $('#confirm-cancel').focus(); // the safe choice has focus
+  }
+
+  /* ---------- Rendering that keeps your place ----------
+     focusKey() names an element by what it does, so the "same" button can be
+     found again after its HTML is rebuilt. */
+  var KEY_ATTRS = ['data-action', 'data-view', 'data-type', 'data-id', 'data-key', 'data-side', 'data-days', 'data-mode', 'data-day', 'data-d', 'data-sound', 'data-topic', 'data-setting', 'data-action-change', 'name', 'value', 'id'];
+  function focusKey(el) {
+    if (!el || el === document.body || !el.tagName) return null;
+    var k = el.tagName;
+    KEY_ATTRS.forEach(function (a) { var v = el.getAttribute(a); if (v != null) k += '|' + a + '=' + v; });
+    return k === el.tagName ? null : k;
+  }
+  function findByKey(root, key) {
+    if (!key) return null;
+    var tag = key.split('|')[0], list = root.getElementsByTagName(tag);
+    for (var i = 0; i < list.length; i++) if (focusKey(list[i]) === key) return list[i];
+    return null;
+  }
+  function refocus(root, key) {
+    var el = findByKey(root, key);
+    if (el && !el.disabled) try { el.focus({ preventScroll: true }); } catch (e) {}
+    return el;
+  }
+
+  /* Replace a container's content, touching only the blocks whose HTML
+     changed. Unchanged blocks keep their DOM: focus, open <details>, loaded
+     photos and scroll position all survive the once-a-minute refresh.
+     Elements with data-region="name" are layout wrappers (panes, groups):
+     they are kept and patched inside, one level at a time.
+     `src` is an HTML string, a DocumentFragment, or a list of nodes. */
+  function patch(container, src) {
+    var active = document.activeElement, key = container.contains(active) ? focusKey(active) : null;
+    var next = toNodes(src), prev = Array.prototype.slice.call(container.childNodes);
+    var ids = next.map(idOf), changed = false, i;
+    var same = prev.length === next.length;
+    if (same) for (i = 0; i < prev.length; i++) if (prev[i]._id !== ids[i]) { same = false; break; }
+    if (same) {
+      // Same blocks in the same order: only regions can have changed inside.
+      for (i = 0; i < next.length; i++) if (isRegion(next[i]) && syncRegion(prev[i], next[i])) changed = true;
+    } else {
+      // Reuse old nodes whose source is unchanged, wherever they now sit.
+      var pool = {};
+      prev.forEach(function (n) { if (n._id != null) (pool[n._id] = pool[n._id] || []).push(n); });
+      var frag = document.createDocumentFragment();
+      next.forEach(function (n, j) {
+        var reuse = pool[ids[j]] && pool[ids[j]].shift();
+        if (reuse) { if (isRegion(n)) syncRegion(reuse, n); frag.appendChild(reuse); return; }
+        stamp(n, ids[j]);
+        frag.appendChild(n);
+      });
+      container.textContent = '';
+      container.appendChild(frag);
+      changed = true;
+    }
+    if (key && !container.contains(document.activeElement)) refocus(container, key);
+    return changed;
+  }
+  function toNodes(src) {
+    if (typeof src === 'string') { var tpl = document.createElement('template'); tpl.innerHTML = src; src = tpl.content; }
+    return Array.prototype.slice.call(src.childNodes || src).filter(keepNode);
+  }
+  function isRegion(n) { return n.nodeType === 1 && n.hasAttribute('data-region'); }
+  function idOf(n) { return isRegion(n) ? 'region:' + n.getAttribute('data-region') : n.nodeType === 1 ? n.outerHTML : '#' + n.textContent; }
+  function stamp(n, id) {
+    n._id = id;
+    if (isRegion(n)) Array.prototype.slice.call(n.childNodes).forEach(function (c) { if (keepNode(c)) stamp(c, idOf(c)); else n.removeChild(c); });
+  }
+  function syncRegion(old, n) {
+    if (old.className !== n.className) old.className = n.className;
+    return patch(old, n.childNodes);
+  }
+  function keepNode(n) { return n.nodeType === 1 || (n.nodeType === 3 && n.textContent.trim()); }
+
+  /* Group a view's flat list of blocks for wide screens:
+       pane--lead    everything before the first section title
+       pane--groups  one <section class="group"> per section title + its cards
+     followed by anything from the closing disclaimer on. On a phone the panes
+     are plain blocks in the same order, so nothing moves. */
+  function regions(html) {
+    var tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    var nodes = toNodes(tpl.content), lead = [], groups = [], tail = [], cur = null;
+    nodes.forEach(function (n) {
+      var isTitle = n.nodeType === 1 && n.classList.contains('section-title');
+      var isTail = n.nodeType === 1 && n.classList.contains('disclaimer');
+      if (tail.length || isTail) { tail.push(n); return; }
+      if (isTitle) { cur = { title: n.textContent.trim().split(/\s{2,}|\n/)[0], nodes: [n] }; groups.push(cur); return; }
+      if (cur) cur.nodes.push(n); else lead.push(n);
+    });
+    var frag = document.createDocumentFragment();
+    function wrap(tag, cls, region, kids) {
+      var w = document.createElement(tag);
+      w.className = cls; w.setAttribute('data-region', region);
+      kids.forEach(function (k) { w.appendChild(k); });
+      return w;
+    }
+    if (lead.length) frag.appendChild(wrap('div', 'pane pane--lead', 'lead', lead));
+    if (groups.length) {
+      frag.appendChild(wrap('div', 'pane pane--groups', 'groups', groups.map(function (g) {
+        var h2 = g.nodes[0].querySelector('h2');
+        return wrap('section', 'group', 'g:' + (h2 ? h2.textContent : g.title), g.nodes);
+      })));
+    }
+    tail.forEach(function (n) { frag.appendChild(n); });
+    return frag;
   }
 
   /* ---------- Bottom sheet ---------- */
   // Each open sheet gets a history entry, so the phone's Back button (or
   // gesture) closes the sheet instead of leaving the app.
-  var lastFocus = null, ignorePop = false;
+  var lastFocus = null, ignorePop = false, afterPop = [];
+  // While a sheet is open, everything behind it is inert: Tab stays in the
+  // sheet and screen readers don't wander into the page underneath.
+  function setBackgroundInert(on) {
+    ['#app', '#welcome', '.theme-toggle'].forEach(function (s) {
+      var n = $(s); if (!n) return;
+      if (on) { n.setAttribute('inert', ''); n.setAttribute('aria-hidden', 'true'); }
+      else { n.removeAttribute('inert'); n.removeAttribute('aria-hidden'); }
+    });
+  }
   function openSheet(spec) {
     // spec: { title, kind, html: fn() | string, mount?: fn(body) }
     App.ui.sheet = spec;
     var sheet = $('#sheet');
     if (sheet.hidden) {
-      lastFocus = document.activeElement;
-      try { if (!(history.state && history.state.babySheet)) history.pushState({ babySheet: 1 }, ''); } catch (e) {}
+      lastFocus = focusKey(document.activeElement) ? document.activeElement : lastFocus;
+      App.ui.returnFocus = focusKey(lastFocus);
+      try { if (!(history.state && history.state.babySheet)) history.pushState({ babySheet: 1, babyView: App.ui.view }, ''); } catch (e) {}
     }
     $('.sheet__panel').style.transform = '';
     sheet.hidden = false;
     document.body.classList.add('sheet-open');
     document.body.style.overflow = 'hidden';
+    setBackgroundInert(true);
     renderSheet();
     var f = $('.sheet__panel [autofocus]') || $('.sheet__panel .iconbtn');
     if (f) setTimeout(function () { try { f.focus({ preventScroll: true }); } catch (e) { f.focus(); } }, 30);
@@ -206,11 +394,14 @@
     if (!spec) return;
     var body = $('#sheet-body');
     var scroll = body.scrollTop;
+    var active = document.activeElement, key = body.contains(active) ? focusKey(active) : null;
     $('#sheet-title').textContent = typeof spec.title === 'function' ? spec.title() : spec.title;
     body.innerHTML = typeof spec.html === 'function' ? spec.html() : spec.html;
     body.scrollTop = scroll;
     if (spec.mount) spec.mount(body);
     if (window.BabyFiles) window.BabyFiles.hydrate(body);
+    // Pressing "Switch side" rebuilds the sheet — keep focus on that control.
+    if (key) refocus(body, key);
     tick();
   }
   function closeSheet(fromBack) {
@@ -222,19 +413,37 @@
     document.body.classList.remove('sheet-open');
     $('#sheet-body').innerHTML = '';
     document.body.style.overflow = '';
+    setBackgroundInert(false);
     if (spec && spec.onclose) spec.onclose();
-    if (lastFocus && lastFocus.focus) try { lastFocus.focus({ preventScroll: true }); } catch (e) {}
+    // The opener may be rebuilt by the next render; App.render() refocuses it by key.
+    if (lastFocus && lastFocus.isConnected) try { lastFocus.focus({ preventScroll: true }); } catch (e) {}
+    lastFocus = null;
   }
+  // Run fn once any Back that closeSheet() started has landed, so a new
+  // history entry isn't pushed on top of the one being popped.
+  function afterHistory(fn) { if (ignorePop) afterPop.push(fn); else fn(); }
 
   function initSheetGestures() {
-    window.addEventListener('popstate', function () {
+    window.addEventListener('popstate', function (e) {
       if (ignorePop) {
         ignorePop = false;
         // A new sheet opened before the old one's Back finished: give it its own entry.
-        if (App.ui.sheet) try { history.pushState({ babySheet: 1 }, ''); } catch (e) {}
+        if (App.ui.sheet) try { history.pushState({ babySheet: 1, babyView: App.ui.view }, ''); } catch (x) {}
+        var q = afterPop; afterPop = [];
+        q.forEach(function (fn) { fn(); });
         return;
       }
-      if (App.ui.sheet) { closeSheet(true); if (App.render) App.render(); }
+      var dlg = $('#confirm');
+      if (dlg && dlg.open) {
+        // Back answers "Cancel" and leaves whatever is underneath where it was.
+        dlg.close('');
+        try { history.pushState(App.ui.sheet ? { babySheet: 1, babyView: App.ui.view } : { babyView: App.ui.view }, ''); } catch (x) {}
+        return;
+      }
+      if (App.ui.sheet) { closeSheet(true); if (App.render) App.render(); return; }
+      // Back between tabs: Settings → Today, then out of the app.
+      var v = (e.state && e.state.babyView) || 'today';
+      if (App.onViewPop) App.onViewPop(v);
     });
     // Swipe the sheet's handle or title bar down to close it.
     var panel = $('.sheet__panel'), startY = null, dy = 0;
@@ -258,6 +467,8 @@
     panel.addEventListener('pointermove', move);
     panel.addEventListener('pointerup', up);
     panel.addEventListener('pointercancel', up);
+    panel.addEventListener('lostpointercapture', up);
+    window.addEventListener('blur', up);
   }
 
   // "2 min", "1h 5m" — friendlier than a stopwatch for "how long ago / how long awake".
@@ -268,21 +479,23 @@
      [data-elapsed="ms"]  -> "1:02:33"
      [data-until="ms"]    -> "in 25 min"
      [data-breast="L|R|T"] -> breast timer totals */
+  var LIVE = '[data-ago],[data-elapsed],[data-since],[data-until],[data-breast],[data-pump]';
   function tick() {
-    var now = Date.now();
-    $all('[data-ago]').forEach(function (n) { n.textContent = ago(+n.getAttribute('data-ago'), now); });
-    $all('[data-elapsed]').forEach(function (n) { n.textContent = clock(now - +n.getAttribute('data-elapsed')); });
-    $all('[data-since]').forEach(function (n) { n.textContent = since(now - +n.getAttribute('data-since')); });
-    $all('[data-until]').forEach(function (n) { n.textContent = until(+n.getAttribute('data-until'), now); });
-    var b = S.get().activeBaby && S.timers().breast;
-    if (b) {
-      var tt = S.breastTotals(b, now);
-      $all('[data-breast]').forEach(function (n) { var k = n.getAttribute('data-breast'); n.textContent = clock(k === 'L' ? tt.L : k === 'R' ? tt.R : tt.total); });
-    }
-    var pm = S.get().activeBaby && S.timers().pump;
-    if (pm) {
-      var pt = S.pumpTotals(pm, now);
-      $all('[data-pump]').forEach(function (n) { var k = n.getAttribute('data-pump'); n.textContent = clock(k === 'L' ? pt.L : k === 'R' ? pt.R : pt.total); });
+    if (document.hidden) return; // nothing to see; visibilitychange re-renders on return
+    var now = Date.now(), id = S.get().activeBaby;
+    var b = id && S.timers().breast, pm = id && S.timers().pump;
+    var tt = b ? S.breastTotals(b, now) : null, pt = pm ? S.pumpTotals(pm, now) : null;
+    var nodes = document.querySelectorAll(LIVE);
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i], v = null, a;
+      if ((a = n.getAttribute('data-elapsed')) != null) v = clock(now - +a);
+      else if ((a = n.getAttribute('data-ago')) != null) v = ago(+a, now);
+      else if ((a = n.getAttribute('data-since')) != null) v = since(now - +a);
+      else if ((a = n.getAttribute('data-until')) != null) v = until(+a, now);
+      else if ((a = n.getAttribute('data-breast')) != null) { if (tt) v = clock(a === 'L' ? tt.L : a === 'R' ? tt.R : tt.total); }
+      else if ((a = n.getAttribute('data-pump')) != null) { if (pt) v = clock(a === 'L' ? pt.L : a === 'R' ? pt.R : pt.total); }
+      // Only touch the DOM when the text actually changes ("12 min ago" holds for a minute).
+      if (v != null && n.textContent !== v) n.textContent = v;
     }
   }
 
@@ -296,8 +509,10 @@
       var x = Math.min(window.innerWidth - w - 8, Math.max(8, r.left + r.width / 2 - w / 2));
       var y = r.top - h - 8; if (y < 8) y = r.bottom + 8;
       tip.style.left = x + 'px'; tip.style.top = y + 'px';
+      target.setAttribute('aria-describedby', 'tip');
     }
     function hide() { tip.hidden = true; }
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !tip.hidden) hide(); });
     document.addEventListener('pointerover', function (e) { var t = e.target.closest && e.target.closest('[data-tip]'); if (t) show(t); else hide(); });
     document.addEventListener('focusin', function (e) { var t = e.target.closest && e.target.closest('[data-tip]'); if (t) show(t); });
     document.addEventListener('focusout', hide);
@@ -338,6 +553,7 @@
     lenUnit: lenUnit, lenToDisplay: lenToDisplay, lenFromDisplay: lenFromDisplay, len: len,
     TYPES: TYPES, REACTIONS: REACTIONS, describe: describe,
     toast: toast, openSheet: openSheet, renderSheet: renderSheet, closeSheet: closeSheet, tick: tick, initTips: initTips, initSheetGestures: initSheetGestures, since: since,
+    fieldError: fieldError, clearFieldErrors: clearFieldErrors, ask: ask, patch: patch, regions: regions, focusKey: focusKey, refocus: refocus, afterHistory: afterHistory, reducedMotion: reducedMotion,
     statusPill: statusPill, note: note, sw: sw, timeField: timeField,
     MIN: MIN, HOUR: HOUR, DAY: DAY
   };

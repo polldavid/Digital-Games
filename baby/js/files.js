@@ -34,7 +34,9 @@
 
   function put(id, blob) { return tx('readwrite', function (st) { st.put(blob, id); }).then(function () { return id; }); }
   function get(id) { return tx('readonly', function (st) { return st.get(id); }); }
-  function remove(id) { return tx('readwrite', function (st) { st.delete(id); }); }
+  function remove(id) { forget(id); return tx('readwrite', function (st) { st.delete(id); }); }
+  // Release the decoded image held for a deleted photo.
+  function forget(id) { if (urls[id]) { URL.revokeObjectURL(urls[id]); delete urls[id]; } }
   function keys() { return tx('readonly', function (st) { return st.getAllKeys(); }); }
 
   // Shrink a photo from the camera or gallery to a JPEG Blob.

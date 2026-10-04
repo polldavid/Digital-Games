@@ -122,8 +122,10 @@ disclaimer.
   the phone's time zone, so a US-English phone in Manila still gets ml and °C),
   changeable in Settings, or by tapping the unit on the bottle and
   temperature screens.
-- **Private:** no account, no analytics, no network calls; everything lives in
-  `localStorage` on the device.
+- **Private:** no account, no analytics; everything lives in `localStorage` on
+  the device. The only network request is the text reader (Tesseract.js, pinned
+  with a subresource-integrity hash) fetched the first time a prescription is
+  scanned — the photo itself never leaves the phone.
 
 ## Files
 
@@ -140,11 +142,12 @@ baby/
     ├── files.js   # photo storage (IndexedDB) and compression
     ├── store.js   # state, persistence, queries, timers, reminder engine — no DOM
     ├── sound.js   # white/pink/brown noise, shush, heartbeat, chime (Web Audio)
-    ├── ui.js      # helpers: formatting, units, sheet, toasts, tooltips
+    ├── ui.js      # helpers: formatting, units, sheet, confirm dialog, field errors, toasts, tooltips
     ├── forms.js   # one logging form per entry type (add + edit)
     ├── views.js   # Today, History, Trends
     ├── help.js    # Answers topics + sleep-sounds player
     ├── health.js  # Health tab: visits, prescriptions + scanning, vaccines, records
+    ├── native.js  # web ↔ app-store differences: notifications, files, share, durable storage
     └── app.js     # boot, actions, notifications, settings, import/export
 ```
 

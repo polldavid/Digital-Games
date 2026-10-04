@@ -5,11 +5,11 @@
    the front when a reminder notification is tapped.
    Bump VERSION whenever a cached file changes.
    ========================================================= */
-var VERSION = 'babylog-v6';
+var VERSION = 'babylog-v8';
 var FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'css/styles.css', '../theme.css', '../theme.js',
-  'js/guide.js', 'js/store.js', 'js/sound.js', 'js/rx.js', 'js/files.js', 'js/ui.js', 'js/forms.js', 'js/views.js', 'js/help.js', 'js/health.js', 'js/app.js',
+  'js/guide.js', 'js/store.js', 'js/sound.js', 'js/rx.js', 'js/files.js', 'js/ui.js', 'js/forms.js', 'js/views.js', 'js/help.js', 'js/health.js', 'js/native.js', 'js/app.js',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'
 ];
 
@@ -29,8 +29,9 @@ self.addEventListener('fetch', function (e) {
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).then(function (res) {
-      var copy = res.clone(); caches.open(VERSION).then(function (c) { c.put(req, copy); });
-      return res;
+      // Never let a server error page replace the working copy of the app.
+      if (res.ok) { var copy = res.clone(); caches.open(VERSION).then(function (c) { c.put(req, copy); }); }
+      return res.ok ? res : caches.match(req).then(function (r) { return r || res; });
     }).catch(function () { return caches.match(req).then(function (r) { return r || caches.match('index.html'); }); }));
     return;
   }
@@ -39,7 +40,8 @@ self.addEventListener('fetch', function (e) {
       if (res.ok) { var copy = res.clone(); caches.open(VERSION).then(function (c) { c.put(req, copy); }); }
       return res;
     });
-    return hit || net;
+    if (hit) { net.catch(function () {}); return hit; } // offline: the cached copy is enough
+    return net;
   }));
 });
 

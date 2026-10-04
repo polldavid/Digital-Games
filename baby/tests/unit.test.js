@@ -132,3 +132,39 @@ console.log('QA-fix unit tests passed');
   const m = R.parse('1. Amoxicillin 250mg/5mL\nSig: 2.5 mL three times a day x 7 days\n2. Paracetamol 120mg/SmL\nSig: l.2 mL every 4 hours as needed')
   assert.deepStrictEqual(m.map(x => [x.name, x.strength, x.dose, x.intervalH, x.durationDays || 0, !!x.prn]), [['Amoxicillin','250mg/5mL','2.5 ml',8,7,false],['Paracetamol','120mg/5mL','1.2 ml',4,0,true]]);
   console.log('prescription parser tests passed'); }
+
+// Hardening: range queries use binary search — they must match a full scan,
+// including long events that start before the range and end inside it.
+{ S.reset(); S.addBaby({ name: 'R', birth: '2026-01-01' });
+  const t0 = new Date(2026, 5, 1).getTime();
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 400; i++) {
+    const time = t0 + Math.floor(rnd() * 30 * DAY), long = rnd() < 0.2;
+    S.addEvent({ type: long ? 'sleep' : 'feed', time, end: long ? time + Math.floor(rnd() * 20 * HOUR) : null, data: {} });
+  }
+  S.addEvent({ type: 'sleep', time: t0 + 9 * DAY, end: t0 + 12 * DAY, data: {} }); // spans several days
+  const naive = (o) => S.get().events.filter(e => e.baby === S.get().activeBaby
+    && (!o.type || [].concat(o.type).includes(e.type))
+    && (o.from == null || (e.end || e.time) >= o.from) && (o.to == null || e.time < o.to));
+  for (let k = 0; k < 60; k++) {
+    const from = t0 + Math.floor(rnd() * 32 * DAY) - DAY, to = rnd() < 0.5 ? from + Math.floor(rnd() * 5 * DAY) : null;
+    const o = { from, to, type: rnd() < 0.5 ? 'sleep' : null };
+    assert.deepStrictEqual(S.events(o).map(e => e.id), naive(o).map(e => e.id), 'events() range matches a full scan');
+  }
+  const longOne = S.get().events.find(e => e.end === t0 + 12 * DAY);
+  S.updateEvent(longOne.id, { end: t0 + 20 * DAY }); // longer than anything before: cache must notice
+  assert.ok(S.events({ from: t0 + 19 * DAY }).some(e => e.id === longOne.id), 'edited span is picked up');
+}
+// Hardening: a failed save is reported, and a later good save clears it.
+{ let failed = 0, ok = 0;
+  S.onSaveError = () => failed++; S.onSaveOk = () => ok++;
+  const full = { setItem() { const e = new Error('QuotaExceededError'); e.name = 'QuotaExceededError'; throw e; } };
+  assert.strictEqual(S.save(full), false, 'save() says when it failed');
+  assert.strictEqual(failed, 1, 'failure reported');
+  const mem = { v: null, setItem(k, v) { this.v = v; } };
+  assert.strictEqual(S.save(mem), true);
+  assert.strictEqual(ok, 1, 'recovery reported');
+  assert.ok(mem.v && JSON.parse(mem.v).babies.length === 1, 'state written');
+  S.onSaveError = S.onSaveOk = null;
+}
+console.log('hardening unit tests passed');

@@ -54,10 +54,40 @@
     return state;
   }
 
+  // Returns true when the log is safely on the device. A failure (storage
+  // full, blocked, private mode) is reported through api.onSaveError so the
+  // app can tell the parent instead of losing entries silently.
+  var pending = null, saveFailed = false;
   function save(storage) {
+    if (pending) { clearTimeout(pending); pending = null; }
     storage = storage || (typeof localStorage !== 'undefined' ? localStorage : null);
-    try { if (storage) storage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* private mode / full */ }
+    if (!storage) return false;
+    var json;
+    try {
+      json = JSON.stringify(state);
+      storage.setItem(STORE_KEY, json);
+    } catch (e) {
+      saveFailed = true;
+      if (api.onSaveError) api.onSaveError(e);
+      return false;
+    }
+    if (saveFailed) { saveFailed = false; if (api.onSaveOk) api.onSaveOk(); }
+    if (api.onSaved) api.onSaved(json);
+    return true;
   }
+  // Writing a year of logs costs ~15 ms; do it just after the screen updates
+  // so a tap feels instant. flush() runs it now (e.g. when the app is hidden).
+  function saveSoon() {
+    if (typeof setTimeout === 'undefined' || typeof requestAnimationFrame === 'undefined') return save();
+    if (pending) return true;
+    var run = function () { if (pending) save(); };
+    // After the next paint — or within 120 ms regardless, since browsers
+    // pause animation frames for hidden or backgrounded pages.
+    pending = setTimeout(run, 120);
+    requestAnimationFrame(function () { setTimeout(run, 0); });
+    return true;
+  }
+  function flush() { if (pending) return save(); return !saveFailed; }
 
   // Fill in anything missing (older saves, imports).
   function normalize(s) {
@@ -72,6 +102,7 @@
     if (!Array.isArray(out.custom)) out.custom = [];
     if (!out.health || typeof out.health !== 'object') out.health = {};
     if (!out.activeBaby && out.babies[0]) out.activeBaby = out.babies[0].id;
+    out.events.sort(function (a, b) { return a.time - b.time; }); // range queries rely on it
     return out;
   }
 
@@ -125,6 +156,7 @@
     var e = findEvent(id);
     if (!e) return null;
     for (var k in patch) e[k] = patch[k];
+    rev++;
     sortEvents();
     return e;
   }
@@ -133,18 +165,41 @@
   function findEvent(id) { for (var i = 0; i < state.events.length; i++) if (state.events[i].id === id) return state.events[i]; return null; }
   function sortEvents() { state.events.sort(function (a, b) { return a.time - b.time; }); }
 
+  // Events are kept sorted by start time, so a time range is found by binary
+  // search instead of scanning a year of logs (Trends asks dozens of times).
+  // An event that started before `from` still counts if it ends after it, so
+  // the search starts one "longest event" earlier.
+  var rev = 0, span = { arr: null, len: -1, rev: -1, ms: 0 };
+  function longestSpan() {
+    var list = state.events;
+    if (span.arr !== list || span.len !== list.length || span.rev !== rev) {
+      var m = 0;
+      for (var i = 0; i < list.length; i++) { var e = list[i]; if (e.end && e.end - e.time > m) m = e.end - e.time; }
+      span = { arr: list, len: list.length, rev: rev, ms: m };
+    }
+    return span.ms;
+  }
+  function firstAtOrAfter(t) {
+    var list = state.events, lo = 0, hi = list.length;
+    while (lo < hi) { var mid = (lo + hi) >> 1; if (list[mid].time < t) lo = mid + 1; else hi = mid; }
+    return lo;
+  }
+
   // Events for the active baby, optionally filtered by type and time range [from, to).
   function events(opts) {
     opts = opts || {};
-    var id = opts.baby || state.activeBaby;
-    return state.events.filter(function (e) {
-      if (e.baby !== id) return false;
-      if (opts.type && (Array.isArray(opts.type) ? opts.type : [opts.type]).indexOf(e.type) < 0) return false;
-      var t = e.end || e.time;
-      if (opts.from != null && t < opts.from) return false;
-      if (opts.to != null && e.time >= opts.to) return false;
-      return true;
-    });
+    var id = opts.baby || state.activeBaby, list = state.events, out = [];
+    var types = opts.type ? (Array.isArray(opts.type) ? opts.type : [opts.type]) : null;
+    var lo = opts.from != null ? firstAtOrAfter(opts.from - longestSpan()) : 0;
+    var hi = opts.to != null ? firstAtOrAfter(opts.to) : list.length;
+    for (var i = lo; i < hi; i++) {
+      var e = list[i];
+      if (e.baby !== id) continue;
+      if (types && types.indexOf(e.type) < 0) continue;
+      if (opts.from != null && (e.end || e.time) < opts.from) continue;
+      out.push(e);
+    }
+    return out;
   }
 
   function last(type, pred, id) {
@@ -577,7 +632,8 @@
 
   var api = {
     STORE_KEY: STORE_KEY, uid: uid, defaults: defaults,
-    load: load, save: save, get: get, set: set, reset: reset, normalize: normalize,
+    load: load, save: save, saveSoon: saveSoon, flush: flush, get: get, set: set, reset: reset, normalize: normalize,
+    onSaveError: null, onSaveOk: null, onSaved: null,
     baby: baby, addBaby: addBaby, updateBaby: updateBaby, removeBaby: removeBaby, ageDays: ageDays,
     addEvent: addEvent, updateEvent: updateEvent, removeEvent: removeEvent, findEvent: findEvent, events: events, last: last,
     startOfDay: startOfDay, overlap: overlap,

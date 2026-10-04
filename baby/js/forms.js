@@ -118,17 +118,17 @@
       if (kind === 'breast') {
         data.left = (num(form, 'left') || 0) * MIN; data.right = (num(form, 'right') || 0) * MIN;
         data.startSide = radio(form, 'startSide') || 'L';
-        if (!data.left && !data.right) return { error: 'Add the minutes for at least one side — or use the timer.' };
+        if (!data.left && !data.right) return { field: 'left', error: 'Add the minutes for at least one side — or use the timer.' };
         end = time + data.left + data.right;
       } else if (kind === 'bottle') {
         data.amountMl = Math.round(h.volFromDisplay(val(form, 'amount')));
         data.milk = radio(form, 'milk');
-        if (!data.amountMl) return { error: 'How much did baby drink?' };
+        if (!data.amountMl) return { field: 'amount', error: 'How much did baby drink?' };
       } else {
         data.food = val(form, 'food').trim();
         data.newFood = checked(form, 'newFood');
         data.reaction = radio(form, 'reaction');
-        if (!data.food) return { error: 'What did baby eat?' };
+        if (!data.food) return { field: 'food', error: 'What did baby eat?' };
       }
       return { time: time, end: end, data: data };
     },
@@ -170,8 +170,8 @@
         G.POOP_COLORS.map(function (c) { return '<button type="button" class="swatch" data-action="poop-color" data-color="' + c.id + '" aria-pressed="' + (d.color === c.id) + '"><span class="swatch__dot" style="background:' + c.hex + '"></span>' + esc(c.label) + '</button>'; }).join('') +
         '</div><input type="hidden" name="color" value="' + esc(d.color || '') + '" /></div>' +
         '<div id="poop-feedback"></div>' +
-        '<div class="field"><span class="field__label">Texture</span><div class="chips">' +
-        G.POOP_TEXTURES.map(function (t) { return '<label class="chip"><input type="radio" name="texture" value="' + t.id + '"' + (d.texture === t.id ? ' checked' : '') + ' style="display:none" />' + esc(t.label) + '</label>'; }).join('') +
+        '<div class="field"><span class="field__label" id="texture-label">Texture</span><div class="chips" role="radiogroup" aria-labelledby="texture-label">' +
+        G.POOP_TEXTURES.map(function (t) { return '<label class="chip chip--pick"><input class="chip__input" type="radio" name="texture" value="' + t.id + '"' + (d.texture === t.id ? ' checked' : '') + ' />' + esc(t.label) + '</label>'; }).join('') +
         '</div></div><div id="texture-feedback"></div></div>';
       html += '<label class="check-line"><input type="checkbox" name="rash"' + (d.rash ? ' checked' : '') + ' /> Diaper rash</label>';
       html += h.timeField('time', ev ? ev.time : Date.now()) + noteField(d.note) + footer(ev);
@@ -223,9 +223,9 @@
     },
     parse: function (form) {
       var t = h.fromLocalInput(val(form, 'time')), e = h.fromLocalInput(val(form, 'end'));
-      if (!t || !e || e <= t) return { error: 'Wake-up time needs to be after falling asleep.' };
-      if (e > Date.now() + 5 * MIN) return { error: 'Wake-up time is in the future — use the sleep timer instead.' };
-      if (e - t > 16 * HOUR) return { error: 'That’s over 16 hours — double-check the dates.' };
+      if (!t || !e || e <= t) return { field: 'end', error: 'Wake-up time needs to be after falling asleep.' };
+      if (e > Date.now() + 5 * MIN) return { field: 'end', error: 'Wake-up time is in the future — use the sleep timer instead.' };
+      if (e - t > 16 * HOUR) return { field: 'time', error: 'That’s over 16 hours — double-check the dates.' };
       return { time: t, end: e, data: { note: val(form, 'note').trim() } };
     }
   };
@@ -283,7 +283,7 @@
     },
     parse: function (form) {
       var l = h.volFromDisplay(val(form, 'left') || 0), r = h.volFromDisplay(val(form, 'right') || 0);
-      if (!l && !r) return { error: 'Enter how much you pumped from at least one side.' };
+      if (!l && !r) return { field: 'left', error: 'Enter how much you pumped from at least one side.' };
       var data = { leftMl: Math.round(l), rightMl: Math.round(r), amountMl: Math.round(l + r), durationMin: num(form, 'duration') || 0, note: val(form, 'note').trim() };
       if (val(form, 'fromTimer')) { data.leftMs = +val(form, 'leftMs') || 0; data.rightMs = +val(form, 'rightMs') || 0; }
       return { time: h.fromLocalInput(val(form, 'time')), data: data };
@@ -320,7 +320,7 @@
     },
     parse: function (form) {
       var m = num(form, 'minutes'), t = h.fromLocalInput(val(form, 'time'));
-      if (!m) return { error: 'How many minutes?' };
+      if (!m) return { field: 'minutes', error: 'How many minutes?' };
       return { time: t, end: t + m * MIN, data: {} };
     }
   };
@@ -364,7 +364,7 @@
     parse: function (form) {
       var sel = val(form, 'medId'), p = medInfo(sel);
       var name = sel === 'custom' ? val(form, 'name').trim() : p.rx ? p.rx.name : p.label.split(' (')[0];
-      if (!name) return { error: 'What medicine was it?' };
+      if (!name) return { field: 'name', error: 'What medicine was it?' };
       var data = { medId: p.rx ? 'rx' : sel, name: name, dose: val(form, 'dose').trim(), intervalH: num(form, 'intervalH') || 0, maxPerDay: num(form, 'maxPerDay') || 0, remind: checked(form, 'remind'), note: val(form, 'note').trim() };
       if (p.rx) data.rxId = p.rx.id;
       return { time: h.fromLocalInput(val(form, 'time')), data: data };
@@ -413,7 +413,7 @@
     },
     parse: function (form) {
       var c = h.tempFromDisplay(val(form, 'temp'));
-      if (c == null || c < 30 || c > 45) return { error: 'That temperature doesn’t look right — check the units in Settings.' };
+      if (c == null || c < 30 || c > 45) return { field: 'temp', error: 'That temperature doesn’t look right — check the units in Settings.' };
       return { time: h.fromLocalInput(val(form, 'time')), data: { tempC: Math.round(c * 100) / 100, method: radio(form, 'method'), note: val(form, 'note').trim() } };
     },
     mount: function (body) {
@@ -441,7 +441,7 @@
     },
     parse: function (form) {
       var data = { weightKg: h.weightFromDisplay(val(form, 'weight')), lengthCm: h.lenFromDisplay(val(form, 'length')), headCm: h.lenFromDisplay(val(form, 'head')), note: val(form, 'note').trim() };
-      if (!data.weightKg && !data.lengthCm && !data.headCm) return { error: 'Enter at least one measurement.' };
+      if (!data.weightKg && !data.lengthCm && !data.headCm) return { field: 'weight', error: 'Enter at least one measurement.' };
       return { time: h.fromLocalInput(val(form, 'time')), data: data };
     },
     mount: function (body) {
@@ -472,7 +472,7 @@
       },
       parse: function (form) {
         var data = type === 'bath' ? { note: val(form, 'note').trim() } : { text: val(form, 'text').trim() };
-        if (type !== 'bath' && !data.text) return { error: 'Write something first.' };
+        if (type !== 'bath' && !data.text) return { field: 'text', error: 'Write something first.' };
         return { time: h.fromLocalInput(val(form, 'time')), data: data };
       }
     };
@@ -509,9 +509,9 @@
     var type = form.getAttribute('data-type'), id = form.getAttribute('data-id'), F = FORMS[type];
     var ev = id ? S.findEvent(id) : null;
     var r = F.parse(form, ev);
-    if (r.error) { h.toast(r.error); return null; }
-    if (!r.time) { h.toast('Pick a time.'); return null; }
-    if (r.time > Date.now() + 5 * MIN) { h.toast('That time is in the future.'); return null; }
+    if (r.error) { h.fieldError(form, r.field, r.error); return null; }
+    if (!r.time) { h.fieldError(form, 'time', 'Pick a time.'); return null; }
+    if (r.time > Date.now() + 5 * MIN) { h.fieldError(form, 'time', 'That time is in the future — use Now or pick an earlier time.'); return null; }
     api.lastCopies = [];
     if (ev) return S.updateEvent(id, { time: r.time, end: r.end !== undefined ? r.end : ev.end, data: r.data });
     var saved = S.addEvent({ type: type, time: r.time, end: r.end || null, data: r.data });

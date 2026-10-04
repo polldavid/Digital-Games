@@ -14,7 +14,7 @@
     var t = S.timers(), out = '';
     if (t.breast) {
       var b = t.breast;
-      out += '<div class="card live" aria-live="off"><div class="live__head"><span class="live__icon">🤱</span><div><div class="live__label"><span class="pulse"></span>' + (b.paused ? 'Feed paused' : 'Feeding · ' + (b.side === 'L' ? 'left' : 'right')) + '</div><div class="live__sub">started ' + h.fmtTime(b.start) + '</div></div><span class="live__clock" data-breast="T">0:00</span></div>' +
+      out += '<div class="card live" aria-live="off"><div class="live__head"><span class="live__icon">🤱</span><div><div class="live__label">' + (b.paused ? '' : '<span class="pulse" aria-hidden="true"></span>') + (b.paused ? 'Feed paused' : 'Feeding · ' + (b.side === 'L' ? 'left' : 'right')) + '</div><div class="live__sub">started ' + h.fmtTime(b.start) + '</div></div><span class="live__clock" data-breast="T">0:00</span></div>' +
         '<div class="btn-row"><button class="btn btn--sm" data-action="breast-side" data-side="' + (b.side === 'L' ? 'R' : 'L') + '">⇄ Switch to ' + (b.side === 'L' ? 'right' : 'left') + '</button>' +
         '<button class="btn btn--sm" data-action="breast-pause">' + (b.paused ? '▶ Resume' : '⏸ Pause') + '</button>' +
         '<button class="btn btn--sm btn--primary" data-action="breast-finish">✓ Done</button></div></div>';
@@ -215,7 +215,7 @@
     if (!list.length) return '<div class="empty"><span class="empty__icon">🔕</span>No reminders coming up.</div>';
     return '<div class="rows">' + list.map(function (r) {
       var overdue = r.at <= now;
-      return '<div class="row' + (r.done ? ' row--done' : '') + '"><span class="row__icon">' + r.icon + '</span><div class="row__main"><div class="row__t">' + esc(r.title) + '</div><div class="row__s">' + esc(r.text) + '</div></div>' +
+      return '<div class="row' + (r.done ? ' row--done' : '') + '"><span class="row__icon" aria-hidden="true">' + esc(r.icon) + '</span><div class="row__main"><div class="row__t">' + esc(r.title) + '</div><div class="row__s">' + esc(r.text) + '</div></div>' +
         '<div class="row__time"><strong>' + h.fmtTime(r.at) + '</strong><span data-until="' + r.at + '">' + h.until(r.at, now) + '</span>' +
         (overdue ? '<br><button class="btn btn--link btn--sm" data-action="snooze" data-key="' + esc(r.key) + '" data-at="' + r.at + '">Snooze 15m</button>' : '') + '</div></div>';
     }).join('') + '</div>';
@@ -234,16 +234,16 @@
     var now = Date.now(), days = S.ageDays(now), b = S.baby();
     var rem = S.reminders(now).filter(function (r) { return !r.done; }).slice(0, 4);
     var todays = S.events({ from: S.startOfDay(now) }).filter(function (e) { return e.time >= S.startOfDay(now); }).reverse();
-    return liveCards(now) +
+    return '<h1 class="sr-only">Today</h1>' + liveCards(now) +
       quickActions(days) +
       tiles(now, days) +
       '<button class="cry-cta" data-action="help" data-topic="cry"><span class="cry-cta__icon">😭</span><span class="cry-cta__t">Crying? See the likely reasons</span><span class="cry-cta__go">›</span></button>' +
       installTip() +
-      '<div class="section-title">Last 24 hours <button class="btn--link" data-action="help" data-topic="enough">What’s normal?</button></div>' +
+      '<div class="section-title"><h2>Last 24 hours</h2> <button class="btn--link" data-action="help" data-topic="enough">What’s normal?</button></div>' +
       '<div class="card">' + checks(now, days) + '</div>' +
-      '<div class="section-title">Coming up <button class="btn--link" data-action="go" data-view="settings" data-focus="reminders">Manage</button></div>' +
+      '<div class="section-title"><h2>Coming up</h2> <button class="btn--link" data-action="go" data-view="settings" data-focus="reminders">Manage</button></div>' +
       '<div class="card">' + reminderRows(rem, now) + '</div>' +
-      '<div class="section-title">Today <button class="btn--link" data-action="go" data-view="log">All history</button></div>' +
+      '<div class="section-title"><h2>Today</h2> <button class="btn--link" data-action="go" data-view="log">All history</button></div>' +
       '<div class="card">' + timelineRows(todays.slice(0, 10), now) +
       (todays.length > 10 ? '<button class="btn btn--link btn--block" data-action="go" data-view="log">See all ' + todays.length + ' entries today</button>' : '') + '</div>';
   }
@@ -308,14 +308,14 @@
         return '<div class="bar' + (p.s.cls ? ' ' + p.s.cls : '') + (j === 0 || parts.slice().reverse().slice(0, j).every(function (q) { return !q.v; }) ? ' bar--top' : '') + '" style="height:' + (p.v / max * 100) + '%"></div>';
       }).join('');
       var showVal = o.days.length <= 7 || i === o.days.length - 1;
-      return '<div class="bars__col" tabindex="0" data-tip="' + esc(tip) + '">' + (showVal && tot ? '<span class="bars__val">' + o.fmt(tot) + '</span>' : '') + segs + '</div>';
+      return '<div class="bars__col" tabindex="0" role="img" aria-label="' + esc(tip) + '" data-tip="' + esc(tip) + '">' + (showVal && tot ? '<span class="bars__val">' + o.fmt(tot) + '</span>' : '') + segs + '</div>';
     }).join('');
     var band = o.band ? '<div class="bars__band" style="bottom:' + (o.band[0] / max * 100) + '%;height:' + ((o.band[1] - o.band[0]) / max * 100) + '%"></div>' : '';
     var every = o.days.length > 14 ? 5 : 1; // thin out labels on the 30-day view
     var labels = o.days.map(function (d, i) { var last = i === o.days.length - 1; return '<span>' + (last || (o.days.length - 1 - i) % every === 0 ? h.shortDay(d.start) : '') + '</span>'; }).join('');
     var legend = o.series.length > 1 ? '<div class="legend">' + o.series.map(function (s) { return '<span><i style="background:var(--' + (s.cls === 'bar--2' ? 'series-2' : 'series-1') + ')"></i>' + s.label + '</span>'; }).join('') + '</div>' : '';
     return '<div class="card chart"><div class="chart__title">' + o.title + '</div><div class="chart__sub">' + o.sub + '</div>' + legend +
-      '<div class="bars" role="img" aria-label="' + esc(o.title) + '">' + band + cols + '</div><div class="bars__labels" aria-hidden="true">' + labels + '</div></div>';
+      '<div class="bars" role="group" aria-label="' + esc(o.title) + ', one bar per day">' + band + cols + '</div><div class="bars__labels" aria-hidden="true">' + labels + '</div></div>';
   }
 
   function dayMap(n, now) {
@@ -326,15 +326,20 @@
     if (t.sleep) sleeps = sleeps.concat([{ time: t.sleep.start, end: now }]);
     for (var i = n - 1; i >= 0; i--) {
       var start = S.startOfDay(d0 - i * DAY + 2 * HOUR), end = start + DAY;
+      var sleptMs = 0;
       var segs = sleeps.map(function (e) {
         var s = Math.max(e.time, start), en = Math.min(e.end || now, end);
         if (en <= s) return '';
+        sleptMs += en - s;
         return '<span class="daymap__sleep" style="left:' + ((s - start) / DAY * 100) + '%;width:' + Math.max(0.4, (en - s) / DAY * 100) + '%" data-tip="Sleep ' + h.fmtTime(e.time) + '–' + h.fmtTime(e.end || now) + ' (' + h.durMs((e.end || now) - e.time) + ')"></span>';
       }).join('');
-      var ticks = feeds.filter(function (e) { return e.time >= start && e.time < end; }).map(function (e) {
+      var dayFeeds = feeds.filter(function (e) { return e.time >= start && e.time < end; });
+      var ticks = dayFeeds.map(function (e) {
         return '<span class="daymap__feed" style="left:' + ((e.time - start) / DAY * 100) + '%" data-tip="' + esc(h.describe(e).title + ' at ' + h.fmtTime(e.time)) + '"></span>';
       }).join('');
-      rows.push('<div class="daymap__row"><span class="daymap__label">' + h.shortDay(start, now) + '</span><div class="daymap__track">' + segs + ticks + '</div></div>');
+      // Screen readers get each day in words; the bars are for eyes.
+      var said = h.dayLabel(start, now) + ': slept ' + (sleptMs ? h.durMs(sleptMs) : 'none logged') + ', ' + h.plural(dayFeeds.length, 'feed');
+      rows.push('<div class="daymap__row"><span class="daymap__label" aria-hidden="true">' + h.shortDay(start, now) + '</span><div class="daymap__track" role="img" aria-label="' + esc(said) + '">' + segs + ticks + '</div></div>');
     }
     return '<div class="card chart"><div class="chart__title">Daily rhythm</div><div class="chart__sub">Each row is one day, midnight to midnight. Watch night sleep join up over the weeks.</div>' +
       '<div class="legend"><span><i style="background:var(--series-1)"></i>Sleep</span><span><i style="background:var(--series-2)"></i>Feed</span></div>' +
@@ -362,7 +367,7 @@
       return '<tr><td>' + h.fmtDate(e.time) + '</td><td class="num">' + (e.data.weightKg ? h.weight(e.data.weightKg) : '—') + '</td><td class="num">' + (e.data.lengthCm ? h.len(e.data.lengthCm) : '—') + '</td><td class="num">' + (e.data.headCm ? h.len(e.data.headCm) : '—') + '</td></tr>';
     }).join('');
     return '<div class="card chart"><div class="chart__title">Growth</div><div class="chart__sub">Weight' + (b.birthWeightKg ? ' since birth (' + h.weight(b.birthWeightKg) + ')' : '') + '. Your pediatrician plots this on WHO growth charts at check-ups.</div>' + svg +
-      (rowsH ? '<table class="tbl"><thead><tr><th>Date</th><th class="num">Weight</th><th class="num">Length</th><th class="num">Head</th></tr></thead><tbody>' + rowsH + '</tbody></table>' : '') +
+      (rowsH ? '<div class="tbl-wrap" tabindex="0" role="region" aria-label="Table (scrolls sideways)"><table class="tbl"><thead><tr><th>Date</th><th class="num">Weight</th><th class="num">Length</th><th class="num">Head</th></tr></thead><tbody>' + rowsH + '</tbody></table></div>' : '') +
       '<button class="btn btn--sm" data-action="log" data-type="growth" style="margin-top:10px">＋ Add measurement</button></div>';
   }
 
@@ -391,9 +396,9 @@
     if (ds.some(function (d) { return d.pumpMl; })) html += barChart({ title: 'Pumped per day', sub: 'Total pumped, in ' + h.volUnit() + '.', days: ds, series: [{ key: 'p', label: 'Pumped' }], value: function (d) { return h.volToDisplay(d.pumpMl); }, fmt: function (v) { return String(Math.round(v)); } });
     html += growthCard();
     // Table view of the same numbers (accessibility + screen readers).
-    html += '<details class="card more"><summary>Show as a table</summary><table class="tbl" style="margin-top:8px"><thead><tr><th>Day</th><th class="num">Feeds</th><th class="num">Wet</th><th class="num">Dirty</th><th class="num">Sleep</th></tr></thead><tbody>' +
+    html += '<details class="card more"><summary>Show as a table</summary><div class="tbl-wrap" tabindex="0" role="region" aria-label="Table (scrolls sideways)"><table class="tbl" style="margin-top:8px"><thead><tr><th>Day</th><th class="num">Feeds</th><th class="num">Wet</th><th class="num">Dirty</th><th class="num">Sleep</th></tr></thead><tbody>' +
       ds.slice().reverse().map(function (d) { return '<tr><td>' + h.dayLabel(d.start, now) + '</td><td class="num">' + d.feeds + '</td><td class="num">' + d.wet + '</td><td class="num">' + d.dirty + '</td><td class="num">' + h.hoursStr(d.sleepMs) + '</td></tr>'; }).join('') +
-      '</tbody></table></details>';
+      '</tbody></table></div></details>';
     return html;
   }
   function stat(v, k) { return '<div class="stat"><div class="stat__v">' + v + '</div><div class="stat__k">' + k + '</div></div>'; }

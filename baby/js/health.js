@@ -21,7 +21,8 @@
   function fromIsoDate(v) { var m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(v || ''); return m ? new Date(+m[1], +m[2] - 1, +m[3], 12).getTime() : null; }
   function val(form, n) { var e = form.elements[n]; return e ? String(e.value).trim() : ''; }
   function num(form, n) { var v = parseFloat(val(form, n)); return isNaN(v) ? null : v; }
-  function photo(id, cls) { return id ? '<img class="' + (cls || 'thumb') + '" data-photo="' + esc(id) + '" alt="Photo" data-action="photo-view" data-id="' + esc(id) + '" />' : ''; }
+  // A button around the image, so the photo can be opened by keyboard and is announced as one.
+  function photo(id, cls) { return id ? '<button type="button" class="photo-btn" data-action="photo-view" data-id="' + esc(id) + '" aria-label="View the photo full size"><img class="' + (cls || 'thumb') + '" data-photo="' + esc(id) + '" alt="" decoding="async" /></button>' : ''; }
   function sticky(btns) { return '<div class="btn-row sheet-save">' + btns + '</div>'; }
 
   var VISIT_TYPES = [['checkup', '🩺 Check-up'], ['vaccine', '💉 Vaccines'], ['sick', '🤒 Sick visit'], ['other', '📋 Other']];
@@ -38,7 +39,7 @@
     // Next visit
     var upcoming = H.appointments.filter(function (a) { return !a.done && a.at >= now - 3 * HOUR; }).sort(function (a, b) { return a.at - b.at; });
     var past = H.appointments.filter(function (a) { return a.done || a.at < now - 3 * HOUR; }).sort(function (a, b) { return b.at - a.at; });
-    html += '<div class="section-title">Next visit</div><div class="card">';
+    html += '<div class="section-title"><h2>Next visit</h2></div><div class="card">';
     if (upcoming.length) {
       var a = upcoming[0];
       html += '<button class="row" data-action="appt-edit" data-id="' + a.id + '"><span class="row__icon">' + visitIcon(a.type) + '</span><div class="row__main"><div class="row__t">' + esc(a.title || 'Doctor’s visit') + '</div><div class="row__s">' + esc(when(a.at)) + (a.place ? ' · ' + esc(a.place) : '') + '</div></div><div class="row__time"><strong data-until="' + a.at + '">' + h.until(a.at, now) + '</strong></div></button>' +
@@ -53,34 +54,34 @@
     // Medicines
     var active = H.rx.filter(function (rx) { return S.rxStatus(rx, now).active; });
     var ended = H.rx.filter(function (rx) { return !S.rxStatus(rx, now).active; });
-    html += '<div class="section-title">Medicines <button class="btn--link" data-action="rx-edit">＋ Add</button></div><div class="card">';
+    html += '<div class="section-title"><h2>Medicines</h2> <button class="btn--link" data-action="rx-edit">＋ Add</button></div><div class="card">';
     if (active.length) html += '<div class="rows">' + active.map(function (rx) { return rxRow(rx, now); }).join('') + '</div>';
     else html += '<div class="empty"><span class="empty__icon">💊</span>No medicines right now.<br><span class="small">Scan a prescription or add one by hand.</span></div>';
     if (ended.length) html += '<details class="more"><summary>Past medicines (' + ended.length + ')</summary><div class="rows">' + ended.sort(function (a, b) { return b.start - a.start; }).map(function (rx) { return rxRow(rx, now); }).join('') + '</div></details>';
     html += '</div>';
 
     // Vaccines
-    html += '<div class="section-title">Vaccines <button class="btn--link" data-action="vax-open">Checklist</button></div><div class="card">' + vaxSummary(now) + '</div>';
+    html += '<div class="section-title"><h2>Vaccines</h2> <button class="btn--link" data-action="vax-open">Checklist</button></div><div class="card">' + vaxSummary(now) + '</div>';
 
     // Calendar
-    html += '<div class="section-title">Calendar</div><div class="card">' + calendar(now) + '</div>';
+    html += '<div class="section-title"><h2>Calendar</h2></div><div class="card">' + calendar(now) + '</div>';
 
     // Records
     var P = H.profile;
-    html += '<div class="section-title">Records</div><div class="card"><div class="rows">' +
+    html += '<div class="section-title"><h2>Records</h2></div><div class="card"><div class="rows">' +
       '<button class="row" data-action="profile-edit"><span class="row__icon">🪪</span><div class="row__main"><div class="row__t">Health profile</div><div class="row__s">' + esc([P.blood && 'Blood type ' + P.blood, P.allergies ? 'Allergies: ' + P.allergies : 'No allergies noted', P.doctor && 'Dr. ' + P.doctor.replace(/^dr\.?\s*/i, '')].filter(Boolean).join(' · ')) + '</div></div><span class="faint">Edit ›</span></button>' +
       '<button class="row" data-action="emergency"><span class="row__icon">🆘</span><div class="row__main"><div class="row__t">Emergency info</div><div class="row__s">For a sitter, grandparent or the ER — share or show</div></div><span class="faint">›</span></button>' +
       '<button class="row" data-action="visit-summary"><span class="row__icon">📤</span><div class="row__main"><div class="row__t">Summary for the doctor</div><div class="row__s">Last 7 days of feeds, diapers, sleep, meds, fevers, growth</div></div><span class="faint">›</span></button>' +
       '</div></div>';
 
-    html += '<div class="section-title">Documents <button class="btn--link" data-action="doc-edit">＋ Add</button></div><div class="card">';
+    html += '<div class="section-title"><h2>Documents</h2> <button class="btn--link" data-action="doc-edit">＋ Add</button></div><div class="card">';
     if (H.docs.length) html += '<div class="docs">' + H.docs.slice().sort(function (a, b) { return b.date - a.date; }).map(function (d) {
-      return '<button class="doc" data-action="doc-edit" data-id="' + d.id + '">' + (d.photoId ? '<img class="doc__img" data-photo="' + esc(d.photoId) + '" alt="" />' : '<span class="doc__img doc__img--none">📄</span>') + '<span class="doc__t">' + esc(d.title || 'Document') + '</span><span class="doc__s">' + esc(dateOnly(d.date)) + '</span></button>';
+      return '<button class="doc" data-action="doc-edit" data-id="' + d.id + '">' + (d.photoId ? '<img class="doc__img" data-photo="' + esc(d.photoId) + '" alt="" loading="lazy" decoding="async" />' : '<span class="doc__img doc__img--none">📄</span>') + '<span class="doc__t">' + esc(d.title || 'Document') + '</span><span class="doc__s">' + esc(dateOnly(d.date)) + '</span></button>';
     }).join('') + '</div>';
     else html += '<div class="empty"><span class="empty__icon">🗂️</span>Keep photos of lab results, the vaccine card, or the birth certificate here.</div>';
     html += '</div>';
 
-    if (past.length) html += '<div class="section-title">Past visits</div><div class="card"><div class="rows">' + past.slice(0, 10).map(function (a) {
+    if (past.length) html += '<div class="section-title"><h2>Past visits</h2></div><div class="card"><div class="rows">' + past.slice(0, 10).map(function (a) {
       return '<button class="row" data-action="appt-edit" data-id="' + a.id + '"><span class="row__icon">' + visitIcon(a.type) + '</span><div class="row__main"><div class="row__t">' + esc(a.title || 'Doctor’s visit') + '</div><div class="row__s">' + esc(a.outcome || a.place || '') + '</div></div><div class="row__time"><strong>' + esc(dateOnly(a.at)) + '</strong></div></button>';
     }).join('') + '</div></div>';
 
@@ -320,12 +321,19 @@
     }).catch(function (e) { scan.status = 'error'; scan.error = e.message; h.renderSheet(); });
   }
 
-  function loadScript(src) {
+  // `integrity` pins the exact file: if the CDN ever served anything else, it wouldn't run.
+  function loadScript(src, integrity) {
     return new Promise(function (resolve, reject) {
-      var s = document.createElement('script'); s.src = src; s.onload = resolve; s.onerror = function () { reject(new Error('Couldn’t load the text reader — are you online?')); };
+      if (navigator.onLine === false) { reject(new Error('Reading a prescription needs an internet connection the first time (to fetch the text reader). You can type the medicines in below instead.')); return; }
+      var s = document.createElement('script'); s.src = src;
+      if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; }
+      s.onload = resolve;
+      s.onerror = function () { s.remove(); reject(new Error('Couldn’t load the text reader — check your connection and tap “Try reading it another way”, or type the medicines in below.')); };
       document.head.appendChild(s);
     });
   }
+  var TESSERACT = 'https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js';
+  var TESSERACT_SRI = 'sha384-2BQ3U3OdKOb0Uczxqr41I9UvZkzr4V9Hv8uSzMMZAlmhsFClvdZX5wi5fDCzG+tM';
 
   // Prepare the photo for OCR: grayscale, stretch the contrast, and make
   // small print bigger. Pass 2 also turns it pure black-and-white, which
@@ -375,7 +383,7 @@
   function readOnDevice(pass) {
     pass = pass || 1;
     scan.status = 'reading'; scan.pass = pass; scan.progress = 0; scan.error = ''; scan.empty = false; h.renderSheet();
-    var ready = window.Tesseract ? Promise.resolve() : loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js');
+    var ready = window.Tesseract ? Promise.resolve() : loadScript(TESSERACT, TESSERACT_SRI);
     var img, worker;
     ready.then(function () { return enhance(scan.blob, pass); }).then(function (i) {
       img = i;
@@ -477,7 +485,7 @@
   }
 
   function photoViewer(id) {
-    h.openSheet({ title: 'Photo', html: '<div class="photo-full"><img data-photo="' + esc(id) + '" alt="Saved photo" /></div><p class="faint">Pinch to zoom.</p>' });
+    h.openSheet({ title: 'Photo', html: '<div class="photo-full"><img data-photo="' + esc(id) + '" alt="Saved photo, full size" decoding="async" /></div><p class="faint">Pinch to zoom.</p>' });
   }
 
   /* ---------- Summaries to share ---------- */

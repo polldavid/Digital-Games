@@ -8,14 +8,16 @@
 
   var G = window.BabyGuide, S = window.BabyStore, Snd = window.BabySound;
   var App = window.BabyApp, h = App.h, F = window.BabyForms, V = window.BabyViews, Help = window.BabyHelp;
-  var Hl = window.BabyHealth, Files = window.BabyFiles;
+  var Hl = window.BabyHealth, Files = window.BabyFiles, N = window.BabyNative;
   var $ = h.$, $all = h.$all, esc = h.esc, MIN = h.MIN, HOUR = h.HOUR, DAY = h.DAY;
   var swReg = null;
 
   /* =====================================================
      Render
      ===================================================== */
-  function commit() { S.save(); syncAlerts(); render(); if (App.ui.sheet) h.renderSheet(); }
+  // Paint first, write to storage just after: a year of logs takes ~15 ms to
+  // save, which a tap shouldn't wait for. Native reminders follow the change.
+  function commit() { syncAlerts(); render(); if (App.ui.sheet) h.renderSheet(); S.saveSoon(); N.syncReminders(); }
   App.commit = commit;
 
   function render() {
@@ -23,22 +25,35 @@
     $('#welcome').hidden = !!b;
     $('#app').hidden = !b;
     if (!b) return;
-    var days = S.ageDays(Date.now());
-    $('#babychip').innerHTML = '<span class="babychip__emoji">' + esc(b.emoji || '👶') + '</span><span class="babychip__text"><span class="babychip__name">' + esc(b.name) + '</span><span class="babychip__age">' + esc(G.ageLabel(days)) + '</span></span>' + (S.get().babies.length > 1 ? '<span class="babychip__caret">▼</span>' : '');
+    var days = S.ageDays(Date.now()), many = S.get().babies.length > 1;
+    var chip = $('#babychip');
+    chip.innerHTML = '<span class="babychip__emoji" aria-hidden="true">' + esc(b.emoji || '👶') + '</span><span class="babychip__text"><span class="babychip__name">' + esc(b.name) + '</span><span class="babychip__age">' + esc(G.ageLabel(days)) + '</span></span>' + (many ? '<span class="babychip__caret" aria-hidden="true">▼</span>' : '');
+    chip.setAttribute('aria-label', b.name + ', ' + G.ageLabel(days) + (many ? ' — switch baby' : ' — edit profile'));
     var v = App.ui.view;
     $all('.view').forEach(function (n) { n.hidden = n.id !== 'view-' + v; });
     $all('.tab').forEach(function (t) { var on = t.getAttribute('data-view') === v; t.classList.toggle('tab--active', on); if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current'); });
     var el = $('#view-' + v);
-    el.innerHTML = v === 'today' ? V.today() : v === 'log' ? (App.ui.logMode === 'trends' ? V.trends() : V.history()) : v === 'health' ? Hl.view() : v === 'help' ? Help.view() : settingsView();
+    // Only the blocks that changed are rebuilt, so focus, open sections and
+    // loaded photos survive a refresh. regions() groups them into panes that
+    // sit side by side on a tablet.
+    var trends = v === 'log' && App.ui.logMode === 'trends';
+    el.classList.toggle('view--trends', trends);
+    h.patch(el, h.regions(v === 'today' ? V.today() : v === 'log' ? (trends ? V.trends() : V.history()) : v === 'health' ? Hl.view() : v === 'help' ? Help.view() : settingsView()));
     Files.hydrate(el);
     renderBanner();
+    // Closing a sheet returns focus to the button that opened it, even if that button was rebuilt.
+    if (App.ui.returnFocus && !App.ui.sheet) {
+      var a = document.activeElement;
+      if (!a || a === document.body || !a.isConnected) h.refocus($('#app'), App.ui.returnFocus);
+      App.ui.returnFocus = null;
+    }
     h.tick();
   }
   App.render = render;
 
-  // Refresh "x min ago"-style text without fighting the user's input.
+  // Refresh "due in…" states once a minute without fighting the user.
   function softRender() {
-    if (App.ui.sheet || !S.baby()) return;
+    if (App.ui.sheet || !S.baby() || document.hidden) return;
     var a = document.activeElement;
     if (a && /INPUT|SELECT|TEXTAREA/.test(a.tagName)) return;
     if (App.ui.view === 'today' || App.ui.view === 'health' || (App.ui.view === 'log' && App.ui.logMode === 'trends')) {
@@ -95,28 +110,34 @@
   }
 
   function renderBanner() {
-    var el = $('#banner'), a = App.ui.alerts[0];
+    var el = $('#banner'), a = App.ui.alerts[0], n = App.ui.alerts.length;
     var badge = $('#bell-badge');
-    badge.hidden = !App.ui.alerts.length; badge.textContent = App.ui.alerts.length;
-    if (!a) { el.hidden = true; el.innerHTML = ''; return; }
+    badge.hidden = !n; badge.textContent = n;
+    $('#bell').setAttribute('aria-label', n ? 'Reminders — ' + n + ' due' : 'Reminders');
+    if (!a) { el.hidden = true; el.innerHTML = ''; el._src = ''; return; }
     var b = S.baby(a.baby), many = S.get().babies.length > 1;
     var act = { feed: ['Log feed', 'log', 'feed'], diaper: ['Log change', 'log', 'diaper'], nap: ['Start sleep', 'sleep-start', ''], med: ['Log dose', 'log', 'med'], vitd: ['Log it', 'log-vitd', ''], tummy: ['Start', 'tummy-start', ''], rx: ['Give dose', 'rx-dose', ''], appt: ['Open', 'appt-edit', ''], vax: ['Checklist', 'vax-open', ''] }[a.kind];
     var actId = a.rxId || a.apptId || '';
-    el.hidden = false;
-    el.innerHTML = '<span class="banner__icon">' + a.icon + '</span><div class="banner__text"><div class="banner__title">' + esc(a.title) + (many && b ? ' · ' + esc(b.name) : '') + '</div><div class="banner__sub">' + esc(a.text) + '</div></div>' +
+    var html = '<span class="banner__icon" aria-hidden="true">' + esc(a.icon) + '</span><div class="banner__text"><div class="banner__title">' + esc(a.title) + (many && b ? ' · ' + esc(b.name) : '') + '</div><div class="banner__sub">' + esc(a.text) + '</div></div>' +
       '<div class="banner__actions">' + (act ? '<button class="btn btn--sm btn--primary" data-action="alert-act" data-key="' + esc(a.key) + '" data-do="' + act[1] + '" data-type="' + act[2] + '" data-id="' + esc(actId) + '">' + act[0] + '</button>' : '') +
       '<button class="btn btn--sm" data-action="snooze" data-key="' + esc(a.key) + '">Snooze 15m</button>' +
       '<button class="btn btn--sm btn--ghost" data-action="alert-dismiss" data-key="' + esc(a.key) + '">Dismiss</button></div>';
+    el.hidden = false;
+    // role="alert" re-announces whenever its content is rewritten — only rewrite on a real change.
+    if (el._src !== html) { el._src = html; el.innerHTML = html; }
   }
 
+  // Ask once, then remember the answer for the Settings screen (native permission checks are async).
+  function refreshPermission() { return N.permission().then(function (p) { if (p !== App.ui.notifyPerm) { App.ui.notifyPerm = p; if (App.ui.view === 'settings' && !App.ui.sheet) render(); } return p; }); }
   function requestNotify() {
-    if (!('Notification' in window)) { h.toast('This browser doesn’t support notifications — in-app alerts and the chime still work.'); return; }
-    Notification.requestPermission().then(function (p) {
+    N.requestPermission().then(function (p) {
+      App.ui.notifyPerm = p;
+      if (p === 'unsupported') { h.toast('This browser doesn’t support notifications — in-app alerts and the chime still work.'); return; }
       S.get().settings.notify = p === 'granted';
       commit();
-      h.toast(p === 'granted' ? 'Notifications on 🔔' : 'Notifications blocked — you can allow them in your browser’s site settings.');
-      if (p === 'granted' && swReg) try { swReg.showNotification('🔔 Baby Log', { body: 'Reminders will show up like this.', tag: 'test', icon: 'icons/icon-192.png' }); } catch (e) {}
-    });
+      h.toast(p === 'granted' ? 'Notifications on 🔔' : App.platform.native ? 'Notifications are off — you can allow them in your phone’s Settings for Baby Log.' : 'Notifications blocked — you can allow them in your browser’s site settings.');
+      if (p === 'granted' && swReg && !N.nativeReminders()) try { swReg.showNotification('🔔 Baby Log', { body: 'Reminders will show up like this.', tag: 'test', icon: 'icons/icon-192.png' }); } catch (e) {}
+    }).catch(function () { h.toast('Couldn’t ask for notification permission. In-app alerts and the chime still work.'); });
   }
 
   /* =====================================================
@@ -164,47 +185,47 @@
   function settingsView() {
     var st = S.get(), s = st.settings, b = S.baby(), days = S.ageDays(Date.now());
     var autoH = G.feedingFor(days, b.feeding).intervalH + (b.feeding === 'formula' && days >= 7 ? 0.5 : 0);
-    var perm = !('Notification' in window) ? 'unsupported' : Notification.permission;
+    var perm = App.ui.notifyPerm || (!('Notification' in window) ? 'unsupported' : Notification.permission);
     var row = function (t, sub, ctrl) { return '<div class="set-row"><div class="set-row__main"><div class="set-row__t">' + t + '</div>' + (sub ? '<div class="set-row__s">' + sub + '</div>' : '') + '</div>' + ctrl + '</div>'; };
-    var sel = function (key, opts, cur) { return '<select class="input" data-setting="' + key + '" aria-label="' + key + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (String(o[0]) === String(cur) ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'; };
+    var sel = function (key, opts, cur, label) { return '<select class="input" data-setting="' + key + '" aria-label="' + esc(label) + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (String(o[0]) === String(cur) ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'; };
     var html = '<h1 class="h1">Settings</h1>';
 
     // Babies
-    html += '<div class="section-title">Babies</div><div class="card"><div class="rows">' + st.babies.map(function (x) {
+    html += '<div class="section-title"><h2>Babies</h2></div><div class="card"><div class="rows">' + st.babies.map(function (x) {
       return '<button class="row" data-action="baby-edit" data-id="' + x.id + '"><span class="row__icon">' + esc(x.emoji || '👶') + '</span><div class="row__main"><div class="row__t">' + esc(x.name) + (x.id === st.activeBaby ? ' <span class="status status--ok">Active</span>' : '') + '</div><div class="row__s">' + esc(G.ageLabel(G.ageInDays(x.birth))) + ' · ' + ({ breast: 'Breastfed', formula: 'Formula', mixed: 'Breast + formula' })[x.feeding] + '</div></div><span class="faint">Edit ›</span></button>';
     }).join('') + '</div><button class="btn btn--sm" data-action="baby-add" style="margin-top:8px">＋ Add a baby (twins, siblings)</button></div>';
 
     // Reminders
-    html += '<div class="section-title" id="set-reminders">Reminders</div><div class="card">' +
-      row('Phone notifications', perm === 'granted' && s.notify ? 'On — alerts show even when you’re in another app.' : perm === 'denied' ? 'Blocked in browser settings. In-app alerts still work.' : perm === 'unsupported' ? (App.platform.ios && !App.platform.standalone ? 'On iPhone, add Baby Log to your Home Screen first (Share → Add to Home Screen), then open it from there.' : 'Not supported here. In-app alerts and the chime still work.') : 'Get alerts while you’re in another app.',
+    html += '<div class="section-title" id="set-reminders"><h2>Reminders</h2></div><div class="card">' +
+      row('Phone notifications', perm === 'granted' && s.notify ? (N.nativeReminders() ? 'On — reminders arrive even when Baby Log is closed.' : 'On — alerts show even when you’re in another app.') : perm === 'denied' ? (App.platform.native ? 'Off in your phone’s Settings → Baby Log → Notifications. In-app alerts still work.' : 'Blocked in browser settings. In-app alerts still work.') : perm === 'unsupported' ? (App.platform.ios && !App.platform.standalone ? 'On iPhone, add Baby Log to your Home Screen first (Share → Add to Home Screen), then open it from there.' : 'Not supported here. In-app alerts and the chime still work.') : 'Get alerts while you’re in another app.',
         perm === 'granted' ? h.sw('notify', s.notify, 'Notifications') : perm === 'default' ? '<button class="btn btn--sm btn--primary" data-action="notify-enable">Turn on</button>' : '') +
       row('Chime', 'A soft two-note sound with each reminder. Never plays while a baby is asleep.', h.sw('chime', s.chime, 'Chime')) +
       row('Quiet at night', '10 pm – 7 am: vibrate and banner only, no sound.', h.sw('quietNight', s.quietNight, 'Quiet at night')) +
       row('🍼 Next feed', 'Counted from the start of the last feed.', h.sw('feedRemind', s.feedRemind, 'Feed reminder')) +
-      (s.feedRemind ? row('&nbsp;&nbsp;&nbsp;Every', '', sel('feedIntervalH', [[0, 'Auto (~' + G.fmtHours(autoH) + ')'], [1.5, '1½ hours'], [2, '2 hours'], [2.5, '2½ hours'], [3, '3 hours'], [3.5, '3½ hours'], [4, '4 hours'], [5, '5 hours'], [6, '6 hours']], s.feedIntervalH)) : '') +
+      (s.feedRemind ? row('&nbsp;&nbsp;&nbsp;Every', '', sel('feedIntervalH', [[0, 'Auto (~' + G.fmtHours(autoH) + ')'], [1.5, '1½ hours'], [2, '2 hours'], [2.5, '2½ hours'], [3, '3 hours'], [3.5, '3½ hours'], [4, '4 hours'], [5, '5 hours'], [6, '6 hours']], s.feedIntervalH, 'Feed reminder interval')) : '') +
       row('🧷 Diaper check', 'After the last change.', h.sw('diaperRemind', s.diaperRemind, 'Diaper reminder')) +
-      (s.diaperRemind ? row('&nbsp;&nbsp;&nbsp;Every', '', sel('diaperIntervalH', [[2, '2 hours'], [3, '3 hours'], [4, '4 hours']], s.diaperIntervalH)) : '') +
+      (s.diaperRemind ? row('&nbsp;&nbsp;&nbsp;Every', '', sel('diaperIntervalH', [[2, '2 hours'], [3, '3 hours'], [4, '4 hours']], s.diaperIntervalH, 'Diaper reminder interval')) : '') +
       row('😴 Nap window', 'When baby has been awake for a typical wake window.', h.sw('napRemind', s.napRemind, 'Nap reminder')) +
       row('☀️ Vitamin D drops', 'Daily — skipped if already logged.', h.sw('vitdRemind', s.vitdRemind, 'Vitamin D reminder')) +
       (s.vitdRemind ? row('&nbsp;&nbsp;&nbsp;At', '', '<input class="input" type="time" data-setting="vitdTime" value="' + esc(s.vitdTime) + '" aria-label="Vitamin D time" />') : '') +
       row('🤸 Tummy time', 'Daily nudge if under today’s goal.', h.sw('tummyRemind', s.tummyRemind, 'Tummy reminder')) +
       (s.tummyRemind ? row('&nbsp;&nbsp;&nbsp;At', '', '<input class="input" type="time" data-setting="tummyTime" value="' + esc(s.tummyTime) + '" aria-label="Tummy time reminder time" />') : '') +
-      '<div class="section-title" style="margin-top:14px">Your reminders</div>' + customList() +
+      '<div class="section-title" style="margin-top:14px"><h2>Your reminders</h2></div>' + customList() +
       '<button class="btn btn--sm" data-action="custom-add" style="margin-top:8px">＋ New reminder</button>' +
-      '<p class="faint" style="margin-top:12px">Reminders fire while Baby Log is open or in the background. Phones may pause web apps that are fully closed, so for night feeds add Baby Log to your Home Screen and leave it open on the nightstand.</p></div>';
+      (N.nativeReminders() ? '' : '<p class="faint" style="margin-top:12px">Reminders fire while Baby Log is open or in the background. Phones may pause web apps that are fully closed, so for night feeds add Baby Log to your Home Screen and leave it open on the nightstand.</p>') + '</div>';
 
     // Today screen
-    html += '<div class="section-title">Today screen</div><div class="card">' +
+    html += '<div class="section-title"><h2>Today screen</h2></div><div class="card">' +
       row('Quick log buttons', 'Choose which buttons show on Today, and their order.', '<button class="btn btn--sm" data-action="quick-edit">Edit</button>') + '</div>';
 
     // Units
-    html += '<div class="section-title">Units</div><div class="card">' +
-      row('Volume', '', sel('volume', [['ml', 'ml'], ['oz', 'fl oz']], s.volume)) +
-      row('Temperature', '', sel('temp', [['C', '°C'], ['F', '°F']], s.temp)) +
-      row('Weight & length', '', sel('length', [['cm', 'kg · cm'], ['in', 'lb · in']], s.length)) + '</div>';
+    html += '<div class="section-title"><h2>Units</h2></div><div class="card">' +
+      row('Volume', '', sel('volume', [['ml', 'ml'], ['oz', 'fl oz']], s.volume, 'Volume unit')) +
+      row('Temperature', '', sel('temp', [['C', '°C'], ['F', '°F']], s.temp, 'Temperature unit')) +
+      row('Weight & length', '', sel('length', [['cm', 'kg · cm'], ['in', 'lb · in']], s.length, 'Weight and length units')) + '</div>';
 
     // Data
-    html += '<div class="section-title">Your data</div><div class="card">' +
+    html += '<div class="section-title"><h2>Your data</h2></div><div class="card">' +
       row('Share a summary', 'The last 24 hours as text — for a partner, sitter or doctor.', '<button class="btn btn--sm" data-action="handoff">Share</button>') +
       row('Back up / move to another phone', 'Download everything as a file. Import it on the other phone to merge logs.', '<button class="btn btn--sm" data-action="export-json">Export</button>') +
       row('Import a backup', 'Merges entries — nothing is overwritten.', '<button class="btn btn--sm" data-action="import-open">Import</button>') +
@@ -239,7 +260,7 @@
           '<label class="field"><span class="field__label">Date of birth</span><input class="input" type="date" name="birth" required max="' + h.todayISO() + '" value="' + esc(b ? b.birth : '') + '" /></label>' +
           '<div class="field"><span class="field__label">Feeding</span><div class="seg">' + [['breast', 'Breast'], ['formula', 'Formula'], ['mixed', 'Both']].map(function (o) { return '<label><input type="radio" name="feeding" value="' + o[0] + '"' + ((b ? b.feeding : 'breast') === o[0] ? ' checked' : '') + ' /><span>' + o[1] + '</span></label>'; }).join('') + '</div></div>' +
           '<label class="field"><span class="field__label">Birth weight (' + h.weightUnit() + ', optional)</span><input class="input" type="number" step="any" min="0" inputmode="decimal" name="bw" value="' + (b && b.birthWeightKg ? h.weightToDisplay(b.birthWeightKg) : '') + '" /></label>' +
-          '<div class="field"><span class="field__label">Icon</span><div class="chips">' + EMOJIS.map(function (e) { return '<label class="chip"><input type="radio" name="emoji" value="' + e + '"' + ((b ? b.emoji : '👶') === e ? ' checked' : '') + ' style="display:none" />' + e + '</label>'; }).join('') + '</div></div>' +
+          '<div class="field"><span class="field__label" id="icon-label">Icon</span><div class="chips" role="radiogroup" aria-labelledby="icon-label">' + EMOJIS.map(function (e) { return '<label class="chip chip--pick"><input class="chip__input" type="radio" name="emoji" value="' + e + '"' + ((b ? b.emoji : '👶') === e ? ' checked' : '') + ' />' + e + '</label>'; }).join('') + '</div></div>' +
           '<div class="btn-row sheet-save">' + (b ? '<button type="button" class="btn btn--danger" data-action="baby-delete" data-id="' + b.id + '">Delete</button>' : '') + '<button class="btn btn--primary btn--lg" type="submit">' + (b ? 'Save' : 'Add baby') + '</button></div></form>';
       },
       mount: function (body) {
@@ -273,7 +294,7 @@
         return '<form class="form" id="custom-form"' + (r ? ' data-id="' + r.id + '"' : '') + ' autocomplete="off">' +
           '<label class="field"><span class="field__label">What</span><input class="input" name="label" required maxlength="40" value="' + esc(r ? r.label : '') + '" placeholder="e.g. Antibiotic dose" autofocus /></label>' +
           '<label class="field"><span class="field__label">Details (optional)</span><input class="input" name="note" maxlength="80" value="' + esc(r ? r.note || '' : '') + '" placeholder="e.g. 5 ml with food" /></label>' +
-          '<div class="field"><span class="field__label">Icon</span><div class="chips">' + R_ICONS.map(function (e) { return '<label class="chip"><input type="radio" name="icon" value="' + e + '"' + ((r ? r.icon : '🔔') === e ? ' checked' : '') + ' style="display:none" />' + e + '</label>'; }).join('') + '</div></div>' +
+          '<div class="field"><span class="field__label" id="icon-label">Icon</span><div class="chips" role="radiogroup" aria-labelledby="icon-label">' + R_ICONS.map(function (e) { return '<label class="chip chip--pick"><input class="chip__input" type="radio" name="icon" value="' + e + '"' + ((r ? r.icon : '🔔') === e ? ' checked' : '') + ' />' + e + '</label>'; }).join('') + '</div></div>' +
           '<div class="field"><span class="field__label">Repeat</span><div class="seg">' + [['every', 'Every few hours'], ['daily', 'Daily'], ['once', 'Once']].map(function (o) { return '<label><input type="radio" name="repeat" value="' + o[0] + '"' + (rep === o[0] ? ' checked' : '') + ' /><span>' + o[1] + '</span></label>'; }).join('') + '</div></div>' +
           '<div data-rep="every" class="form"><div class="field__row"><label class="field"><span class="field__label">Every (hours)</span><input class="input" type="number" min="0.5" max="48" step="0.5" name="everyH" value="' + (r && r.everyH ? r.everyH : 8) + '" /></label></div>' +
           h.timeField('anchor', r && r.anchor ? r.anchor : Date.now(), 'Starting from (last time it was done)') + '</div>' +
@@ -323,19 +344,26 @@
   }
 
   function share(text, title) {
-    if (navigator.share) { navigator.share({ title: title, text: text }).catch(function () {}); return; }
-    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(function () { h.toast('Copied to clipboard 📋'); }, function () { showText(text, title); }); return; }
-    showText(text, title);
+    N.shareText(text, title).then(function (how) {
+      if (how === 'copied') h.toast('Copied to clipboard 📋');
+    }, function (e) {
+      // Closing the share sheet isn't a failure; anything else falls back to copy-by-hand.
+      if (e && (e.name === 'AbortError' || /cancel/i.test(e.message || ''))) return;
+      showText(text, title);
+    });
   }
   function showText(text, title) {
     h.openSheet({ title: title, html: '<textarea class="input" style="min-height:260px" readonly>' + esc(text) + '</textarea><p class="faint">Select all and copy.</p>' });
   }
 
+  // Browser: a download. App: the share sheet (Save to Files, Drive, email…).
+  // Resolves to what happened, or null if it didn't.
   function download(name, text, type) {
-    var blob = new Blob([text], { type: type });
-    var url = URL.createObjectURL(blob), a = document.createElement('a');
-    a.href = url; a.download = name; document.body.appendChild(a); a.click();
-    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    return N.saveFile(name, text, type).catch(function (e) {
+      if (e && /cancel/i.test(e.message || '')) return null;
+      h.toast('Couldn’t save ' + name + '. Free up some space on the phone and try again.');
+      return null;
+    });
   }
 
   function importFile(file) {
@@ -370,12 +398,10 @@
      ===================================================== */
   var ACTIONS = {
     'go': function (n) {
-      App.ui.view = n.getAttribute('data-view');
+      var v = n.getAttribute('data-view'), f = n.getAttribute('data-focus');
       h.closeSheet();
-      render();
-      var f = n.getAttribute('data-focus');
-      if (f) { var t = $('#set-' + f); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-      else window.scrollTo(0, 0);
+      h.afterHistory(function () { showView(v, true); });
+      if (f) { var t = $('#set-' + f); if (t) t.scrollIntoView({ behavior: h.reducedMotion() ? 'auto' : 'smooth', block: 'start' }); }
     },
     'sheet-close': function () { h.closeSheet(); render(); },
 
@@ -431,8 +457,8 @@
     'pump-side': function (n) { S.pumpSide(n.getAttribute('data-side')); commit(); },
     'pump-both': function () { S.pumpBoth(); commit(); },
     'pump-finish': function () { S.pumpFinish(); commit(); F.open('pump', null, { timer: true }); },
-    'pump-discard': function () { if (confirm('Discard this pumping session without saving?')) { S.stopTimer('pump'); commit(); } },
-    'breast-discard': function () { if (confirm('Discard this feeding timer without saving?')) { S.stopTimer('breast'); commit(); } },
+    'pump-discard': function () { h.ask({ title: 'Discard this pumping session?', text: 'The timer stops and nothing is saved.', ok: 'Discard', danger: true }, function () { S.stopTimer('pump'); commit(); }); },
+    'breast-discard': function () { h.ask({ title: 'Discard this feed?', text: 'The timer stops and nothing is saved.', ok: 'Discard', danger: true }, function () { S.stopTimer('breast'); commit(); }); },
 
     'time-set': function (n) {
       var form = n.closest('form') || document, inp = form.querySelector('[name="' + n.getAttribute('data-target') + '"]');
@@ -515,8 +541,10 @@
     'baby-edit': function (n) { babySheet(n.getAttribute('data-id')); },
     'baby-delete': function (n) {
       var b = S.baby(n.getAttribute('data-id'));
-      if (!b || !confirm('Delete ' + b.name + ' and all of their logs from this device? This can’t be undone.')) return;
-      S.removeBaby(b.id); h.closeSheet(); commit();
+      if (!b) return;
+      h.ask({ title: 'Delete ' + b.name + '?', text: 'All of ' + b.name + '’s logs and health records are removed from this device. This can’t be undone.', ok: 'Delete', danger: true }, function () {
+        S.removeBaby(b.id); h.closeSheet(); commit();
+      });
     },
 
     'notify-enable': requestNotify,
@@ -535,16 +563,19 @@
       Files.exportAll(photoIds()).catch(function () { return {}; }).then(function (photos) {
         var data = JSON.parse(S.exportJSON());
         if (Object.keys(photos).length) data.photos = photos;
-        download('baby-log-backup-' + h.todayISO() + '.json', JSON.stringify(data), 'application/json');
-        h.toast('Backup downloaded' + (Object.keys(photos).length ? ' (with ' + h.plural(Object.keys(photos).length, 'photo') + ')' : ''));
+        var n = Object.keys(photos).length;
+        return download('baby-log-backup-' + h.todayISO() + '.json', JSON.stringify(data), 'application/json').then(function (how) {
+          if (how) h.toast((how === 'shared' ? 'Backup ready' : 'Backup downloaded') + (n ? ' (with ' + h.plural(n, 'photo') + ')' : ''));
+        });
       });
     },
     'export-csv': function () { download('baby-log-' + (S.baby().name || 'baby').toLowerCase().replace(/\W+/g, '-') + '-' + h.todayISO() + '.csv', S.exportCSV(), 'text/csv'); },
     'import-open': function () { $('#import-file').click(); },
     'erase': function () {
-      if (!confirm('Erase all babies and logs from this device? Export a backup first if you might want them back.')) return;
-      Files.keys().then(function (ks) { (ks || []).forEach(function (k) { Files.remove(k); }); }).catch(function () {});
-      S.reset(); S.save(); App.ui.alerts = []; h.closeSheet(); App.ui.view = 'today'; render();
+      h.ask({ title: 'Erase everything?', text: 'All babies, logs and photos are removed from this device. Export a backup first if you might want them back.', ok: 'Erase all', danger: true }, function () {
+        Files.keys().then(function (ks) { (ks || []).forEach(function (k) { Files.remove(k); }); }).catch(function () {});
+        S.reset(); S.save(); App.ui.alerts = []; h.closeSheet(); App.ui.view = 'today'; render(); N.syncReminders();
+      });
     },
 
     /* ---------- History: timeline or trends ---------- */
@@ -553,10 +584,11 @@
     /* ---------- Health ---------- */
     'appt-edit': function (n) { Hl.apptSheet(n.getAttribute('data-id'), n.getAttribute('data-day')); },
     'appt-delete': function (n) {
-      if (!confirm('Delete this visit?')) return;
       var H = S.health(), id = n.getAttribute('data-id');
-      H.appointments = H.appointments.filter(function (a) { return a.id !== id; });
-      h.closeSheet(); commit();
+      h.ask({ title: 'Delete this visit?', text: 'Its reminders are removed too.', ok: 'Delete', danger: true }, function () {
+        H.appointments = H.appointments.filter(function (a) { return a.id !== id; });
+        h.closeSheet(); commit();
+      });
     },
     'appt-next': function (n) {
       var a = S.findIn(S.health().appointments, n.getAttribute('data-id'));
@@ -572,14 +604,18 @@
     'rx-dose': function (n) { F.open('med', null, { rxId: n.getAttribute('data-id') }); },
     'rx-stop': function (n) {
       var rx = S.findIn(S.health().rx, n.getAttribute('data-id'));
-      if (!rx || !confirm('Stop ' + rx.name + ' now? Dose reminders for it will end.')) return;
-      rx.stopped = true; rx.stoppedAt = Date.now(); h.closeSheet(); commit(); h.toast(rx.name + ' stopped');
+      if (!rx) return;
+      h.ask({ title: 'Stop ' + rx.name + ' now?', text: 'Dose reminders for it end. Doses already given stay in History.', ok: 'Stop medicine', danger: true }, function () {
+        rx.stopped = true; rx.stoppedAt = Date.now(); h.closeSheet(); commit(); h.toast(rx.name + ' stopped');
+      });
     },
     'rx-delete': function (n) {
       var H = S.health(), rx = S.findIn(H.rx, n.getAttribute('data-id'));
-      if (!rx || !confirm('Delete ' + rx.name + '? Doses already logged stay in History.')) return;
-      H.rx = H.rx.filter(function (x) { return x.id !== rx.id; });
-      dropPhotoIfUnused(rx.photoId); h.closeSheet(); commit();
+      if (!rx) return;
+      h.ask({ title: 'Delete ' + rx.name + '?', text: 'Doses already logged stay in History.', ok: 'Delete', danger: true }, function () {
+        H.rx = H.rx.filter(function (x) { return x.id !== rx.id; });
+        dropPhotoIfUnused(rx.photoId); h.closeSheet(); commit();
+      });
     },
     'vax-open': function () { Hl.vaxSheet(); },
     'vax-schedule': function (n) { S.health().vaccines.schedule = n.getAttribute('data-s'); commit(); },
@@ -613,19 +649,42 @@
           form.elements.photoId.value = id;
           var wrap = form.querySelector('.photo-wrap');
           if (!wrap) { wrap = document.createElement('div'); wrap.className = 'photo-wrap'; form.insertBefore(wrap, form.firstChild); }
-          wrap.innerHTML = '<img class="photo" data-photo="' + id + '" alt="Photo" data-action="photo-view" data-id="' + id + '" />';
+          wrap.innerHTML = '<button type="button" class="photo-btn" data-action="photo-view" data-id="' + id + '" aria-label="View the photo full size"><img class="photo" data-photo="' + id + '" alt="" decoding="async" /></button>';
           Files.hydrate(form);
         }).catch(function (e) { h.toast(e.message || 'Couldn’t save that photo.'); });
       });
     },
     'doc-delete': function (n) {
       var H = S.health(), d = S.findIn(H.docs, n.getAttribute('data-id'));
-      if (!d || !confirm('Delete this document and its photo?')) return;
-      H.docs = H.docs.filter(function (x) { return x.id !== d.id; });
-      dropPhotoIfUnused(d.photoId); h.closeSheet(); commit();
+      if (!d) return;
+      h.ask({ title: 'Delete ' + (d.title || 'this document') + '?', text: 'The document and its photo are removed from this device.', ok: 'Delete', danger: true }, function () {
+        H.docs = H.docs.filter(function (x) { return x.id !== d.id; });
+        dropPhotoIfUnused(d.photoId); h.closeSheet(); commit();
+      });
     },
     'photo-view': function (n) { Hl.photoViewer(n.getAttribute('data-id')); }
   };
+
+  /* Tabs and the Back button, like a native bottom bar: from any tab, Back
+     returns to Today; from Today it leaves the app. There's never more than
+     one tab entry above the root, however many tabs were visited. */
+  function isRootEntry() { return !history.state || !!history.state.root; }
+  function showView(v, fromTap) {
+    var prev = App.ui.view;
+    if (fromTap && v !== prev) {
+      try {
+        if (v === 'today' && !isRootEntry()) { history.back(); return; } // popstate renders Today
+        if (v !== 'today') {
+          if (isRootEntry()) history.pushState({ babyView: v }, '');
+          else history.replaceState({ babyView: v }, '');
+        }
+      } catch (e) {}
+    }
+    App.ui.view = v;
+    render();
+    window.scrollTo(0, 0);
+  }
+  App.onViewPop = function (v) { if (v !== App.ui.view) { App.ui.view = v; render(); window.scrollTo(0, 0); } };
 
   function dismissKind(kind) { App.ui.alerts = App.ui.alerts.filter(function (a) { return a.kind !== kind; }); renderBanner(); }
   function refreshSound() {
@@ -704,13 +763,14 @@
       h.closeSheet(); commit();
       var d = h.describe(ev), copies = F.lastCopies.slice();
       var also = copies.length ? ' (also ' + copies.map(function (c) { return S.baby(c.baby).name; }).join(', ') + ')' : '';
-      h.toast((editing ? 'Updated · ' : 'Saved · ') + d.title + also, editing ? null : { label: 'Undo', fn: function () { S.removeEvent(ev.id); copies.forEach(function (c) { S.removeEvent(c.id); }); commit(); } });
-      if (d.flag && !editing) setTimeout(function () { h.toast('⚠️ Worth a look — open it in History for details'); }, 600);
+      // One toast: a second one would replace this one and take its Undo with it.
+      h.toast((editing ? 'Updated · ' : 'Saved · ') + d.title + also + (d.flag && !editing ? ' · ⚠️ worth a look in History' : ''), editing ? null : { label: 'Undo', fn: function () { S.removeEvent(ev.id); copies.forEach(function (c) { S.removeEvent(c.id); }); commit(); } });
     } else if (f.id === 'welcome-form' || f.id === 'baby-form') {
       e.preventDefault();
       var fd = new FormData(f), name = String(fd.get('name') || '').trim(), birth = String(fd.get('birth') || '');
-      if (!name || !birth) { h.toast('Add a name and birth date.'); return; }
-      if (birth > h.todayISO()) { h.toast('The birth date can’t be in the future.'); return; }
+      if (!name) { h.fieldError(f, 'name', 'Add your baby’s name — a nickname is fine.'); return; }
+      if (!birth) { h.fieldError(f, 'birth', 'Add the date of birth — feeding and sleep guidance depend on age.'); return; }
+      if (birth > h.todayISO()) { h.fieldError(f, 'birth', 'The birth date can’t be in the future.'); return; }
       var data = { name: name, birth: birth, feeding: String(fd.get('feeding') || 'breast') };
       if (fd.get('emoji')) data.emoji = String(fd.get('emoji'));
       var bw = h.weightFromDisplay(fd.get('bw'));
@@ -726,6 +786,8 @@
     } else if (f.id === 'custom-form') {
       e.preventDefault();
       var fd2 = new FormData(f), rid = f.getAttribute('data-id');
+      // Check before touching the saved reminder, so a failed edit changes nothing.
+      if (String(fd2.get('repeat')) === 'once' && !h.fromLocalInput(String(fd2.get('at')))) { h.fieldError(f, 'at', 'Pick the date and time for this reminder.'); return; }
       var r = rid ? S.get().custom.filter(function (x) { return x.id === rid; })[0] : { id: S.uid(), baby: S.get().activeBaby, created: Date.now() };
       r.label = String(fd2.get('label') || '').trim() || 'Reminder';
       r.note = String(fd2.get('note') || '').trim();
@@ -734,7 +796,7 @@
       r.on = true;
       if (r.repeat === 'every') { r.everyH = parseFloat(fd2.get('everyH')) || 3; r.anchor = h.fromLocalInput(String(fd2.get('anchor'))) || Date.now(); }
       if (r.repeat === 'daily') r.time = String(fd2.get('time') || '09:00');
-      if (r.repeat === 'once') { r.at = h.fromLocalInput(String(fd2.get('at'))); if (!r.at) { h.toast('Pick a time'); return; } }
+      if (r.repeat === 'once') r.at = h.fromLocalInput(String(fd2.get('at')));
       if (!rid) S.get().custom.push(r);
       h.closeSheet(); commit(); h.toast('Reminder saved 🔔');
     }
@@ -745,7 +807,7 @@
     var H = S.health(), id = f.getAttribute('data-id'), fd = function (n) { var el = f.elements[n]; return el ? String(el.value).trim() : ''; };
     if (f.id === 'appt-form') {
       var at = h.fromLocalInput(fd('at'));
-      if (!at) { h.toast('Pick a date and time.'); return; }
+      if (!at) { h.fieldError(f, 'at', 'Pick the date and time of the visit.'); return; }
       var a = id ? S.findIn(H.appointments, id) : { id: S.uid() };
       a.at = at; a.type = (f.querySelector('input[name="type"]:checked') || {}).value || 'checkup';
       a.title = fd('title'); a.doctor = fd('doctor'); a.place = fd('place'); a.questions = fd('questions');
@@ -756,7 +818,7 @@
       h.closeSheet(); commit(); h.toast(id ? 'Visit saved' : 'Visit added — you’ll get a reminder the evening before');
     } else if (f.id === 'rx-form') {
       var d = Hl.readRx(f);
-      if (!d.name) { h.toast('What’s the medicine called?'); return; }
+      if (!d.name) { h.fieldError(f, 'name', 'What’s the medicine called?'); return; }
       var rx = id ? S.findIn(H.rx, id) : { id: S.uid(), created: Date.now() };
       Object.keys(d).forEach(function (k) { rx[k] = d[k]; });
       rx.prescriber = fd('prescriber');
@@ -777,13 +839,13 @@
       h.toast('Saved ' + added.join(', '));
     } else if (f.id === 'vax-form') {
       var key = f.getAttribute('data-key'), dt = Hl.fromIsoDate(fd('date'));
-      if (!dt) { h.toast('Pick the date it was given.'); return; }
+      if (!dt) { h.fieldError(f, 'date', 'Pick the date it was given.'); return; }
       H.vaccines.given[key] = { date: dt, note: fd('note') };
       S.save(); Hl.vaxSheet(); render(); h.toast('Vaccine recorded ✅');
     } else if (f.id === 'vaxc-form') {
+      if (!fd('name')) { h.fieldError(f, 'name', 'Which vaccine was it?'); return; }
       var c = id ? S.findIn(H.vaccines.custom, id) : { id: S.uid() };
       c.name = fd('name'); c.date = Hl.fromIsoDate(fd('date')) || Date.now(); c.note = fd('note');
-      if (!c.name) { h.toast('Which vaccine?'); return; }
       if (!id) H.vaccines.custom.push(c);
       S.save(); Hl.vaxSheet(); render();
     } else if (f.id === 'profile-form') {
@@ -811,7 +873,30 @@
     s.volume = imp ? 'oz' : 'ml'; s.temp = imp ? 'F' : 'C'; s.length = imp ? 'in' : 'cm';
   }
 
+  /* ---------- When saving fails ----------
+     Storage full or blocked: say so plainly and offer the way out (a backup),
+     instead of letting entries vanish on the next launch. */
+  function showSaveWarning(on) {
+    var el = $('#save-warning');
+    if (!el) return;
+    if (!on) { el.hidden = true; return; }
+    if (!el.hidden) return;
+    el.innerHTML = '<span class="banner__icon" aria-hidden="true">⚠️</span><div class="banner__text"><div class="banner__title">Not saved — your phone’s storage is full or blocked</div>' +
+      '<div class="banner__sub">New entries will be lost when Baby Log closes. Free up space, or save a backup now.</div></div>' +
+      '<div class="banner__actions"><button class="btn btn--sm btn--primary" data-action="export-json">Save a backup</button><button class="btn btn--sm" data-action="save-retry">Try again</button></div>';
+    el.hidden = false;
+  }
+  ACTIONS['save-retry'] = function () { if (S.save()) h.toast('Saved ✓'); };
+
+  // The phone's status bar follows the theme (it's set once in index.html).
+  function syncThemeColor() {
+    var m = document.querySelector('meta[name="theme-color"]');
+    if (m) m.setAttribute('content', (getComputedStyle(document.documentElement).getPropertyValue('--bg-1') || '#0e1424').trim());
+  }
+
   function boot() {
+    S.onSaveError = function () { showSaveWarning(true); };
+    S.onSaveOk = function () { showSaveWarning(false); };
     S.load();
     h.initTips();
     h.initSheetGestures();
@@ -819,20 +904,37 @@
     document.addEventListener('change', onChange);
     document.addEventListener('input', onInput);
     document.addEventListener('submit', onSubmit);
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && App.ui.sheet) { h.closeSheet(); render(); } });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape' || !App.ui.sheet) return;
+      var dlg = $('#confirm'); if (dlg && dlg.open) return; // Escape cancels the dialog, not the sheet under it
+      h.closeSheet(); render();
+    });
+    // Fixing a field clears its error.
+    document.addEventListener('input', function (e) { var t = e.target; if (t.getAttribute && t.getAttribute('aria-invalid')) h.clearFieldErrors(t.form); });
+    // Anything waiting to be saved goes to storage before the phone can suspend the app.
+    window.addEventListener('pagehide', function () { S.flush(); });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) S.flush(); });
+    syncThemeColor();
+    if (window.MutationObserver) new MutationObserver(syncThemeColor).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    try { history.replaceState({ babyView: 'today', root: true }, ''); } catch (e) {}
     document.addEventListener('pointerdown', function unlock() { Snd.unlock(); document.removeEventListener('pointerdown', unlock); });
     $('#import-file').addEventListener('change', function (e) { var f = e.target.files[0]; if (f) importFile(f); e.target.value = ''; });
     var bf = $('#welcome-form input[name="birth"]'); if (bf) bf.max = h.todayISO();
     if (usesImperial()) { var imp = $('#welcome-form input[value="imperial"]'); if (imp) imp.checked = true; }
     window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); App.installPrompt = e; if (App.ui.view === 'today') softRender(); });
-    document.addEventListener('visibilitychange', function () { if (!document.hidden) { checkReminders(); softRender(); } });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) { checkReminders(); softRender(); refreshPermission(); } });
 
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       navigator.serviceWorker.register('sw.js').then(function (r) { swReg = r; }).catch(function () {});
       navigator.serviceWorker.addEventListener && navigator.serviceWorker.addEventListener('message', function (e) { if (e.data && e.data.type === 'focus') { checkReminders(); softRender(); } });
     }
 
+    N.init(function () { checkReminders(); softRender(); });
+    refreshPermission();
     render();
+    // In the app shell, bring back a log the WebView lost (e.g. iOS clearing storage).
+    N.restoreIfEmpty().then(function (restored) { if (restored) { render(); h.toast('Your log was restored ✓'); } });
+    N.syncReminders();
     setInterval(h.tick, 1000);
     setInterval(checkReminders, 15000);
     setInterval(softRender, 60000);
