@@ -8,6 +8,7 @@
 
   var G = window.BabyGuide, S = window.BabyStore, Snd = window.BabySound;
   var App = window.BabyApp, h = App.h, F = window.BabyForms, V = window.BabyViews, Help = window.BabyHelp;
+  var Hl = window.BabyHealth, Files = window.BabyFiles;
   var $ = h.$, $all = h.$all, esc = h.esc, MIN = h.MIN, HOUR = h.HOUR, DAY = h.DAY;
   var swReg = null;
 
@@ -28,7 +29,8 @@
     $all('.view').forEach(function (n) { n.hidden = n.id !== 'view-' + v; });
     $all('.tab').forEach(function (t) { var on = t.getAttribute('data-view') === v; t.classList.toggle('tab--active', on); if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current'); });
     var el = $('#view-' + v);
-    el.innerHTML = v === 'today' ? V.today() : v === 'log' ? V.history() : v === 'trends' ? V.trends() : v === 'help' ? Help.view() : settingsView();
+    el.innerHTML = v === 'today' ? V.today() : v === 'log' ? (App.ui.logMode === 'trends' ? V.trends() : V.history()) : v === 'health' ? Hl.view() : v === 'help' ? Help.view() : settingsView();
+    Files.hydrate(el);
     renderBanner();
     h.tick();
   }
@@ -39,7 +41,7 @@
     if (App.ui.sheet || !S.baby()) return;
     var a = document.activeElement;
     if (a && /INPUT|SELECT|TEXTAREA/.test(a.tagName)) return;
-    if (App.ui.view === 'today' || App.ui.view === 'trends') {
+    if (App.ui.view === 'today' || App.ui.view === 'health' || (App.ui.view === 'log' && App.ui.logMode === 'trends')) {
       var y = window.scrollY; render(); window.scrollTo(0, y);
     }
   }
@@ -98,10 +100,11 @@
     badge.hidden = !App.ui.alerts.length; badge.textContent = App.ui.alerts.length;
     if (!a) { el.hidden = true; el.innerHTML = ''; return; }
     var b = S.baby(a.baby), many = S.get().babies.length > 1;
-    var act = { feed: ['Log feed', 'log', 'feed'], diaper: ['Log change', 'log', 'diaper'], nap: ['Start sleep', 'sleep-start', ''], med: ['Log dose', 'log', 'med'], vitd: ['Log it', 'log-vitd', ''], tummy: ['Start', 'tummy-start', ''] }[a.kind];
+    var act = { feed: ['Log feed', 'log', 'feed'], diaper: ['Log change', 'log', 'diaper'], nap: ['Start sleep', 'sleep-start', ''], med: ['Log dose', 'log', 'med'], vitd: ['Log it', 'log-vitd', ''], tummy: ['Start', 'tummy-start', ''], rx: ['Give dose', 'rx-dose', ''], appt: ['Open', 'appt-edit', ''], vax: ['Checklist', 'vax-open', ''] }[a.kind];
+    var actId = a.rxId || a.apptId || '';
     el.hidden = false;
     el.innerHTML = '<span class="banner__icon">' + a.icon + '</span><div class="banner__text"><div class="banner__title">' + esc(a.title) + (many && b ? ' · ' + esc(b.name) : '') + '</div><div class="banner__sub">' + esc(a.text) + '</div></div>' +
-      '<div class="banner__actions">' + (act ? '<button class="btn btn--sm btn--primary" data-action="alert-act" data-key="' + esc(a.key) + '" data-do="' + act[1] + '" data-type="' + act[2] + '">' + act[0] + '</button>' : '') +
+      '<div class="banner__actions">' + (act ? '<button class="btn btn--sm btn--primary" data-action="alert-act" data-key="' + esc(a.key) + '" data-do="' + act[1] + '" data-type="' + act[2] + '" data-id="' + esc(actId) + '">' + act[0] + '</button>' : '') +
       '<button class="btn btn--sm" data-action="snooze" data-key="' + esc(a.key) + '">Snooze 15m</button>' +
       '<button class="btn btn--sm btn--ghost" data-action="alert-dismiss" data-key="' + esc(a.key) + '">Dismiss</button></div>';
   }
@@ -202,8 +205,15 @@
       row('Back up / move to another phone', 'Download everything as a file. Import it on the other phone to merge logs.', '<button class="btn btn--sm" data-action="export-json">Export</button>') +
       row('Import a backup', 'Merges entries — nothing is overwritten.', '<button class="btn btn--sm" data-action="import-open">Import</button>') +
       row('Spreadsheet (CSV)', 'For your pediatrician or your own analysis.', '<button class="btn btn--sm" data-action="export-csv">CSV</button>') +
-      row('Erase everything', 'Deletes all babies and logs from this device.', '<button class="btn btn--sm btn--danger" data-action="erase">Erase</button>') +
+      row('Erase everything', 'Deletes all babies, logs and photos from this device.', '<button class="btn btn--sm btn--danger" data-action="erase">Erase</button>') +
       '<p class="faint" style="margin-top:10px">Private by design: no account, no tracking, no server. Your logs never leave this device unless you export them.</p></div>';
+
+    // Optional: the parent's own Claude key, for reading handwritten prescriptions.
+    html += '<div class="section-title">Prescription reading</div><div class="card">' +
+      '<p class="small muted">Scanned prescriptions are read on this phone for free. Handwriting is hard for that reader; with your own Claude API key, Claude reads it much more accurately (about a cent or two per photo, billed to your Anthropic account). The photo goes to Anthropic only when it’s read this way.</p>' +
+      '<form class="form" id="ai-form" style="margin-top:10px" autocomplete="off"><label class="field"><span class="field__label">Claude API key' + (s.aiKey ? ' · saved ✓' : '') + '</span><input class="input" type="password" name="aiKey" value="' + esc(s.aiKey || '') + '" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" /></label>' +
+      '<div class="btn-row">' + (s.aiKey ? '<button type="button" class="btn btn--sm" data-action="ai-key-clear">Remove</button>' : '') + '<button type="submit" class="btn btn--sm btn--primary">Save key</button></div>' +
+      '<p class="faint">Get one at console.anthropic.com. It’s stored only on this phone and is never included in backups.</p></form></div>';
 
     html += '<p class="disclaimer">Baby Log gives general information from AAP, CDC, WHO and NHS guidance — it is not medical advice. Always call your pediatrician if you’re worried.<br><a href="../">← All games &amp; tools</a></p>';
     return html;
@@ -334,14 +344,29 @@
   function importFile(file) {
     var reader = new FileReader();
     reader.onload = function () {
+      var text = String(reader.result), photos = null;
+      try { photos = JSON.parse(text).photos || null; } catch (e) { h.toast('That file isn’t a Baby Log backup.'); return; }
       try {
-        var res = S.importJSON(String(reader.result), 'merge');
-        commit();
-        h.toast('Imported ' + h.plural(res.events, 'new entry').replace('entrys', 'entries') + ' ✓');
+        var res = S.importJSON(text, 'merge');
+        (photos ? Files.importAll(photos) : Promise.resolve()).then(function () {
+          commit();
+          h.toast('Imported ' + (res.events === 1 ? '1 new entry' : res.events + ' new entries') + (photos ? ' and ' + h.plural(Object.keys(photos).length, 'photo') : '') + ' ✓');
+        });
       } catch (e) { h.toast('That file isn’t a Baby Log backup.'); }
     };
     reader.readAsText(file);
   }
+
+  function photoIds() {
+    var ids = [];
+    Object.keys(S.get().health).forEach(function (bid) {
+      var H = S.get().health[bid];
+      (H.rx || []).concat(H.docs || []).forEach(function (x) { if (x.photoId && ids.indexOf(x.photoId) < 0) ids.push(x.photoId); });
+    });
+    return ids;
+  }
+  // Delete a photo once nothing refers to it any more.
+  function dropPhotoIfUnused(id) { if (id && photoIds().indexOf(id) < 0) Files.remove(id).catch(function () {}); }
 
   /* =====================================================
      Actions
@@ -413,7 +438,7 @@
       var inp = scope.querySelector('[name="' + n.getAttribute('data-target') + '"]');
       if (!inp) return;
       var step = parseFloat(n.getAttribute('data-step')), v = parseFloat(inp.value) || 0;
-      var dec = Math.abs(step) < 1 ? 1 : 0;
+      var dec = Math.abs(step) < 1 || v % 1 ? 1 : 0;
       inp.value = Math.max(0, Math.round((v + step) * Math.pow(10, dec)) / Math.pow(10, dec));
       inp.dispatchEvent(new Event('stepped', { bubbles: true }));
       inp.dispatchEvent(new Event('input', { bubbles: true }));
@@ -425,7 +450,11 @@
         var ml = inp ? h.volFromDisplay(inp.value) : 0;
         st.volume = st.volume === 'oz' ? 'ml' : 'oz';
         if (inp && ml) inp.value = h.volToDisplay(ml);
-        $all('[data-step][data-target="' + inp.name + '"]', form).forEach(function (b) { var sgn = parseFloat(b.getAttribute('data-step')) < 0 ? '-' : ''; b.setAttribute('data-step', sgn + (st.volume === 'oz' ? 0.5 : 10)); });
+        $all('[data-vol]', form).forEach(function (b) {
+          var k = b.getAttribute('data-vol'), step = F.volStep(k.replace('-', ''));
+          b.setAttribute('data-step', (k.charAt(0) === '-' ? '-' : '') + step);
+          if (k === 'big') b.textContent = '+' + step + ' ' + h.volUnit();
+        });
         n.textContent = h.volUnit();
       } else {
         var c = inp ? h.tempFromDisplay(inp.value) : null;
@@ -497,13 +526,101 @@
     'custom-delete': function (n) { var id = n.getAttribute('data-id'); S.get().custom = S.get().custom.filter(function (r) { return r.id !== id; }); h.closeSheet(); commit(); },
 
     'handoff': function () { share(handoffText(), 'Baby Log summary'); },
-    'export-json': function () { download('baby-log-backup-' + h.todayISO() + '.json', S.exportJSON(), 'application/json'); h.toast('Backup downloaded'); },
+    'export-json': function () {
+      Files.exportAll(photoIds()).catch(function () { return {}; }).then(function (photos) {
+        var data = JSON.parse(S.exportJSON());
+        if (Object.keys(photos).length) data.photos = photos;
+        download('baby-log-backup-' + h.todayISO() + '.json', JSON.stringify(data), 'application/json');
+        h.toast('Backup downloaded' + (Object.keys(photos).length ? ' (with ' + h.plural(Object.keys(photos).length, 'photo') + ')' : ''));
+      });
+    },
     'export-csv': function () { download('baby-log-' + (S.baby().name || 'baby').toLowerCase().replace(/\W+/g, '-') + '-' + h.todayISO() + '.csv', S.exportCSV(), 'text/csv'); },
     'import-open': function () { $('#import-file').click(); },
     'erase': function () {
       if (!confirm('Erase all babies and logs from this device? Export a backup first if you might want them back.')) return;
+      Files.keys().then(function (ks) { (ks || []).forEach(function (k) { Files.remove(k); }); }).catch(function () {});
       S.reset(); S.save(); App.ui.alerts = []; h.closeSheet(); App.ui.view = 'today'; render();
-    }
+    },
+
+    /* ---------- History: timeline or trends ---------- */
+    'hist-mode': function (n) { App.ui.logMode = n.getAttribute('data-mode'); render(); },
+
+    /* ---------- Health ---------- */
+    'appt-edit': function (n) { Hl.apptSheet(n.getAttribute('data-id'), n.getAttribute('data-day')); },
+    'appt-delete': function (n) {
+      if (!confirm('Delete this visit?')) return;
+      var H = S.health(), id = n.getAttribute('data-id');
+      H.appointments = H.appointments.filter(function (a) { return a.id !== id; });
+      h.closeSheet(); commit();
+    },
+    'appt-next': function (n) {
+      var a = S.findIn(S.health().appointments, n.getAttribute('data-id'));
+      h.closeSheet(); Hl.apptSheet(null);
+      if (a) setTimeout(function () { var f = $('#appt-form'); if (f) { f.elements.doctor.value = a.doctor || ''; f.elements.place.value = a.place || ''; } }, 0);
+    },
+    'rx-scan': function () { Hl.startScan(); },
+    'rx-photo': function (n) { Hl.pickPhoto(!!n.getAttribute('data-capture'), Hl.gotPhoto); },
+    'scan-add': function () { Hl.syncScanForm(); Hl.scan().meds.push({}); h.renderSheet(); Files.hydrate(); },
+    'scan-claude': function () { Hl.syncScanForm(); Hl.readWithClaude(); },
+    'scan-cancel': function () { h.closeSheet(); render(); },
+    'rx-edit': function (n) { Hl.rxSheet(n.getAttribute('data-id')); },
+    'rx-dose': function (n) { F.open('med', null, { rxId: n.getAttribute('data-id') }); },
+    'rx-stop': function (n) {
+      var rx = S.findIn(S.health().rx, n.getAttribute('data-id'));
+      if (!rx || !confirm('Stop ' + rx.name + ' now? Dose reminders for it will end.')) return;
+      rx.stopped = true; rx.stoppedAt = Date.now(); h.closeSheet(); commit(); h.toast(rx.name + ' stopped');
+    },
+    'rx-delete': function (n) {
+      var H = S.health(), rx = S.findIn(H.rx, n.getAttribute('data-id'));
+      if (!rx || !confirm('Delete ' + rx.name + '? Doses already logged stay in History.')) return;
+      H.rx = H.rx.filter(function (x) { return x.id !== rx.id; });
+      dropPhotoIfUnused(rx.photoId); h.closeSheet(); commit();
+    },
+    'vax-open': function () { Hl.vaxSheet(); },
+    'vax-schedule': function (n) { S.health().vaccines.schedule = n.getAttribute('data-s'); commit(); },
+    'vax-item': function (n) { Hl.vaxItemSheet(n.getAttribute('data-key')); },
+    'vax-unmark': function (n) { delete S.health().vaccines.given[n.getAttribute('data-key')]; S.save(); Hl.vaxSheet(); render(); },
+    'vax-custom': function (n) { Hl.vaxCustomSheet(n.getAttribute('data-id')); },
+    'vaxc-delete': function (n) { var V2 = S.health().vaccines, id = n.getAttribute('data-id'); V2.custom = V2.custom.filter(function (c) { return c.id !== id; }); S.save(); Hl.vaxSheet(); render(); },
+    'cal-move': function (n) { var m = new Date(App.ui.calMonth || Hl.monthStart(Date.now())); m.setMonth(m.getMonth() + (+n.getAttribute('data-d'))); App.ui.calMonth = m.getTime(); render(); },
+    'cal-day': function (n) { App.ui.calDay = n.getAttribute('data-day'); render(); },
+    'profile-edit': function () { Hl.profileSheet(); },
+    'emergency': function () {
+      var text = Hl.emergencyText();
+      h.openSheet({ title: 'Emergency info', html: '<pre class="scantext scantext--big">' + esc(text) + '</pre><div class="btn-row sheet-save"><button class="btn" data-action="profile-edit">Edit details</button><button class="btn btn--primary btn--lg" data-action="share-text" data-what="emergency">📤 Share</button></div>' });
+    },
+    'visit-summary': function () {
+      var text = Hl.visitSummaryText();
+      h.openSheet({ title: 'Summary for the doctor', html: '<pre class="scantext">' + esc(text) + '</pre><div class="btn-row sheet-save"><button class="btn btn--primary btn--lg" data-action="share-text" data-what="visit">📤 Share or copy</button></div>' });
+    },
+    'share-text': function (n) {
+      var w = n.getAttribute('data-what');
+      share(w === 'emergency' ? Hl.emergencyText() : Hl.visitSummaryText(), w === 'emergency' ? 'Emergency info' : 'Summary for the doctor');
+    },
+    'doc-edit': function (n) { Hl.docSheet(n.getAttribute('data-id')); },
+    'doc-photo': function (n) {
+      Hl.pickPhoto(!!n.getAttribute('data-capture'), function (file) {
+        Files.compress(file).then(function (blob) {
+          var id = 'ph_' + S.uid();
+          return Files.put(id, blob).then(function () { return id; });
+        }).then(function (id) {
+          var form = $('#doc-form'); if (!form) return;
+          form.elements.photoId.value = id;
+          var wrap = form.querySelector('.photo-wrap');
+          if (!wrap) { wrap = document.createElement('div'); wrap.className = 'photo-wrap'; form.insertBefore(wrap, form.firstChild); }
+          wrap.innerHTML = '<img class="photo" data-photo="' + id + '" alt="Photo" data-action="photo-view" data-id="' + id + '" />';
+          Files.hydrate(form);
+        }).catch(function (e) { h.toast(e.message || 'Couldn’t save that photo.'); });
+      });
+    },
+    'doc-delete': function (n) {
+      var H = S.health(), d = S.findIn(H.docs, n.getAttribute('data-id'));
+      if (!d || !confirm('Delete this document and its photo?')) return;
+      H.docs = H.docs.filter(function (x) { return x.id !== d.id; });
+      dropPhotoIfUnused(d.photoId); h.closeSheet(); commit();
+    },
+    'photo-view': function (n) { Hl.photoViewer(n.getAttribute('data-id')); },
+    'ai-key-clear': function () { S.get().settings.aiKey = ''; commit(); h.toast('Claude key removed from this phone'); }
   };
 
   function dismissKind(kind) { App.ui.alerts = App.ui.alerts.filter(function (a) { return a.kind !== kind; }); renderBanner(); }
@@ -552,6 +669,8 @@
         delete b.milestones[k];
       }
       S.save(); render();
+    } else if (ac === 'vax-schedule') {
+      S.health().vaccines.schedule = t.value; S.save(); h.renderSheet(); render();
     } else if (t.id === 'sound-timer') {
       App.ui.soundMin = +t.value;
       if (Snd.playing()) { Snd.play(Snd.playing(), App.ui.soundMin); refreshSound(); }
@@ -564,6 +683,7 @@
 
   function onSubmit(e) {
     var f = e.target;
+    if (/^(appt|rx|scan|vax|vaxc|profile|doc|ai)-form$/.test(f.id)) { e.preventDefault(); saveHealthForm(f); return; }
     if (f.id === 'sheet-form') {
       e.preventDefault();
       var editing = !!f.getAttribute('data-id');
@@ -609,6 +729,67 @@
   }
 
   // US visitors get oz / °F / lb by default.
+  function saveHealthForm(f) {
+    var H = S.health(), id = f.getAttribute('data-id'), fd = function (n) { var el = f.elements[n]; return el ? String(el.value).trim() : ''; };
+    if (f.id === 'appt-form') {
+      var at = h.fromLocalInput(fd('at'));
+      if (!at) { h.toast('Pick a date and time.'); return; }
+      var a = id ? S.findIn(H.appointments, id) : { id: S.uid() };
+      a.at = at; a.type = (f.querySelector('input[name="type"]:checked') || {}).value || 'checkup';
+      a.title = fd('title'); a.doctor = fd('doctor'); a.place = fd('place'); a.questions = fd('questions');
+      if (f.elements.outcome) a.outcome = fd('outcome');
+      if (f.elements.done) a.done = f.elements.done.checked;
+      if (!id) H.appointments.push(a);
+      if (!H.profile.doctor && a.doctor) H.profile.doctor = a.doctor;
+      h.closeSheet(); commit(); h.toast(id ? 'Visit saved' : 'Visit added — you’ll get a reminder the evening before');
+    } else if (f.id === 'rx-form') {
+      var d = Hl.readRx(f);
+      if (!d.name) { h.toast('What’s the medicine called?'); return; }
+      var rx = id ? S.findIn(H.rx, id) : { id: S.uid(), created: Date.now() };
+      Object.keys(d).forEach(function (k) { rx[k] = d[k]; });
+      rx.prescriber = fd('prescriber');
+      if (!id) H.rx.push(rx);
+      h.closeSheet(); commit(); h.toast(id ? 'Saved' : rx.name + ' added' + (rx.remind ? ' — reminders on' : ''));
+    } else if (f.id === 'scan-form') {
+      Hl.syncScanForm();
+      var sc = Hl.scan(), added = [];
+      sc.meds.forEach(function (m) {
+        if (!m.include || !m.name) return;
+        var r = { id: S.uid(), created: Date.now(), photoId: sc.photoId, prescriber: sc.doctor || '' };
+        ['name', 'strength', 'dose', 'intervalH', 'durationDays', 'timesPerDay', 'prn', 'instructions', 'start', 'remind'].forEach(function (k) { r[k] = m[k]; });
+        H.rx.push(r); added.push(r.name);
+      });
+      if (!added.length) { h.toast('Tick at least one medicine with a name, or Cancel.'); return; }
+      H.docs.push({ id: S.uid(), title: 'Prescription' + (sc.doctor ? ' — ' + sc.doctor : ''), date: Date.now(), photoId: sc.photoId, notes: added.join(', ') });
+      Hl.setScanSaved(); h.closeSheet(); App.ui.view = 'health'; commit();
+      h.toast('Saved ' + added.join(', '));
+    } else if (f.id === 'vax-form') {
+      var key = f.getAttribute('data-key'), dt = Hl.fromIsoDate(fd('date'));
+      if (!dt) { h.toast('Pick the date it was given.'); return; }
+      H.vaccines.given[key] = { date: dt, note: fd('note') };
+      S.save(); Hl.vaxSheet(); render(); h.toast('Vaccine recorded ✅');
+    } else if (f.id === 'vaxc-form') {
+      var c = id ? S.findIn(H.vaccines.custom, id) : { id: S.uid() };
+      c.name = fd('name'); c.date = Hl.fromIsoDate(fd('date')) || Date.now(); c.note = fd('note');
+      if (!c.name) { h.toast('Which vaccine?'); return; }
+      if (!id) H.vaccines.custom.push(c);
+      S.save(); Hl.vaxSheet(); render();
+    } else if (f.id === 'profile-form') {
+      ['blood', 'allergies', 'conditions', 'doctor', 'clinic', 'phone', 'insurance', 'notes'].forEach(function (k) { H.profile[k] = fd(k); });
+      h.closeSheet(); commit(); h.toast('Health profile saved');
+    } else if (f.id === 'doc-form') {
+      var doc = id ? S.findIn(H.docs, id) : { id: S.uid() }, oldPhoto = doc.photoId;
+      doc.title = fd('title') || 'Document'; doc.date = Hl.fromIsoDate(fd('date')) || Date.now(); doc.notes = fd('notes'); doc.photoId = fd('photoId') || null;
+      if (!id) H.docs.push(doc);
+      if (oldPhoto && oldPhoto !== doc.photoId) dropPhotoIfUnused(oldPhoto);
+      h.closeSheet(); commit(); h.toast('Document saved');
+    } else if (f.id === 'ai-form') {
+      var k = fd('aiKey');
+      if (k && !/^sk-ant-/.test(k)) { h.toast('That doesn’t look like a Claude API key (it starts with sk-ant-).'); return; }
+      S.get().settings.aiKey = k; commit(); h.toast(k ? 'Claude key saved on this phone' : 'Key removed');
+    }
+  }
+
   // Guess units from where the phone is, not its language: plenty of phones
   // outside the US (the Philippines, for one) run in US English.
   function usesImperial() {

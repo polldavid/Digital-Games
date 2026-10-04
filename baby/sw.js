@@ -5,11 +5,11 @@
    the front when a reminder notification is tapped.
    Bump VERSION whenever a cached file changes.
    ========================================================= */
-var VERSION = 'babylog-v3';
+var VERSION = 'babylog-v4';
 var FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'css/styles.css', '../theme.css', '../theme.js',
-  'js/guide.js', 'js/store.js', 'js/sound.js', 'js/ui.js', 'js/forms.js', 'js/views.js', 'js/help.js', 'js/app.js',
+  'js/guide.js', 'js/store.js', 'js/sound.js', 'js/rx.js', 'js/files.js', 'js/ui.js', 'js/forms.js', 'js/views.js', 'js/help.js', 'js/health.js', 'js/app.js',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'
 ];
 

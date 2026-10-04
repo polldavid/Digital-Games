@@ -10,7 +10,7 @@ dependencies, no server. It installs to the home screen and works offline.
 
 | | |
 | --- | --- |
-| 🍼 **Feeds** | Breast timer with Left/Right switching, pause and "start on this side next"; bottles (breast milk or formula, ml or oz); solids with first-try and reaction tracking |
+| 🍼 **Feeds** | Breast timer with Left/Right switching, pause and "start on this side next"; bottles (breast milk or formula, ml or oz; ± 1 ml / 0.1 oz with a +5 ml / +0.5 oz jump); solids with first-try and reaction tracking |
 | 🧷 **Diapers** | Wet / dirty / both, poop colour and texture with instant "normal or call the doctor" feedback, rash |
 | 😴 **Sleep** | One-tap sleep timer, or log past sleeps; wake windows and the next nap window |
 | 🧴 **Pumping** | Tap-to-start timer with independent Left and Right sides (run both at once for a double pump, or one at a time), then enter each side's amount; milk-storage times |
@@ -19,6 +19,41 @@ dependencies, no server. It installs to the home screen and works offline.
 | 🌡️ **Temperature** | Age-aware fever check (under 3 months, 38 °C / 100.4 °F = call now) |
 | 📏 **Growth** | Weight, length, head; % change from birth weight |
 | 🛁 ⭐ 📝 | Baths, milestones (CDC checklist), notes |
+
+## Health records
+
+The **Health** tab keeps the medical side in one place:
+
+- **Scan a prescription.** Take a photo (or pick one from the gallery). The
+  text is read on the phone (Tesseract.js, loaded on first use) and turned
+  into draft entries — medicine, strength, dose, how often (understands OD,
+  BID, TID, QID, q6h, PRN, "x 7 days"…) and for how long. The parent checks
+  and edits every line before anything is saved; the photo is kept with the
+  record either way. Handwriting is hard for on-device OCR, so there's an
+  optional **Read with Claude** mode: the parent adds their own Claude API key
+  in Settings, and the photo is sent to Anthropic only when read that way
+  (`claude-opus-5-5`, structured JSON output, refusal fallback on). The key
+  stays on the phone and is never exported.
+- **Medicines.** Each prescription is a course with dose reminders until it
+  ends, a dose counter ("4 of 21"), and **Give dose**, which logs the dose to
+  History. Stop or delete any time.
+- **Visits.** Appointments with type, doctor, clinic and questions to ask;
+  reminders the evening before and 2 hours before; afterwards, what the doctor
+  said, measurements, and booking the next visit.
+- **Vaccines.** A checklist with due dates from the birthday — the Philippine
+  schedule (DOH National Immunization Program + PPS/PIDSP additions) or the US
+  CDC schedule — with given dates, overdue/due-soon flags and a reminder on
+  due dates. Editable, and other vaccines can be added.
+- **Calendar.** Month view of visits, vaccines due/given and medicine courses.
+- **Profile, emergency info, documents.** Blood type, allergies, conditions,
+  pediatrician and phone, PhilHealth/insurance number; a shareable emergency
+  card for a sitter or the ER; photos of lab results or the vaccine card.
+- **Summary for the doctor.** Last 7 days of feeds, diapers and sleep, weight,
+  fevers, flagged diapers, medicines, vaccines due, and your questions — one
+  tap to share.
+
+Photos are stored in IndexedDB (compressed to ~1600 px JPEG) and included in
+JSON backups.
 
 ## Reminders
 
@@ -72,7 +107,7 @@ disclaimer.
 - **Install tip:** iPhone users get a one-time "Add to Home Screen" tip (needed
   there for notifications, and it stops Safari clearing the logs); Android
   gets an Install button.
-- **Trends:** daily rhythm map (sleep blocks and feeds per day), sleep, feeds,
+- **Trends** (inside History): daily rhythm map (sleep blocks and feeds per day), sleep, feeds,
   diapers, bottle and pumping charts with the normal range shaded, growth
   chart, and a table view.
 - **Twins and siblings:** multiple babies, quick switching, and "also log
@@ -98,13 +133,16 @@ baby/
 ├── icons/                 # app icons (SVG + PNG, maskable)
 ├── css/styles.css
 └── js/
-    ├── guide.js   # age norms, thresholds, milestones, cry ranking — pure, no DOM
+    ├── guide.js   # age norms, thresholds, milestones, vaccine schedules, cry ranking — pure, no DOM
+    ├── rx.js      # prescription text → draft medicines (shorthand, brands) — pure, no DOM
+    ├── files.js   # photo storage (IndexedDB) and compression
     ├── store.js   # state, persistence, queries, timers, reminder engine — no DOM
     ├── sound.js   # white/pink/brown noise, shush, heartbeat, chime (Web Audio)
     ├── ui.js      # helpers: formatting, units, sheet, toasts, tooltips
     ├── forms.js   # one logging form per entry type (add + edit)
     ├── views.js   # Today, History, Trends
     ├── help.js    # Answers topics + sleep-sounds player
+    ├── health.js  # Health tab: visits, prescriptions + scanning, vaccines, records
     └── app.js     # boot, actions, notifications, settings, import/export
 ```
 

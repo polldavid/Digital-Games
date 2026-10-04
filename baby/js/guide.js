@@ -201,6 +201,84 @@
     { months: 24, items: ['Notices when others are hurt or upset', 'Points to things in a book when you ask', 'Says at least two words together, like “more milk”', 'Points to at least two body parts', 'Kicks a ball', 'Runs', 'Eats with a spoon'] }
   ];
 
+  /* ---------- Vaccination schedules ----------
+     A checklist with due dates from the birth date — always confirm
+     with your pediatrician, who may use different brands or timing.
+     ph: Philippine DOH National Immunization Program (free at health
+         centers) plus the extra vaccines the Philippine Pediatric
+         Society / PIDSP recommend (usually private).
+     us: CDC routine schedule (birth to 18 months).
+     `at` is the recommended age in days. */
+  var VACCINES = {
+    ph: { label: 'Philippines (DOH + PPS/PIDSP)', items: [
+      { key: 'bcg',    name: 'BCG',                         at: 0,   program: 'NIP', note: 'Tuberculosis — at birth' },
+      { key: 'hepb0',  name: 'Hepatitis B (birth dose)',    at: 0,   program: 'NIP', note: 'Within 24 hours of birth' },
+      { key: 'penta1', name: 'Pentavalent 1 (DTwP-HepB-Hib)', at: 42, program: 'NIP' },
+      { key: 'opv1',   name: 'Oral polio (OPV) 1',          at: 42,  program: 'NIP' },
+      { key: 'pcv1',   name: 'Pneumococcal (PCV) 1',        at: 42,  program: 'NIP' },
+      { key: 'rota1',  name: 'Rotavirus 1',                 at: 42,  program: 'PPS' },
+      { key: 'penta2', name: 'Pentavalent 2',               at: 70,  program: 'NIP' },
+      { key: 'opv2',   name: 'Oral polio (OPV) 2',          at: 70,  program: 'NIP' },
+      { key: 'pcv2',   name: 'Pneumococcal (PCV) 2',        at: 70,  program: 'NIP' },
+      { key: 'rota2',  name: 'Rotavirus 2',                 at: 70,  program: 'PPS' },
+      { key: 'penta3', name: 'Pentavalent 3',               at: 98,  program: 'NIP' },
+      { key: 'opv3',   name: 'Oral polio (OPV) 3',          at: 98,  program: 'NIP' },
+      { key: 'ipv1',   name: 'Inactivated polio (IPV) 1',   at: 98,  program: 'NIP' },
+      { key: 'pcv3',   name: 'Pneumococcal (PCV) 3',        at: 98,  program: 'NIP' },
+      { key: 'rota3',  name: 'Rotavirus 3 (RotaTeq only)',  at: 98,  program: 'PPS', note: 'Only if your baby gets the 3-dose brand' },
+      { key: 'flu1',   name: 'Influenza 1',                 at: 183, program: 'PPS', note: 'From 6 months; 2 doses 4 weeks apart the first year, then yearly' },
+      { key: 'flu2',   name: 'Influenza 2',                 at: 211, program: 'PPS' },
+      { key: 'mmr1',   name: 'Measles (MR/MMR) 1',          at: 274, program: 'NIP' },
+      { key: 'ipv2',   name: 'Inactivated polio (IPV) 2',   at: 274, program: 'NIP' },
+      { key: 'je1',    name: 'Japanese encephalitis',       at: 274, program: 'PPS', note: 'From 9 months' },
+      { key: 'mmr2',   name: 'Measles (MMR) 2',             at: 365, program: 'NIP' },
+      { key: 'var1',   name: 'Varicella (chickenpox) 1',    at: 365, program: 'PPS' },
+      { key: 'hepa1',  name: 'Hepatitis A 1',               at: 365, program: 'PPS' },
+      { key: 'hepa2',  name: 'Hepatitis A 2',               at: 548, program: 'PPS', note: 'At least 6 months after the first' }
+    ] },
+    us: { label: 'United States (CDC)', items: [
+      { key: 'hepb1',  name: 'Hepatitis B 1',               at: 0 },
+      { key: 'hepb2',  name: 'Hepatitis B 2',               at: 30,  note: '1–2 months' },
+      { key: 'dtap1',  name: 'DTaP 1',                      at: 61 },
+      { key: 'hib1',   name: 'Hib 1',                       at: 61 },
+      { key: 'ipv1',   name: 'Polio (IPV) 1',               at: 61 },
+      { key: 'pcv1',   name: 'Pneumococcal (PCV) 1',        at: 61 },
+      { key: 'rv1',    name: 'Rotavirus 1',                 at: 61 },
+      { key: 'dtap2',  name: 'DTaP 2',                      at: 122 },
+      { key: 'hib2',   name: 'Hib 2',                       at: 122 },
+      { key: 'ipv2',   name: 'Polio (IPV) 2',               at: 122 },
+      { key: 'pcv2',   name: 'Pneumococcal (PCV) 2',        at: 122 },
+      { key: 'rv2',    name: 'Rotavirus 2',                 at: 122 },
+      { key: 'dtap3',  name: 'DTaP 3',                      at: 183 },
+      { key: 'pcv3',   name: 'Pneumococcal (PCV) 3',        at: 183 },
+      { key: 'rv3',    name: 'Rotavirus 3 (brand-dependent)', at: 183 },
+      { key: 'hepb3',  name: 'Hepatitis B 3',               at: 183, note: '6–18 months' },
+      { key: 'ipv3',   name: 'Polio (IPV) 3',               at: 183, note: '6–18 months' },
+      { key: 'flu1',   name: 'Influenza (yearly)',          at: 183, note: 'From 6 months; 2 doses the first season' },
+      { key: 'mmr1',   name: 'MMR 1',                       at: 365, note: '12–15 months' },
+      { key: 'var1',   name: 'Varicella 1',                 at: 365, note: '12–15 months' },
+      { key: 'hepa1',  name: 'Hepatitis A 1',               at: 365, note: '12–23 months' },
+      { key: 'hib4',   name: 'Hib booster',                 at: 365, note: '12–15 months' },
+      { key: 'pcv4',   name: 'Pneumococcal (PCV) 4',        at: 365, note: '12–15 months' },
+      { key: 'dtap4',  name: 'DTaP 4',                      at: 456, note: '15–18 months' },
+      { key: 'hepa2',  name: 'Hepatitis A 2',               at: 548, note: '6 months after the first' }
+    ] }
+  };
+
+  // Each vaccine with its due date and status ('given' | 'overdue' | 'due' (within 14 days) | 'upcoming').
+  function vaccinePlan(scheduleId, birth, given, now) {
+    var sch = VACCINES[scheduleId];
+    if (!sch || !birth) return [];
+    var p = String(birth).split('-'), b = new Date(+p[0], +p[1] - 1, +p[2]).getTime();
+    now = now || Date.now();
+    given = given || {};
+    return sch.items.map(function (v) {
+      var due = b + v.at * DAY, g = given[v.key];
+      var status = g ? 'given' : due < now - DAY ? 'overdue' : due - now <= 14 * DAY ? 'due' : 'upcoming';
+      return { key: v.key, name: v.name, at: v.at, due: due, program: v.program || '', note: v.note || '', given: g || null, status: status };
+    });
+  }
+
   /* ---------- "Why is my baby crying?" ----------
      Combine the log with age norms and rank the likely reasons.
      `ctx` = { days, now, lastFeed, lastFeedEnd, lastDiaper,
@@ -331,6 +409,7 @@
     MILESTONES: MILESTONES,
     cryReasons: cryReasons, CRY_RED_FLAGS: CRY_RED_FLAGS,
     QUESTIONS: QUESTIONS,
+    VACCINES: VACCINES, vaccinePlan: vaccinePlan,
     fmtDur: fmtDur, fmtHours: fmtHours
   };
 

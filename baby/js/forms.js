@@ -88,9 +88,11 @@
 
       // Bottle
       html += '<div data-panel="bottle" class="form"' + (kind !== 'bottle' ? ' hidden' : '') + '>' +
-        '<div class="stepper"><button type="button" class="btn" data-action="step" data-target="amount" data-step="-' + (h.volUnit() === 'oz' ? 0.5 : 10) + '" aria-label="Less">−</button>' +
+        // ± nudge by 1 ml / 0.1 oz; the separate button jumps by 5 ml / 0.5 oz.
+        '<div class="stepper"><button type="button" class="btn" data-action="step" data-target="amount" data-vol="-fine" data-step="-' + volStep('fine') + '" aria-label="Less">−</button>' +
         '<div class="stepper__v"><input class="stepper__input" name="amount" type="number" inputmode="decimal" step="any" min="0" value="' + amount + '" aria-label="Amount" /><button type="button" class="unit-btn" data-action="unit-toggle" data-unit="volume" data-target="amount" aria-label="Switch between ml and oz">' + h.volUnit() + '</button></div>' +
-        '<button type="button" class="btn" data-action="step" data-target="amount" data-step="' + (h.volUnit() === 'oz' ? 0.5 : 10) + '" aria-label="More">+</button></div>' +
+        '<button type="button" class="btn" data-action="step" data-target="amount" data-vol="fine" data-step="' + volStep('fine') + '" aria-label="More">+</button></div>' +
+        '<div class="stepper-extra"><button type="button" class="btn btn--sm" data-action="step" data-target="amount" data-vol="big" data-step="' + volStep('big') + '">+' + volStep('big') + ' ' + h.volUnit() + '</button></div>' +
         '<div class="field"><span class="field__label">What’s in the bottle?</span>' + seg('milk', [['breast', 'Breast milk'], ['formula', 'Formula']], d.milk || (b.feeding === 'breast' ? 'breast' : 'formula')) + '</div>' +
         '<p class="faint">Typical at this age: ' + bottleRange() + ' per feed. Follow baby’s cues — stopping, turning away and relaxed hands mean full.</p>' +
         '</div>';
@@ -147,6 +149,7 @@
     }
   };
 
+  function volStep(kind) { var oz = h.volUnit() === 'oz'; return kind === 'big' ? (oz ? 0.5 : 5) : (oz ? 0.1 : 1); }
   function lastBottleMl() { var e = S.last('feed', function (x) { return x.data.kind === 'bottle'; }); return e ? e.data.amountMl : 0; }
   function bottleRange() { var r = G.feedingFor(days(), S.baby().feeding).ml; return r[1] ? h.volToDisplay(r[0]) + '–' + h.vol(r[1]) : 'varies'; }
   function foodsTried() {
@@ -323,38 +326,58 @@
   };
 
   /* ======================= MEDICINE ======================= */
-  function medKey(medId, name) { return medId === 'custom' ? 'custom:' + (name || '').toLowerCase() : medId; }
+  function medKey(medId, name) {
+    if (/^rx:/.test(medId)) return medId;
+    return medId === 'custom' ? 'custom:' + (name || '').toLowerCase() : medId;
+  }
+  function activeRx() { return S.health().rx.filter(function (rx) { return S.rxStatus(rx).active; }); }
+  // A select value is a preset id, "custom", or "rx:<prescription id>".
+  function medInfo(sel) {
+    if (/^rx:/.test(sel)) {
+      var rx = S.findIn(S.health().rx, sel.slice(3));
+      if (rx) return { id: 'rx', rx: rx, label: rx.name, intervalH: rx.prn ? 0 : rx.intervalH || 0, maxPerDay: rx.timesPerDay || 0, minAgeDays: 0, warn: rx.instructions ? 'Prescribed: ' + rx.instructions : 'As prescribed.' };
+    }
+    return G.medicine(sel);
+  }
   var MED = {
     title: function (ev) { return ev ? 'Edit medicine' : 'Medicine'; },
-    html: function (ev) {
+    html: function (ev, preset) {
       // Start on the medicine last given; for young babies, vitamin D (the everyday one).
-      var lastMed = S.last('med');
-      var d = ev ? ev.data : {}, medId = d.medId || (lastMed ? lastMed.data.medId : days() < 91 ? 'vitd' : 'acetaminophen'), p = G.medicine(medId);
+      var lastMed = S.last('med'), rxs = activeRx();
+      var d = ev ? ev.data : {};
+      var medId = preset && preset.rxId ? 'rx:' + preset.rxId : d.rxId ? 'rx:' + d.rxId : d.medId || (rxs.length ? 'rx:' + rxs[0].id : lastMed ? (lastMed.data.rxId ? 'rx:' + lastMed.data.rxId : lastMed.data.medId) : days() < 91 ? 'vitd' : 'acetaminophen');
+      var p = medInfo(medId);
+      if (p.id === 'custom' && /^rx:/.test(medId)) medId = 'custom';
+      var dose0 = d.dose || (p.rx ? p.rx.dose || '' : '');
       return '<label class="field"><span class="field__label">Medicine</span><select class="input" name="medId">' +
-        G.MEDICINES.map(function (m) { return '<option value="' + m.id + '"' + (m.id === medId ? ' selected' : '') + '>' + esc(m.label) + '</option>'; }).join('') + '</select></label>' +
+        (rxs.length ? '<optgroup label="Prescribed">' + rxs.map(function (rx) { return '<option value="rx:' + rx.id + '"' + ('rx:' + rx.id === medId ? ' selected' : '') + '>💊 ' + esc(rx.name + (rx.strength ? ' ' + rx.strength : '')) + '</option>'; }).join('') + '</optgroup><optgroup label="Other">' : '') +
+        G.MEDICINES.map(function (m) { return '<option value="' + m.id + '"' + (m.id === medId ? ' selected' : '') + '>' + esc(m.label) + '</option>'; }).join('') + (rxs.length ? '</optgroup>' : '') + '</select></label>' +
         '<label class="field" data-custom' + (medId === 'custom' ? '' : ' hidden') + '><span class="field__label">Name</span><input class="input" name="name" maxlength="40" value="' + esc(medId === 'custom' ? d.name || '' : '') + '" placeholder="e.g. Amoxicillin" /></label>' +
-        '<label class="field"><span class="field__label">Dose given</span><input class="input" name="dose" maxlength="40" value="' + esc(d.dose || '') + '" placeholder="e.g. 2.5 ml — as on the label / prescription" /></label>' +
+        '<label class="field"><span class="field__label">Dose given</span><input class="input" name="dose" maxlength="40" value="' + esc(dose0) + '" placeholder="e.g. 2.5 ml — as on the label / prescription" /></label>' +
         '<div class="field__row"><label class="field"><span class="field__label">Hours between doses</span><input class="input" type="number" inputmode="decimal" step="0.5" min="0" max="48" name="intervalH" value="' + (d.intervalH != null ? d.intervalH : p.intervalH) + '" /></label>' +
         '<label class="field"><span class="field__label">Max doses / 24h</span><input class="input" type="number" inputmode="numeric" min="0" max="24" name="maxPerDay" value="' + (d.maxPerDay != null ? d.maxPerDay : p.maxPerDay) + '" /></label></div>' +
-        '<label class="check-line"><input type="checkbox" name="remind"' + ((ev ? d.remind : p.intervalH > 0 && p.intervalH < 24) ? ' checked' : '') + ' /> Remind me when the next dose is allowed</label>' +
+        '<label class="check-line"><input type="checkbox" name="remind"' + ((ev ? d.remind : p.intervalH > 0 && p.intervalH < 24 && !p.rx) ? ' checked' : '') + ' /> Remind me when the next dose is allowed' + '</label>' +
         '<div id="med-status"></div>' +
         h.timeField('time', ev ? ev.time : Date.now(), 'Given at') + noteField(d.note) +
         '<p class="faint">Baby Log never suggests doses. Dosing for babies is by weight — follow the label or your pediatrician, and use the syringe that came with the medicine.</p>' + footer(ev);
     },
     parse: function (form) {
-      var id = val(form, 'medId'), p = G.medicine(id);
-      var name = id === 'custom' ? val(form, 'name').trim() : p.label.split(' (')[0];
+      var sel = val(form, 'medId'), p = medInfo(sel);
+      var name = sel === 'custom' ? val(form, 'name').trim() : p.rx ? p.rx.name : p.label.split(' (')[0];
       if (!name) return { error: 'What medicine was it?' };
-      return { time: h.fromLocalInput(val(form, 'time')), data: { medId: id, name: name, dose: val(form, 'dose').trim(), intervalH: num(form, 'intervalH') || 0, maxPerDay: num(form, 'maxPerDay') || 0, remind: checked(form, 'remind'), note: val(form, 'note').trim() } };
+      var data = { medId: p.rx ? 'rx' : sel, name: name, dose: val(form, 'dose').trim(), intervalH: num(form, 'intervalH') || 0, maxPerDay: num(form, 'maxPerDay') || 0, remind: checked(form, 'remind'), note: val(form, 'note').trim() };
+      if (p.rx) data.rxId = p.rx.id;
+      return { time: h.fromLocalInput(val(form, 'time')), data: data };
     },
     mount: function (body) {
       var form = body.querySelector('form'), editingId = form.getAttribute('data-id');
       var lastId = val(form, 'medId');
       var sync = function (e) {
-        var id = val(form, 'medId'), p = G.medicine(id);
+        var id = val(form, 'medId'), p = medInfo(id);
         if (id !== lastId) { // preset changed: refill its spacing rules
           form.elements.intervalH.value = p.intervalH; form.elements.maxPerDay.value = p.maxPerDay;
-          form.elements.remind.checked = p.intervalH > 0 && p.intervalH < 24; lastId = id;
+          form.elements.remind.checked = p.intervalH > 0 && p.intervalH < 24 && !p.rx; lastId = id;
+          if (p.rx) form.elements.dose.value = p.rx.dose || '';
         }
         form.querySelector('[data-custom]').hidden = id !== 'custom';
         var out = [], now = Date.now(), dd = days();
@@ -499,5 +522,5 @@
     return saved;
   }
 
-  var api = window.BabyForms = { open: open, save: save, FORMS: FORMS, nextSide: nextSide, breastLive: breastLive, pumpLive: pumpLive, lastCopies: [] };
+  var api = window.BabyForms = { volStep: volStep, open: open, save: save, FORMS: FORMS, nextSide: nextSide, breastLive: breastLive, pumpLive: pumpLive, lastCopies: [] };
 })();

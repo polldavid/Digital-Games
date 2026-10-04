@@ -78,7 +78,7 @@
     // Medicine if any in the last 24h, else tummy time.
     var lm = S.last('med');
     if (lm && now - lm.time < DAY) {
-      var ms = S.medStatus(lm.data.medId === 'custom' ? 'custom:' + (lm.data.name || '').toLowerCase() : lm.data.medId, now);
+      var ms = S.medStatus(S.medKeyOf(lm.data), now);
       var mv = ms && ms.nextAt && ms.nextAt > now ? 'Next ' + h.fmtTime(ms.nextAt) : 'OK to give';
       if (ms && ms.nextAt && ms.nextAt <= now && ms.max && ms.count24 >= ms.max) mv = 'Daily max';
       out.push(tile('med', '💊 ' + esc(lm.data.name || 'Medicine'), mv, '<span class="tile__s">Last <span data-ago="' + lm.time + '">' + h.ago(lm.time, now) + '</span></span>'));
@@ -215,13 +215,18 @@
   }
 
   /* ======================= HISTORY ======================= */
+  function modeSwitch(cur) {
+    return '<h1 class="h1">History</h1><div class="seg" role="tablist">' + [['timeline', '📋 Timeline'], ['trends', '📈 Trends']].map(function (m) {
+      return '<button class="seg__btn' + (cur === m[0] ? ' seg__btn--on' : '') + '" role="tab" aria-selected="' + (cur === m[0]) + '" data-action="hist-mode" data-mode="' + m[0] + '">' + m[1] + '</button>';
+    }).join('') + '</div>';
+  }
   var FILTERS = [['all', 'All'], ['feed', '🍼 Feeds'], ['diaper', '🧷 Diapers'], ['sleep', '😴 Sleep'], ['pump', '🧴 Pump'], ['med', '💊 Meds'], ['temp', '🌡️ Temp'], ['growth', '📏 Growth'], ['tummy', '🤸 Tummy'], ['milestone', '⭐ Milestones'], ['note', '📝 Notes'], ['bath', '🛁 Baths']];
 
   function history() {
     var ui = App.ui, now = Date.now();
     var from = S.startOfDay(now) - (ui.historyDays - 1) * DAY;
     var list = S.events({ from: from, type: ui.historyType === 'all' ? null : ui.historyType }).filter(function (e) { return e.time >= from; }).reverse();
-    var html = '<h1 class="h1">History</h1>' +
+    var html = modeSwitch('timeline') +
       '<div class="btn-row"><button class="btn btn--sm" data-action="add-past">＋ Add past entry</button><button class="btn btn--sm" data-action="handoff">📤 Share summary</button></div>' +
       '<div class="chips chips--scroll" role="toolbar" aria-label="Filter">' + FILTERS.map(function (f) { return '<button class="chip" data-action="hist-filter" data-type="' + f[0] + '" aria-pressed="' + (ui.historyType === f[0]) + '">' + f[1] + '</button>'; }).join('') + '</div>';
     if (!list.length) return html + '<div class="card"><div class="empty"><span class="empty__icon">🗒️</span>Nothing here for the last ' + h.plural(ui.historyDays, 'day') + '.</div></div>';
@@ -335,7 +340,7 @@
     var sleeps = S.events({ type: 'sleep', from: now - n * DAY }).filter(function (e) { return e.end; });
     var longest = sleeps.reduce(function (m, e) { return Math.max(m, e.end - e.time); }, 0);
     var sl = G.sleepFor(days), feed = G.feedingFor(days, b.feeding);
-    var html = '<h1 class="h1">Trends</h1>' +
+    var html = modeSwitch('trends') +
       '<div class="chips" role="toolbar" aria-label="Range">' + [7, 14, 30].map(function (k) { return '<button class="chip" data-action="trend-range" data-days="' + k + '" aria-pressed="' + (n === k) + '">' + k + ' days</button>'; }).join('') + '</div>';
     var aSleep = avg(function (d) { return d.sleepMs; }), aFeeds = avg(function (d) { return d.feeds; }), aWet = avg(function (d) { return d.wet; });
     html += '<div class="stats">' +

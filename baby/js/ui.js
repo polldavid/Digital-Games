@@ -210,6 +210,7 @@
     body.innerHTML = typeof spec.html === 'function' ? spec.html() : spec.html;
     body.scrollTop = scroll;
     if (spec.mount) spec.mount(body);
+    if (window.BabyFiles) window.BabyFiles.hydrate(body);
     tick();
   }
   function closeSheet(fromBack) {

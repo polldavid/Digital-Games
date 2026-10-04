@@ -24,6 +24,7 @@
       events: [],
       timers: {},      // babyId -> { sleep:{start}, breast:{side,start,accL,accR}, tummy:{start}, pump:{start} }
       custom: [],      // custom reminders
+      health: {},      // babyId -> { profile, appointments, rx, vaccines, docs }
       fired: {},       // reminder key -> time fired (so each fires once)
       snoozed: {},     // reminder key -> snooze-until time
       settings: {
@@ -35,6 +36,7 @@
         vitdRemind: false, vitdTime: '09:00',
         tummyRemind: false, tummyTime: '16:00',
         quietNight: true,                        // 10pm–7am: vibrate only, no chime
+        aiKey: '',                               // optional Claude key (never exported)
         installTipDismissed: false
       }
     };
@@ -68,6 +70,7 @@
     if (!Array.isArray(out.events)) out.events = [];
     if (!Array.isArray(out.babies)) out.babies = [];
     if (!Array.isArray(out.custom)) out.custom = [];
+    if (!out.health || typeof out.health !== 'object') out.health = {};
     if (!out.activeBaby && out.babies[0]) out.activeBaby = out.babies[0].id;
     return out;
   }
@@ -101,6 +104,7 @@
     state.events = state.events.filter(function (e) { return e.baby !== id; });
     state.custom = state.custom.filter(function (r) { return r.baby !== id; });
     delete state.timers[id];
+    delete state.health[id];
     if (state.activeBaby === id) state.activeBaby = state.babies[0] ? state.babies[0].id : null;
   }
 
@@ -159,6 +163,35 @@
   function overlap(e, from, to, now) {
     var s = e.time, en = e.end || now || Date.now();
     return Math.max(0, Math.min(en, to) - Math.max(s, from));
+  }
+
+  /* ---------- Health records ---------- */
+  function health(id) {
+    id = id || state.activeBaby;
+    var hl = state.health[id];
+    if (!hl) hl = state.health[id] = {};
+    hl.profile = hl.profile || {};
+    hl.appointments = hl.appointments || [];
+    hl.rx = hl.rx || [];
+    hl.vaccines = hl.vaccines || { schedule: '', given: {}, custom: [] };
+    hl.vaccines.given = hl.vaccines.given || {};
+    hl.vaccines.custom = hl.vaccines.custom || [];
+    hl.docs = hl.docs || [];
+    return hl;
+  }
+  function findIn(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; }
+
+  // A prescription course: when it ends, how many doses so far, when the next one is.
+  function rxStatus(rx, now, id) {
+    now = now || Date.now();
+    var end = rx.durationDays ? rx.start + rx.durationDays * DAY : null;
+    var doses = events({ baby: id, type: 'med' }).filter(function (e) { return e.data.rxId === rx.id; });
+    var lastDose = doses[doses.length - 1] || null;
+    var expected = rx.durationDays && rx.timesPerDay ? rx.durationDays * rx.timesPerDay : null;
+    var active = !rx.stopped && (!end || now < end);
+    var nextAt = rx.prn || !rx.intervalH ? null : lastDose ? lastDose.time + rx.intervalH * HOUR : rx.start;
+    if (nextAt && end && nextAt >= end) nextAt = null;
+    return { end: end, doses: doses.length, expected: expected, lastDose: lastDose, active: active, nextAt: active ? nextAt : null };
   }
 
   /* ---------- Timers (survive refresh / lock screen: just timestamps) ---------- */
@@ -321,9 +354,13 @@
   }
 
   /* ---------- Medicine spacing ---------- */
+  function medKeyOf(d) {
+    if (d.rxId) return 'rx:' + d.rxId;
+    return d.medId === 'custom' ? 'custom:' + (d.name || '').toLowerCase() : d.medId;
+  }
   function medStatus(medKey, now, id) {
     now = now || Date.now();
-    var doses = events({ baby: id, type: 'med', from: now - DAY }).filter(function (e) { return (e.data.medId === 'custom' ? 'custom:' + (e.data.name || '').toLowerCase() : e.data.medId) === medKey; });
+    var doses = events({ baby: id, type: 'med', from: now - DAY }).filter(function (e) { return medKeyOf(e.data) === medKey; });
     if (!doses.length) return null;
     var lastDose = doses[doses.length - 1];
     var interval = (lastDose.data.intervalH || 0) * HOUR;
@@ -391,7 +428,7 @@
     // Medicine — next dose allowed (only if the parent asked to be reminded).
     var seen = {};
     events({ baby: id, type: 'med', from: now - 2 * DAY }).forEach(function (e) {
-      var key = e.data.medId === 'custom' ? 'custom:' + (e.data.name || '').toLowerCase() : e.data.medId;
+      var key = medKeyOf(e.data);
       seen[key] = e;
     });
     Object.keys(seen).forEach(function (k) {
@@ -418,6 +455,35 @@
         if (doneMin >= goal) tat = hm(st.tummyTime, now + DAY);
         out.push({ key: 'tummy:' + dayKey(tat), kind: 'tummy', icon: '🤸', title: 'Tummy time', text: Math.round(doneMin) + ' of ' + goal + ' minutes done today.', at: tat });
       }
+    }
+
+    // Appointments: the evening before (7 pm) and 2 hours before.
+    var hl = health(id);
+    hl.appointments.forEach(function (a) {
+      if (a.done || !a.at || a.at < now - 6 * HOUR) return;
+      var title = (a.title || 'Doctor’s visit') + (a.place ? ' · ' + a.place : '');
+      var eve = new Date(a.at - DAY); eve.setHours(19, 0, 0, 0);
+      if (eve.getTime() < a.at - 3 * HOUR) out.push({ key: 'appt:' + a.id + ':eve', kind: 'appt', icon: '🩺', title: 'Tomorrow: ' + title, text: 'At ' + new Date(a.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '. Bring the vaccine card and your questions.', at: eve.getTime(), apptId: a.id });
+      out.push({ key: 'appt:' + a.id + ':soon', kind: 'appt', icon: '🩺', title: 'In 2 hours: ' + title, text: name + '’s appointment is at ' + new Date(a.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.', at: a.at - 2 * HOUR, apptId: a.id });
+    });
+    // Prescription courses with reminders on: each next dose until the course ends.
+    hl.rx.forEach(function (rx) {
+      if (!rx.remind) return;
+      var rs = rxStatus(rx, now, id);
+      if (!rs.nextAt) return;
+      out.push({ key: 'rx:' + rx.id + ':' + (rs.lastDose ? rs.lastDose.id : 'first'), kind: 'rx', icon: '💊', title: rx.name + ' — dose due', text: (rx.dose ? rx.dose + ' · ' : '') + 'dose ' + (rs.doses + 1) + (rs.expected ? ' of ' + rs.expected : '') + '.', at: rs.nextAt, rxId: rx.id });
+    });
+    // Vaccines: one nudge at 9 am on the due date (only for ones not given and not long overdue).
+    if (hl.vaccines.schedule && b.birth) {
+      var dueDays = {};
+      G.vaccinePlan(hl.vaccines.schedule, b.birth, hl.vaccines.given, now).forEach(function (v) {
+        if (v.status === 'given' || v.due < startOfDay(now) - 7 * DAY) return;
+        var k = dayKey(v.due); (dueDays[k] = dueDays[k] || []).push(v);
+      });
+      Object.keys(dueDays).forEach(function (k) {
+        var list = dueDays[k], d9 = new Date(list[0].due); d9.setHours(9, 0, 0, 0);
+        out.push({ key: 'vax:' + k, kind: 'vax', icon: '💉', title: 'Vaccines due', text: list.map(function (v) { return v.name; }).join(', ') + '.', at: d9.getTime() });
+      });
     }
 
     // Custom reminders.
@@ -467,7 +533,11 @@
   function snooze(key, until) { state.snoozed[key] = until; }
 
   /* ---------- Export / import ---------- */
-  function exportJSON() { return JSON.stringify({ app: 'baby-log', exported: new Date().toISOString(), state: state }, null, 2); }
+  function exportJSON() {
+    var copy = JSON.parse(JSON.stringify(state));
+    delete copy.settings.aiKey; // a secret: stays on this phone
+    return JSON.stringify({ app: 'baby-log', exported: new Date().toISOString(), state: copy });
+  }
 
   // Merge another device's log in: babies by id, events by id (newer wins on clash).
   function importJSON(text, mode) {
@@ -480,6 +550,18 @@
     state.events.forEach(function (e) { byId[e.id] = e; });
     incoming.events.forEach(function (e) { if (!byId[e.id]) { state.events.push(e); added++; } });
     incoming.custom.forEach(function (r) { if (!state.custom.some(function (x) { return x.id === r.id; })) state.custom.push(r); });
+    // Health records: merge lists by id; keep local profile fields, fill in missing ones.
+    Object.keys(incoming.health || {}).forEach(function (bid) {
+      var src = incoming.health[bid], dst = state.health[bid];
+      if (!dst) { state.health[bid] = src; return; }
+      ['appointments', 'rx', 'docs'].forEach(function (k) { (src[k] || []).forEach(function (x) { dst[k] = dst[k] || []; if (!findIn(dst[k], x.id)) dst[k].push(x); }); });
+      dst.profile = Object.assign({}, src.profile || {}, dst.profile || {});
+      if (src.vaccines) {
+        dst.vaccines = dst.vaccines || { schedule: '', given: {}, custom: [] };
+        dst.vaccines.schedule = dst.vaccines.schedule || src.vaccines.schedule;
+        dst.vaccines.given = Object.assign({}, src.vaccines.given || {}, dst.vaccines.given || {});
+      }
+    });
     if (!state.activeBaby && state.babies[0]) state.activeBaby = state.babies[0].id;
     sortEvents();
     return { babies: incoming.babies.length, events: added };
@@ -505,7 +587,8 @@
     breastSwitch: breastSwitch, breastPause: breastPause, breastTotals: breastTotals,
     pumpSide: pumpSide, pumpBoth: pumpBoth, pumpFinish: pumpFinish, pumpTotals: pumpTotals,
     isAsleep: isAsleep, awakeSince: awakeSince, lastFeedAnchor: lastFeedAnchor, feedIntervalH: feedIntervalH,
-    daySummary: daySummary, last24: last24, medStatus: medStatus,
+    daySummary: daySummary, last24: last24, medStatus: medStatus, medKeyOf: medKeyOf,
+    health: health, findIn: findIn, rxStatus: rxStatus,
     reminders: reminders, due: due, markFired: markFired, snooze: snooze,
     exportJSON: exportJSON, importJSON: importJSON, exportCSV: exportCSV
   };
