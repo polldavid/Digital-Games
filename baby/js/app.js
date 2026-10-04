@@ -398,6 +398,10 @@
     },
     'breast-pause': function () { S.breastPause(); commit(); },
     'breast-finish': breastFinish,
+    'pump-side': function (n) { S.pumpSide(n.getAttribute('data-side')); commit(); },
+    'pump-both': function () { S.pumpBoth(); commit(); },
+    'pump-finish': function () { S.pumpFinish(); commit(); F.open('pump', null, { timer: true }); },
+    'pump-discard': function () { if (confirm('Discard this pumping session without saving?')) { S.stopTimer('pump'); commit(); } },
     'breast-discard': function () { if (confirm('Discard this feeding timer without saving?')) { S.stopTimer('breast'); commit(); } },
 
     'time-set': function (n) {
@@ -413,6 +417,25 @@
       inp.value = Math.max(0, Math.round((v + step) * Math.pow(10, dec)) / Math.pow(10, dec));
       inp.dispatchEvent(new Event('stepped', { bubbles: true }));
       inp.dispatchEvent(new Event('input', { bubbles: true }));
+    },
+    'unit-toggle': function (n) {
+      var kind = n.getAttribute('data-unit'), form = n.closest('form') || n.closest('.sheet__body');
+      var inp = form && form.querySelector('[name="' + n.getAttribute('data-target') + '"]'), st = S.get().settings;
+      if (kind === 'volume') {
+        var ml = inp ? h.volFromDisplay(inp.value) : 0;
+        st.volume = st.volume === 'oz' ? 'ml' : 'oz';
+        if (inp && ml) inp.value = h.volToDisplay(ml);
+        $all('[data-step][data-target="' + inp.name + '"]', form).forEach(function (b) { var sgn = parseFloat(b.getAttribute('data-step')) < 0 ? '-' : ''; b.setAttribute('data-step', sgn + (st.volume === 'oz' ? 0.5 : 10)); });
+        n.textContent = h.volUnit();
+      } else {
+        var c = inp ? h.tempFromDisplay(inp.value) : null;
+        st.temp = st.temp === 'F' ? 'C' : 'F';
+        if (inp && c != null) inp.value = h.tempToDisplay(c);
+        n.textContent = h.tempUnit();
+        if (inp) inp.dispatchEvent(new Event('stepped', { bubbles: true }));
+      }
+      S.save();
+      h.toast('Units: ' + (kind === 'volume' ? h.volUnit() : h.tempUnit()) + ' — change all units in Settings');
     },
     'poop-color': function (n) {
       var form = n.closest('form'), c = n.getAttribute('data-color'), inp = form.elements.color;
@@ -563,7 +586,7 @@
       var id = f.getAttribute('data-id');
       if (id) S.updateBaby(id, data);
       else {
-        if (!S.get().babies.length) localeDefaults();
+        if (!S.get().babies.length) applyUnits(String(fd.get('units') || 'metric'));
         S.addBaby(data);
       }
       h.closeSheet(); App.ui.view = App.ui.view || 'today'; commit();
@@ -586,9 +609,17 @@
   }
 
   // US visitors get oz / °F / lb by default.
-  function localeDefaults() {
-    var lang = (navigator.language || '').toLowerCase(), s = S.get().settings;
-    if (/^en-(us|lr|mm)$/.test(lang)) { s.volume = 'oz'; s.temp = 'F'; s.length = 'in'; }
+  // Guess units from where the phone is, not its language: plenty of phones
+  // outside the US (the Philippines, for one) run in US English.
+  function usesImperial() {
+    var tz = '';
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+    if (tz) return /^(America\/(New_York|Chicago|Denver|Phoenix|Los_Angeles|Anchorage|Detroit|Boise|Juneau|Sitka|Nome|Adak|Metlakatla|Yakutat|Menominee|Indiana\/.+|Kentucky\/.+|North_Dakota\/.+)|Pacific\/Honolulu|US\/.+)$/.test(tz);
+    return /^en-us$/i.test(navigator.language || '');
+  }
+  function applyUnits(system) {
+    var s = S.get().settings, imp = system === 'imperial';
+    s.volume = imp ? 'oz' : 'ml'; s.temp = imp ? 'F' : 'C'; s.length = imp ? 'in' : 'cm';
   }
 
   function boot() {
@@ -603,6 +634,7 @@
     document.addEventListener('pointerdown', function unlock() { Snd.unlock(); document.removeEventListener('pointerdown', unlock); });
     $('#import-file').addEventListener('change', function (e) { var f = e.target.files[0]; if (f) importFile(f); e.target.value = ''; });
     var bf = $('#welcome-form input[name="birth"]'); if (bf) bf.max = h.todayISO();
+    if (usesImperial()) { var imp = $('#welcome-form input[value="imperial"]'); if (imp) imp.checked = true; }
     window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); App.installPrompt = e; if (App.ui.view === 'today') softRender(); });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) { checkReminders(); softRender(); } });
 

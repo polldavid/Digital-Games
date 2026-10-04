@@ -23,6 +23,13 @@
       out += '<div class="card live live--sleep"><div class="live__head"><span class="live__icon">😴</span><div><div class="live__label"><span class="pulse"></span>Asleep</div><div class="live__sub">since ' + h.fmtTime(t.sleep.start) + '</div></div><span class="live__clock" data-elapsed="' + t.sleep.start + '">0:00</span></div>' +
         '<button class="btn btn--primary btn--block" data-action="sleep-stop">☀️ Woke up</button></div>';
     }
+    if (t.pump) {
+      var p = t.pump, both = p.L.on && p.R.on;
+      var state = p.done ? 'Pumping finished' : both ? 'Pumping · both sides' : p.L.on ? 'Pumping · left' : p.R.on ? 'Pumping · right' : 'Pumping paused';
+      out += '<div class="card live"><div class="live__head"><span class="live__icon">🧴</span><div><div class="live__label">' + (p.done ? '' : '<span class="pulse"></span>') + state + '</div><div class="live__sub">L <span data-pump="L">0:00</span> · R <span data-pump="R">0:00</span></div></div><span class="live__clock" data-pump="T">0:00</span></div>' +
+        (p.done ? '<button class="btn btn--primary btn--block" data-action="pump-finish">Enter amounts</button>'
+          : '<div class="btn-row"><button class="btn btn--sm" data-action="pump-both">' + (both ? '⏸ Pause' : '▶▶ Both') + '</button><button class="btn btn--sm btn--primary" data-action="pump-finish">✓ Done</button></div>') + '</div>';
+    }
     if (t.tummy) {
       out += '<div class="card live"><div class="live__head"><span class="live__icon">🤸</span><div><div class="live__label"><span class="pulse"></span>Tummy time</div><div class="live__sub">since ' + h.fmtTime(t.tummy.start) + '</div></div><span class="live__clock" data-elapsed="' + t.tummy.start + '">0:00</span></div>' +
         '<button class="btn btn--primary btn--block" data-action="tummy-stop">✓ Done</button></div>';
@@ -100,7 +107,7 @@
       ['diaper', '🧷', 'Diaper', false, 'log'],
       ['sleep', t.sleep ? '☀️' : '🌙', t.sleep ? 'Woke up' : 'Sleep', !!t.sleep, 'sleep-toggle'],
       G.tummyGoalMin(days) && days < 150 ? tummy : solids,
-      ['pump', '🧴', 'Pump', false, 'log'],
+      ['pump', '🧴', t.pump ? 'Pumping…' : 'Pump', !!t.pump, 'log'],
       ['med', '💊', 'Medicine', false, 'log'],
       ['temp', '🌡️', 'Temp', false, 'log']
     ];

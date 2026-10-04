@@ -214,6 +214,51 @@
     return { L: L, R: R, total: L + R };
   }
 
+  /* ---------- Pump timer ----------
+     Left and right run independently, so a double pump can time both
+     at once and a single pump can do one side, then the other.
+     Finishing pauses everything but keeps the session until the
+     amounts are saved, so closing the sheet never loses it. */
+  function newPump(now) { return { start: now, L: { on: false, acc: 0, seg: 0 }, R: { on: false, acc: 0, seg: 0 } }; }
+  function bankSide(sd, now) { if (sd.on) { sd.acc += now - sd.seg; sd.on = false; } }
+
+  function pumpSide(side, now) {
+    now = now || Date.now();
+    var t = timers();
+    if (!t.pump) t.pump = newPump(now);
+    var p = t.pump, sd = p[side];
+    if (p.done) { p.done = false; delete p.end; } // tapping a side again resumes
+    if (sd.on) bankSide(sd, now); else { sd.on = true; sd.seg = now; }
+    return p;
+  }
+
+  // Start both sides; if both are already running, pause both.
+  function pumpBoth(now) {
+    now = now || Date.now();
+    var t = timers();
+    if (!t.pump) t.pump = newPump(now);
+    var p = t.pump;
+    if (p.done) { p.done = false; delete p.end; }
+    if (p.L.on && p.R.on) { bankSide(p.L, now); bankSide(p.R, now); }
+    else ['L', 'R'].forEach(function (k) { if (!p[k].on) { p[k].on = true; p[k].seg = now; } });
+    return p;
+  }
+
+  function pumpFinish(now) {
+    now = now || Date.now();
+    var p = timers().pump;
+    if (!p || p.done) return p || null;
+    bankSide(p.L, now); bankSide(p.R, now);
+    p.done = true; p.end = now;
+    return p;
+  }
+
+  function pumpTotals(p, now) {
+    now = p.done ? p.end : (now || Date.now());
+    var side = function (sd) { return sd.acc + (sd.on ? now - sd.seg : 0); };
+    return { L: side(p.L), R: side(p.R), total: now - p.start, running: p.L.on || p.R.on };
+  }
+
   /* ---------- Derived status ---------- */
   function isAsleep(id) { return !!timers(id).sleep; }
 
@@ -458,6 +503,7 @@
     startOfDay: startOfDay, overlap: overlap,
     timers: timers, startTimer: startTimer, stopTimer: stopTimer,
     breastSwitch: breastSwitch, breastPause: breastPause, breastTotals: breastTotals,
+    pumpSide: pumpSide, pumpBoth: pumpBoth, pumpFinish: pumpFinish, pumpTotals: pumpTotals,
     isAsleep: isAsleep, awakeSince: awakeSince, lastFeedAnchor: lastFeedAnchor, feedIntervalH: feedIntervalH,
     daySummary: daySummary, last24: last24, medStatus: medStatus,
     reminders: reminders, due: due, markFired: markFired, snooze: snooze,

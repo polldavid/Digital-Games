@@ -89,7 +89,7 @@
       // Bottle
       html += '<div data-panel="bottle" class="form"' + (kind !== 'bottle' ? ' hidden' : '') + '>' +
         '<div class="stepper"><button type="button" class="btn" data-action="step" data-target="amount" data-step="-' + (h.volUnit() === 'oz' ? 0.5 : 10) + '" aria-label="Less">−</button>' +
-        '<div class="stepper__v"><input class="stepper__input" name="amount" type="number" inputmode="decimal" step="any" min="0" value="' + amount + '" aria-label="Amount" /><small>' + h.volUnit() + '</small></div>' +
+        '<div class="stepper__v"><input class="stepper__input" name="amount" type="number" inputmode="decimal" step="any" min="0" value="' + amount + '" aria-label="Amount" /><button type="button" class="unit-btn" data-action="unit-toggle" data-unit="volume" data-target="amount" aria-label="Switch between ml and oz">' + h.volUnit() + '</button></div>' +
         '<button type="button" class="btn" data-action="step" data-target="amount" data-step="' + (h.volUnit() === 'oz' ? 0.5 : 10) + '" aria-label="More">+</button></div>' +
         '<div class="field"><span class="field__label">What’s in the bottle?</span>' + seg('milk', [['breast', 'Breast milk'], ['formula', 'Formula']], d.milk || (b.feeding === 'breast' ? 'breast' : 'formula')) + '</div>' +
         '<p class="faint">Typical at this age: ' + bottleRange() + ' per feed. Follow baby’s cues — stopping, turning away and relaxed hands mean full.</p>' +
@@ -228,21 +228,73 @@
   };
 
   /* ======================= PUMP ======================= */
+  function pumpLive() {
+    var p = S.timers().pump, tt = p ? S.pumpTotals(p) : null;
+    var side = function (k, label) {
+      var on = p && p[k].on;
+      var hint = on ? '● Pumping' : p && tt[k] ? 'Tap to resume' : 'Tap to start';
+      return '<button type="button" class="side' + (on ? ' side--on' : '') + '" data-action="pump-side" data-side="' + k + '" aria-pressed="' + !!on + '">' +
+        '<span class="side__k">' + label + '</span><span class="side__v" data-pump="' + k + '">' + h.clock(tt ? tt[k] : 0) + '</span><span class="side__hint">' + hint + '</span></button>';
+    };
+    var html = '<div class="sides">' + side('L', 'Left') + side('R', 'Right') + '</div>';
+    var both = p && p.L.on && p.R.on;
+    html += '<button type="button" class="btn btn--block" data-action="pump-both">' + (both ? '⏸ Pause both' : '▶▶ ' + (p ? 'Run both sides' : 'Start both sides')) + '</button>';
+    if (p) {
+      html += '<p class="faint" style="text-align:center">Session <strong data-pump="T">' + h.clock(tt.total) + '</strong> · started ' + h.fmtTime(p.start) + (p.done ? ' · <strong>finished</strong>' : '') + '</p>' +
+        '<button type="button" class="btn btn--primary btn--lg btn--block" data-action="pump-finish">✓ Done — enter amounts</button>' +
+        '<button type="button" class="btn btn--link" data-action="pump-discard">Discard this session</button>';
+    } else {
+      html += '<p class="faint" style="text-align:center">Double pump? Tap <strong>Start both sides</strong>. One side at a time? Tap Left or Right — each side has its own timer.</p>';
+    }
+    return html;
+  }
+
+  function pumpFields(d, u) {
+    return '<div class="field__row">' +
+      '<label class="field"><span class="field__label">Left (' + u + ')</span><input class="input" type="number" inputmode="decimal" step="any" min="0" name="left" value="' + (d.leftMl != null ? h.volToDisplay(d.leftMl) : '') + '" /></label>' +
+      '<label class="field"><span class="field__label">Right (' + u + ')</span><input class="input" type="number" inputmode="decimal" step="any" min="0" name="right" value="' + (d.rightMl != null ? h.volToDisplay(d.rightMl) : '') + '" /></label></div>' +
+      '<p class="faint" id="pump-total" aria-live="polite"></p>';
+  }
+
   var PUMP = {
-    title: function (ev) { return ev ? 'Edit pumping' : 'Pumping session'; },
-    html: function (ev) {
-      var d = ev ? ev.data : {}, u = h.volUnit();
-      return '<div class="field__row">' +
-        '<label class="field"><span class="field__label">Left (' + u + ')</span><input class="input" type="number" inputmode="decimal" step="any" min="0" name="left" value="' + (d.leftMl != null ? h.volToDisplay(d.leftMl) : '') + '" /></label>' +
-        '<label class="field"><span class="field__label">Right (' + u + ')</span><input class="input" type="number" inputmode="decimal" step="any" min="0" name="right" value="' + (d.rightMl != null ? h.volToDisplay(d.rightMl) : '') + '" /></label></div>' +
-        '<label class="field"><span class="field__label">Duration (min)</span><input class="input" type="number" inputmode="numeric" min="0" max="120" name="duration" value="' + (d.durationMin || 15) + '" /></label>' +
-        h.timeField('time', ev ? ev.time : Date.now()) + noteField(d.note) +
-        '<p class="faint">Freshly pumped milk keeps about 4 hours at room temperature, 4 days in the fridge, and 6–12 months in the freezer (CDC).</p>' + footer(ev);
+    title: function (ev, preset) { return ev ? 'Edit pumping' : preset && preset.timer ? 'How much did you pump?' : 'Pumping'; },
+    html: function (ev, preset) {
+      var d = ev ? ev.data : {}, u = h.volUnit(), p = S.timers().pump;
+      var tip = '<p class="faint">Freshly pumped milk keeps about 4 hours at room temperature, 4 days in the fridge, and 6–12 months in the freezer (CDC).</p>';
+      // Step 2 of a timed session: amounts for each side.
+      if (!ev && preset && preset.timer && p) {
+        var tt = S.pumpTotals(p);
+        return '<input type="hidden" name="fromTimer" value="1" /><input type="hidden" name="leftMs" value="' + tt.L + '" /><input type="hidden" name="rightMs" value="' + tt.R + '" />' +
+          '<div class="note note--ok"><div class="note__t">Session: ' + h.since(tt.total) + '</div><div>Left ' + (tt.L ? h.since(tt.L) : '—') + ' · Right ' + (tt.R ? h.since(tt.R) : '—') + ' · started ' + h.fmtTime(p.start) + '</div></div>' +
+          pumpFields({}, u).replace('name="left" value=""', 'name="left" value="" autofocus') +
+          '<label class="field"><span class="field__label">Duration (min)</span><input class="input" type="number" inputmode="numeric" min="0" max="180" name="duration" value="' + Math.max(1, Math.round(tt.total / MIN)) + '" /></label>' +
+          '<input type="hidden" name="time" value="' + h.toLocalInput(p.start) + '" />' + noteField('') + tip + footer(null);
+      }
+      var manual = pumpFields(d, u) +
+        '<label class="field"><span class="field__label">Duration (min)</span><input class="input" type="number" inputmode="numeric" min="0" max="180" name="duration" value="' + (d.durationMin || 15) + '" /></label>' +
+        h.timeField('time', ev ? ev.time : Date.now()) + noteField(d.note) + tip;
+      if (ev) return manual + footer(ev);
+      return pumpLive() +
+        '<details class="more"><summary>Or log a session without the timer</summary><div class="form" style="margin-top:8px">' + manual + '</div></details>' +
+        '<div data-panel-save hidden>' + footer(null) + '</div>';
     },
     parse: function (form) {
       var l = h.volFromDisplay(val(form, 'left') || 0), r = h.volFromDisplay(val(form, 'right') || 0);
-      if (!l && !r) return { error: 'Enter how much you pumped.' };
-      return { time: h.fromLocalInput(val(form, 'time')), data: { leftMl: Math.round(l), rightMl: Math.round(r), amountMl: Math.round(l + r), durationMin: num(form, 'duration') || 0, note: val(form, 'note').trim() } };
+      if (!l && !r) return { error: 'Enter how much you pumped from at least one side.' };
+      var data = { leftMl: Math.round(l), rightMl: Math.round(r), amountMl: Math.round(l + r), durationMin: num(form, 'duration') || 0, note: val(form, 'note').trim() };
+      if (val(form, 'fromTimer')) { data.leftMs = +val(form, 'leftMs') || 0; data.rightMs = +val(form, 'rightMs') || 0; }
+      return { time: h.fromLocalInput(val(form, 'time')), data: data };
+    },
+    mount: function (body) {
+      var form = body.querySelector('form');
+      var total = function () {
+        var out = form.querySelector('#pump-total'); if (!out) return;
+        var l = parseFloat(val(form, 'left')) || 0, r = parseFloat(val(form, 'right')) || 0;
+        out.innerHTML = l || r ? 'Total: <strong>' + (Math.round((l + r) * 10) / 10) + ' ' + h.volUnit() + '</strong>' : '';
+      };
+      form.addEventListener('input', total); total();
+      var det = form.querySelector('details'), save = form.querySelector('[data-panel-save]');
+      if (det && save) det.addEventListener('toggle', function () { save.hidden = !det.open; });
     }
   };
 
@@ -329,7 +381,7 @@
       var d = ev ? ev.data : {};
       var method = d.method || (days() < 91 ? 'rectal' : 'armpit');
       return '<div class="stepper"><button type="button" class="btn" data-action="step" data-target="temp" data-step="-0.1" aria-label="Lower">−</button>' +
-        '<div class="stepper__v"><input class="stepper__input" name="temp" type="number" inputmode="decimal" step="0.1" value="' + (d.tempC != null ? h.tempToDisplay(d.tempC) : h.tempToDisplay(36.8)) + '" aria-label="Temperature" /><small>' + h.tempUnit() + '</small></div>' +
+        '<div class="stepper__v"><input class="stepper__input" name="temp" type="number" inputmode="decimal" step="0.1" value="' + (d.tempC != null ? h.tempToDisplay(d.tempC) : h.tempToDisplay(36.8)) + '" aria-label="Temperature" /><button type="button" class="unit-btn" data-action="unit-toggle" data-unit="temp" data-target="temp" aria-label="Switch between °C and °F">' + h.tempUnit() + '</button></div>' +
         '<button type="button" class="btn" data-action="step" data-target="temp" data-step="0.1" aria-label="Higher">+</button></div>' +
         '<div class="field"><span class="field__label">Taken</span>' + seg('method', [['rectal', 'Rectal'], ['armpit', 'Armpit'], ['ear', 'Ear'], ['forehead', 'Forehead']], method) + '</div>' +
         '<div id="temp-feedback"></div>' +
@@ -417,7 +469,7 @@
     currentType = type;
     h.openSheet({
       kind: 'form', type: type, eventId: ev ? ev.id : null,
-      title: function () { return F.title(ev); },
+      title: function () { return F.title(ev, preset); },
       html: function () {
         var cur = ev ? S.findEvent(ev.id) : null;
         return '<form class="form" id="sheet-form" data-type="' + type + '"' + (cur ? ' data-id="' + cur.id + '"' : '') + ' novalidate>' + F.html(cur, preset) + '</form>';
@@ -440,11 +492,12 @@
     api.lastCopies = [];
     if (ev) return S.updateEvent(id, { time: r.time, end: r.end !== undefined ? r.end : ev.end, data: r.data });
     var saved = S.addEvent({ type: type, time: r.time, end: r.end || null, data: r.data });
+    if (type === 'pump' && val(form, 'fromTimer')) S.stopTimer('pump'); // the timed session is now logged
     h.$all('input[name="alsoFor"]:checked', form).forEach(function (c) {
       api.lastCopies.push(S.addEvent({ baby: c.value, type: type, time: r.time, end: r.end || null, data: JSON.parse(JSON.stringify(r.data)) }));
     });
     return saved;
   }
 
-  var api = window.BabyForms = { open: open, save: save, FORMS: FORMS, nextSide: nextSide, breastLive: breastLive, lastCopies: [] };
+  var api = window.BabyForms = { open: open, save: save, FORMS: FORMS, nextSide: nextSide, breastLive: breastLive, pumpLive: pumpLive, lastCopies: [] };
 })();

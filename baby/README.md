@@ -13,7 +13,7 @@ dependencies, no server. It installs to the home screen and works offline.
 | 🍼 **Feeds** | Breast timer with Left/Right switching, pause and "start on this side next"; bottles (breast milk or formula, ml or oz); solids with first-try and reaction tracking |
 | 🧷 **Diapers** | Wet / dirty / both, poop colour and texture with instant "normal or call the doctor" feedback, rash |
 | 😴 **Sleep** | One-tap sleep timer, or log past sleeps; wake windows and the next nap window |
-| 🧴 **Pumping** | Left/right amounts, duration, milk-storage times |
+| 🧴 **Pumping** | Tap-to-start timer with independent Left and Right sides (run both at once for a double pump, or one at a time), then enter each side's amount; milk-storage times |
 | 🤸 **Tummy time** | Timer and a daily goal that grows with age |
 | 💊 **Medicine** | Spacing between doses, max per 24h, "next dose allowed at…", age warnings. **Never suggests doses.** |
 | 🌡️ **Temperature** | Age-aware fever check (under 3 months, 38 °C / 100.4 °F = call now) |
@@ -81,7 +81,10 @@ disclaimer.
 - **Share & sync by hand:** a text summary of the last 24h for a partner or
   sitter; JSON backup/import (merges, never overwrites) to move logs between
   phones; CSV export for the pediatrician.
-- **Units:** ml/oz, °C/°F, kg·cm/lb·in (US locales default to imperial).
+- **Units:** ml/oz, °C/°F, kg·cm/lb·in — chosen at setup (the default follows
+  the phone's time zone, so a US-English phone in Manila still gets ml and °C),
+  changeable in Settings, or by tapping the unit on the bottle and
+  temperature screens.
 - **Private:** no account, no analytics, no network calls; everything lives in
   `localStorage` on the device.
 

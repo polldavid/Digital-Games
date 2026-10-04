@@ -143,7 +143,7 @@
         out.sub = e.end ? durMs(e.end - e.time) + ' · ' + fmtTime(e.time) + '–' + fmtTime(e.end) : 'Asleep';
         break;
       case 'pump':
-        out.sub = vol(d.amountMl || 0) + (d.durationMin ? ' · ' + d.durationMin + ' min' : '');
+        out.sub = vol(d.amountMl || 0) + (d.leftMl && d.rightMl ? ' (L ' + volToDisplay(d.leftMl) + ' · R ' + volToDisplay(d.rightMl) + ')' : d.leftMl ? ' · left' : d.rightMl ? ' · right' : '') + (d.durationMin ? ' · ' + d.durationMin + ' min' : '');
         break;
       case 'tummy':
         out.sub = e.end ? durMs(e.end - e.time) : '';
@@ -277,6 +277,11 @@
     if (b) {
       var tt = S.breastTotals(b, now);
       $all('[data-breast]').forEach(function (n) { var k = n.getAttribute('data-breast'); n.textContent = clock(k === 'L' ? tt.L : k === 'R' ? tt.R : tt.total); });
+    }
+    var pm = S.get().activeBaby && S.timers().pump;
+    if (pm) {
+      var pt = S.pumpTotals(pm, now);
+      $all('[data-pump]').forEach(function (n) { var k = n.getAttribute('data-pump'); n.textContent = clock(k === 'L' ? pt.L : k === 'R' ? pt.R : pt.total); });
     }
   }
 
