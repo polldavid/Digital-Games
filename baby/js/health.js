@@ -282,11 +282,11 @@
   }
 
   /* ---------- Scanning a prescription ----------
-     Photo -> stored on the phone -> text read on the phone
-     (Tesseract) or, if the parent added their own Claude key,
-     by Claude (much better with handwriting) -> draft entries
-     the parent checks and edits -> saved. Nothing is saved
-     without that confirmation. */
+     Photo -> stored on the phone -> cleaned up (grayscale,
+     contrast, enlarged) -> text read on the phone with the free
+     Tesseract OCR engine -> draft entries the parent checks and
+     edits -> saved. Nothing is saved without that confirmation,
+     and nothing leaves the phone. */
   var scan = null; // { photoId, text, meds, status, progress, error, via }
 
   function pickPhoto(capture, cb) {
@@ -303,7 +303,7 @@
       html: '<p class="muted">Take a clear photo of the prescription in good light, flat on a table. You’ll check everything before it’s saved.</p>' +
         '<button class="btn btn--primary btn--lg btn--block" data-action="rx-photo" data-capture="1">📷 Take a photo</button>' +
         '<button class="btn btn--block" data-action="rx-photo">🖼️ Choose from gallery</button>' +
-        '<p class="faint">The photo stays on this phone. Text is read on the phone itself' + (S.get().settings.aiKey ? ', or by Claude if you choose (better for handwriting)' : '') + '.</p>'
+        '<p class="faint">Free and private: the photo stays on this phone and the text is read on the phone itself. Printed prescriptions read best; for handwriting you may need to type some lines.</p>'
     });
   }
 
@@ -316,7 +316,7 @@
       return Files.put(scan.photoId, blob);
     }).then(function () {
       scan.status = 'ready'; h.renderSheet(); Files.hydrate();
-      if (S.get().settings.aiKey) readWithClaude(); else readOnDevice();
+      readOnDevice(1);
     }).catch(function (e) { scan.status = 'error'; scan.error = e.message; h.renderSheet(); });
   }
 
@@ -327,78 +327,71 @@
     });
   }
 
-  function readOnDevice() {
-    scan.status = 'reading'; scan.via = 'phone'; scan.progress = 0; h.renderSheet();
+  // Prepare the photo for OCR: grayscale, stretch the contrast, and make
+  // small print bigger. Pass 2 also turns it pure black-and-white, which
+  // helps with faint ink, shadows and coloured paper.
+  function enhance(blob, pass) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(blob), img = new Image();
+      img.onload = function () {
+        var long = Math.max(img.naturalWidth, img.naturalHeight), scale = Math.max(1, Math.min(2.5, 2200 / long));
+        var c = document.createElement('canvas'), w = c.width = Math.round(img.naturalWidth * scale), hgt = c.height = Math.round(img.naturalHeight * scale);
+        var ctx = c.getContext('2d');
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, w, hgt);
+        URL.revokeObjectURL(url);
+        var data = ctx.getImageData(0, 0, w, hgt), px = data.data, n = px.length / 4, hist = new Uint32Array(256), i, g;
+        for (i = 0; i < px.length; i += 4) { g = (px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114) | 0; px[i] = g; hist[g]++; }
+        // Contrast stretch between the 2nd and 98th percentiles.
+        var lo = 0, hi = 255, acc = 0;
+        for (i = 0; i < 256; i++) { acc += hist[i]; if (acc > n * 0.02) { lo = i; break; } }
+        for (acc = 0, i = 255; i >= 0; i--) { acc += hist[i]; if (acc > n * 0.02) { hi = i; break; } }
+        var range = Math.max(1, hi - lo);
+        // Otsu threshold for the black-and-white pass.
+        var thr = 128;
+        if (pass === 2) {
+          var sum = 0, sumB = 0, wB = 0, best = 0;
+          for (i = 0; i < 256; i++) sum += i * hist[i];
+          for (i = 0; i < 256; i++) {
+            wB += hist[i]; if (!wB) continue;
+            var wF = n - wB; if (!wF) break;
+            sumB += i * hist[i];
+            var mB = sumB / wB, mF = (sum - sumB) / wF, between = wB * wF * (mB - mF) * (mB - mF);
+            if (between > best) { best = between; thr = i; }
+          }
+        }
+        for (i = 0; i < px.length; i += 4) {
+          g = pass === 2 ? (px[i] > thr ? 255 : 0) : Math.max(0, Math.min(255, ((px[i] - lo) * 255 / range) | 0));
+          px[i] = px[i + 1] = px[i + 2] = g;
+        }
+        ctx.putImageData(data, 0, 0);
+        c.toBlob(function (b) { b ? resolve(b) : reject(new Error('Couldn’t prepare the photo.')); }, 'image/png');
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Couldn’t open the photo.')); };
+      img.src = url;
+    });
+  }
+
+  function readOnDevice(pass) {
+    pass = pass || 1;
+    scan.status = 'reading'; scan.pass = pass; scan.progress = 0; scan.error = ''; scan.empty = false; h.renderSheet();
     var ready = window.Tesseract ? Promise.resolve() : loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js');
-    ready.then(function () {
-      return window.Tesseract.recognize(scan.blob, 'eng', { logger: function (m) { if (m.status === 'recognizing text') { scan.progress = Math.round(m.progress * 100); var el = document.getElementById('scan-progress'); if (el) el.textContent = scan.progress + '%'; } } });
-    }).then(function (res) {
+    var img, worker;
+    ready.then(function () { return enhance(scan.blob, pass); }).then(function (i) {
+      img = i;
+      return window.Tesseract.createWorker('eng', 1, {
+        logger: function (m) { if (m.status === 'recognizing text') { scan.progress = Math.round(m.progress * 100); var el = document.getElementById('scan-progress'); if (el) el.textContent = scan.progress + '%'; } }
+      });
+    }).then(function (w) {
+      worker = w;
+      // Pass 2 reads the page as one block of text, which suits short prescriptions.
+      return pass === 2 ? worker.setParameters({ tessedit_pageseg_mode: '6' }) : null;
+    }).then(function () { return worker.recognize(img); }).then(function (res) {
+      worker.terminate();
       scan.text = (res && res.data && res.data.text) || '';
       scan.meds = Rx.parse(scan.text); scan.empty = false;
       scan.status = 'review'; h.renderSheet(); Files.hydrate();
-    }).catch(function (e) { scan.status = 'review'; scan.error = e.message || String(e); h.renderSheet(); Files.hydrate(); });
-  }
-
-  // Optional: Claude reads the photo. Uses the parent's own API key, stored only on this phone.
-  var RX_SCHEMA = {
-    type: 'object', additionalProperties: false, required: ['medicines', 'doctor', 'notes'],
-    properties: {
-      medicines: { type: 'array', items: { type: 'object', additionalProperties: false,
-        required: ['name', 'strength', 'dose', 'interval_hours', 'duration_days', 'as_needed', 'instructions'],
-        properties: {
-          name: { type: 'string' }, strength: { type: 'string' }, dose: { type: 'string' },
-          interval_hours: { type: 'number' }, duration_days: { type: 'number' },
-          as_needed: { type: 'boolean' }, instructions: { type: 'string' }
-        } } },
-      doctor: { type: 'string' }, notes: { type: 'string' }
-    }
-  };
-  var RX_PROMPT = 'This is a photo of a prescription for a baby or young child. Transcribe every medicine on it as written. ' +
-    'For each one give the medicine name (generic name, with the brand in brackets if a brand is written), the strength (e.g. 250mg/5ml), ' +
-    'the dose per administration exactly as written (e.g. 2.5 ml), interval_hours (OD=24, BID=12, TID=8, QID=6, q6h=6; 0 if not stated), ' +
-    'duration_days (0 if not stated), as_needed (true for PRN / as needed / for fever), and any other instructions. ' +
-    'Never guess a dose or invent a medicine: if part of the handwriting is unreadable, leave that field empty and say what was unclear in notes. ' +
-    'Put the prescribing doctor’s name in doctor if it is visible.';
-
-  function readWithClaude() {
-    var key = S.get().settings.aiKey;
-    if (!key || !scan || !scan.blob) return;
-    scan.status = 'reading'; scan.via = 'claude'; scan.error = ''; scan.empty = false; h.renderSheet();
-    var Anthropic;
-    import('https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.131.0/+esm').then(function (mod) {
-      Anthropic = mod.default;
-      return Files.toBase64(scan.blob);
-    }).then(function (b64) {
-      var client = new Anthropic({ apiKey: key, dangerouslyAllowBrowser: true });
-      return client.beta.messages.create({
-        model: 'claude-opus-5-5',
-        max_tokens: 16000,
-        betas: ['server-side-fallback-2026-07-01'],
-        fallbacks: 'default',
-        output_config: { effort: 'medium', format: { type: 'json_schema', schema: RX_SCHEMA } },
-        messages: [{ role: 'user', content: [
-          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
-          { type: 'text', text: RX_PROMPT }
-        ] }]
-      });
-    }).then(function (resp) {
-      if (resp.stop_reason === 'refusal') throw new Error('Claude couldn’t read this one. Try the on-phone reader or type it in.');
-      var text = resp.content.filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('');
-      var out = JSON.parse(text);
-      scan.meds = (out.medicines || []).map(function (m) {
-        return { name: m.name, strength: m.strength, dose: m.dose, intervalH: m.interval_hours || 0, durationDays: m.duration_days || 0, prn: !!m.as_needed, instructions: m.instructions };
-      });
-      scan.doctor = out.doctor || '';
-      scan.text = out.notes ? 'Notes from Claude: ' + out.notes : '';
-      scan.status = 'review'; h.renderSheet(); Files.hydrate();
-    }).catch(function (e) {
-      var msg = e && e.message ? e.message : String(e);
-      if (Anthropic && e instanceof Anthropic.AuthenticationError) msg = 'Your Claude API key wasn’t accepted — check it in Settings.';
-      else if (Anthropic && e instanceof Anthropic.RateLimitError) msg = 'Claude is busy right now — try again in a minute.';
-      else if (Anthropic && e instanceof Anthropic.APIConnectionError) msg = 'Couldn’t reach Claude — are you online?';
-      else if (Anthropic && e instanceof Anthropic.APIError) msg = 'Claude returned an error (' + e.status + '). Try again, or use the on-phone reader.';
-      scan.status = 'review'; scan.error = msg; h.renderSheet(); Files.hydrate();
-    });
+    }).catch(function (e) { if (worker) worker.terminate(); scan.status = 'review'; scan.error = e.message || String(e); h.renderSheet(); Files.hydrate(); });
   }
 
   function showScan() {
@@ -409,10 +402,9 @@
         if (!scan) return '';
         var html = scan.photoId ? '<div class="photo-wrap">' + photo(scan.photoId, 'photo') + '</div>' : '';
         if (scan.status === 'saving' || scan.status === 'ready') return html + '<p class="muted">Saving the photo…</p>';
-        if (scan.status === 'reading') return html + '<div class="note"><div class="note__t">' + (scan.via === 'claude' ? 'Claude is reading the prescription…' : 'Reading the text… <span id="scan-progress">' + (scan.progress || 0) + '%</span>') + '</div><div>' + (scan.via === 'claude' ? 'Usually 10–30 seconds.' : 'The first time downloads the reader (~10 MB), then it’s quicker.') + '</div></div>';
+        if (scan.status === 'reading') return html + '<div class="note"><div class="note__t">Reading the text' + (scan.pass === 2 ? ' (second try)' : '') + '… <span id="scan-progress">' + (scan.progress || 0) + '%</span></div><div>The first scan downloads the free reader (about 5 MB), then it works faster.</div></div>';
         if (scan.status === 'error') return html + h.note('urgent', 'That didn’t work', scan.error || '');
         if (scan.error) html += h.note('warn', 'Couldn’t read it automatically', scan.error);
-        var hasKey = !!S.get().settings.aiKey;
         if (!scan.meds.length) { scan.meds = [{}]; scan.empty = true; }
         if (scan.empty) {
           html += h.note('info', 'No medicines found', 'Handwriting is hard to read automatically. Type them in below — the photo is attached either way.');
@@ -426,8 +418,8 @@
         html += '<button type="button" class="btn btn--block" data-action="scan-add">＋ Add another medicine</button>' +
           '<label class="field"><span class="field__label">Prescribed by (optional)</span><input class="input" name="prescriber" maxlength="60" value="' + esc(scan.doctor || hl().profile.doctor || '') + '" /></label>';
         if (scan.text) html += '<details class="more"><summary>What was read from the photo</summary><pre class="scantext">' + esc(scan.text) + '</pre></details>';
-        if (scan.via !== 'claude') html += hasKey ? '<button type="button" class="btn btn--block" data-action="scan-claude">✨ Read again with Claude (better for handwriting)</button>'
-          : '<p class="faint">Handwritten? You can add your own Claude API key in Settings to read handwriting much more accurately.</p>';
+        if (scan.pass !== 2) html += '<button type="button" class="btn btn--block" data-action="scan-retry">🔁 Missed something? Try reading it another way</button>';
+        html += '<p class="faint">Tip: lay the paper flat in bright, even light and fill the frame. Handwriting is hard for any free reader — type in what it couldn’t read.</p>';
         html += sticky('<button type="button" class="btn" data-action="scan-cancel">Cancel</button><button type="submit" class="btn btn--primary btn--lg">Save to records</button>') + '</form>';
         return html;
       },
@@ -548,7 +540,7 @@
   window.BabyHealth = {
     view: view, vaxSheet: vaxSheet, vaxItemSheet: vaxItemSheet, vaxCustomSheet: vaxCustomSheet,
     apptSheet: apptSheet, rxSheet: rxSheet, readRx: readRx, startScan: startScan, pickPhoto: pickPhoto, gotPhoto: gotPhoto,
-    readWithClaude: readWithClaude, syncScanForm: syncScanForm, scan: function () { return scan; }, setScanSaved: function () { if (scan) scan.status = 'saved'; },
+    readOnDevice: readOnDevice, syncScanForm: syncScanForm, scan: function () { return scan; }, setScanSaved: function () { if (scan) scan.status = 'saved'; },
     profileSheet: profileSheet, docSheet: docSheet, photoViewer: photoViewer,
     emergencyText: emergencyText, visitSummaryText: visitSummaryText, monthStart: monthStart, isoDate: isoDate, fromIsoDate: fromIsoDate, plan: plan
   };

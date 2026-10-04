@@ -80,11 +80,21 @@
     return out;
   }
 
+  // Undo common OCR slips inside doses and strengths: "5" read as "S",
+  // "0" as "O", "1" as "l" or "I" (e.g. "250mg/SmL", "1O0 mg", "l.2 mL").
+  function fixOcr(t) {
+    return String(t || '')
+      .replace(/\/\s*S\s*(m[lL])\b/g, '/5$1')
+      .replace(/(\d)[oO](?=\d|\s*(mg|mcg|ml|mL)\b)/g, '$10')
+      .replace(/(^|[\s(:])[lI](?=\.\d)/g, '$11')
+      .replace(/(\d)\s*rn[lL]\b/g, '$1 ml');
+  }
+
   // Split the text into medicine blocks: a block starts at a line naming a
   // known medicine (or an "Rx"/numbered line with a strength) and collects
   // the instruction lines under it.
   function parse(text) {
-    var lines = String(text || '').split(/\r?\n/).map(function (l) { return l.replace(/\s+/g, ' ').trim(); }).filter(Boolean);
+    var lines = fixOcr(text).split(/\r?\n/).map(function (l) { return l.replace(/\s+/g, ' ').trim(); }).filter(Boolean);
     var meds = [], cur = null;
     lines.forEach(function (line) {
       var drug = findDrug(line);
@@ -117,7 +127,7 @@
     return parts.join(' · ');
   }
 
-  var api = { parse: parse, parseDetails: parseDetails, findDrug: findDrug, describe: describe, DRUGS: DRUGS };
+  var api = { fixOcr: fixOcr, parse: parse, parseDetails: parseDetails, findDrug: findDrug, describe: describe, DRUGS: DRUGS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.BabyRx = api;
 })(this);

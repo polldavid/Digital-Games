@@ -208,13 +208,6 @@
       row('Erase everything', 'Deletes all babies, logs and photos from this device.', '<button class="btn btn--sm btn--danger" data-action="erase">Erase</button>') +
       '<p class="faint" style="margin-top:10px">Private by design: no account, no tracking, no server. Your logs never leave this device unless you export them.</p></div>';
 
-    // Optional: the parent's own Claude key, for reading handwritten prescriptions.
-    html += '<div class="section-title">Prescription reading</div><div class="card">' +
-      '<p class="small muted">Scanned prescriptions are read on this phone for free. Handwriting is hard for that reader; with your own Claude API key, Claude reads it much more accurately (about a cent or two per photo, billed to your Anthropic account). The photo goes to Anthropic only when it’s read this way.</p>' +
-      '<form class="form" id="ai-form" style="margin-top:10px" autocomplete="off"><label class="field"><span class="field__label">Claude API key' + (s.aiKey ? ' · saved ✓' : '') + '</span><input class="input" type="password" name="aiKey" value="' + esc(s.aiKey || '') + '" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" /></label>' +
-      '<div class="btn-row">' + (s.aiKey ? '<button type="button" class="btn btn--sm" data-action="ai-key-clear">Remove</button>' : '') + '<button type="submit" class="btn btn--sm btn--primary">Save key</button></div>' +
-      '<p class="faint">Get one at console.anthropic.com. It’s stored only on this phone and is never included in backups.</p></form></div>';
-
     html += '<p class="disclaimer">Baby Log gives general information from AAP, CDC, WHO and NHS guidance — it is not medical advice. Always call your pediatrician if you’re worried.<br><a href="../">← All games &amp; tools</a></p>';
     return html;
   }
@@ -561,7 +554,7 @@
     'rx-scan': function () { Hl.startScan(); },
     'rx-photo': function (n) { Hl.pickPhoto(!!n.getAttribute('data-capture'), Hl.gotPhoto); },
     'scan-add': function () { Hl.syncScanForm(); Hl.scan().meds.push({}); h.renderSheet(); Files.hydrate(); },
-    'scan-claude': function () { Hl.syncScanForm(); Hl.readWithClaude(); },
+    'scan-retry': function () { Hl.syncScanForm(); Hl.readOnDevice(2); },
     'scan-cancel': function () { h.closeSheet(); render(); },
     'rx-edit': function (n) { Hl.rxSheet(n.getAttribute('data-id')); },
     'rx-dose': function (n) { F.open('med', null, { rxId: n.getAttribute('data-id') }); },
@@ -619,8 +612,7 @@
       H.docs = H.docs.filter(function (x) { return x.id !== d.id; });
       dropPhotoIfUnused(d.photoId); h.closeSheet(); commit();
     },
-    'photo-view': function (n) { Hl.photoViewer(n.getAttribute('data-id')); },
-    'ai-key-clear': function () { S.get().settings.aiKey = ''; commit(); h.toast('Claude key removed from this phone'); }
+    'photo-view': function (n) { Hl.photoViewer(n.getAttribute('data-id')); }
   };
 
   function dismissKind(kind) { App.ui.alerts = App.ui.alerts.filter(function (a) { return a.kind !== kind; }); renderBanner(); }
@@ -683,7 +675,7 @@
 
   function onSubmit(e) {
     var f = e.target;
-    if (/^(appt|rx|scan|vax|vaxc|profile|doc|ai)-form$/.test(f.id)) { e.preventDefault(); saveHealthForm(f); return; }
+    if (/^(appt|rx|scan|vax|vaxc|profile|doc)-form$/.test(f.id)) { e.preventDefault(); saveHealthForm(f); return; }
     if (f.id === 'sheet-form') {
       e.preventDefault();
       var editing = !!f.getAttribute('data-id');
@@ -783,10 +775,6 @@
       if (!id) H.docs.push(doc);
       if (oldPhoto && oldPhoto !== doc.photoId) dropPhotoIfUnused(oldPhoto);
       h.closeSheet(); commit(); h.toast('Document saved');
-    } else if (f.id === 'ai-form') {
-      var k = fd('aiKey');
-      if (k && !/^sk-ant-/.test(k)) { h.toast('That doesn’t look like a Claude API key (it starts with sk-ant-).'); return; }
-      S.get().settings.aiKey = k; commit(); h.toast(k ? 'Claude key saved on this phone' : 'Key removed');
     }
   }
 

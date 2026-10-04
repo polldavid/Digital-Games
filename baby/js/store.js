@@ -36,7 +36,6 @@
         vitdRemind: false, vitdTime: '09:00',
         tummyRemind: false, tummyTime: '16:00',
         quietNight: true,                        // 10pm–7am: vibrate only, no chime
-        aiKey: '',                               // optional Claude key (never exported)
         installTipDismissed: false
       }
     };
@@ -534,9 +533,7 @@
 
   /* ---------- Export / import ---------- */
   function exportJSON() {
-    var copy = JSON.parse(JSON.stringify(state));
-    delete copy.settings.aiKey; // a secret: stays on this phone
-    return JSON.stringify({ app: 'baby-log', exported: new Date().toISOString(), state: copy });
+    return JSON.stringify({ app: 'baby-log', exported: new Date().toISOString(), state: state });
   }
 
   // Merge another device's log in: babies by id, events by id (newer wins on clash).

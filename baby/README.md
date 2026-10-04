@@ -25,15 +25,16 @@ dependencies, no server. It installs to the home screen and works offline.
 The **Health** tab keeps the medical side in one place:
 
 - **Scan a prescription.** Take a photo (or pick one from the gallery). The
-  text is read on the phone (Tesseract.js, loaded on first use) and turned
-  into draft entries — medicine, strength, dose, how often (understands OD,
-  BID, TID, QID, q6h, PRN, "x 7 days"…) and for how long. The parent checks
-  and edits every line before anything is saved; the photo is kept with the
-  record either way. Handwriting is hard for on-device OCR, so there's an
-  optional **Read with Claude** mode: the parent adds their own Claude API key
-  in Settings, and the photo is sent to Anthropic only when read that way
-  (`claude-opus-5-5`, structured JSON output, refusal fallback on). The key
-  stays on the phone and is never exported.
+  photo is cleaned up on the phone (grayscale, contrast stretch, enlarged) and
+  read with the free, open-source Tesseract OCR engine (Tesseract.js, loaded
+  on first use, then cached) — no account, no API key, and the photo never
+  leaves the phone. The text is turned into draft entries — medicine,
+  strength, dose, how often (understands OD, BID, TID, QID, q6h, PRN,
+  "x 7 days"…, and fixes common OCR slips like "SmL" → "5mL") and for how
+  long. A second "try reading it another way" pass uses a black-and-white
+  image and single-block layout. The parent checks and edits every line
+  before anything is saved; the photo is kept with the record either way.
+  Printed prescriptions read well; handwriting usually needs some typing.
 - **Medicines.** Each prescription is a course with dose reminders until it
   ends, a dose counter ("4 of 21"), and **Give dose**, which logs the dose to
   History. Stop or delete any time.
