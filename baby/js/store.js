@@ -36,6 +36,7 @@
         vitdRemind: false, vitdTime: '09:00',
         tummyRemind: false, tummyTime: '16:00',
         quietNight: true,                        // 10pm–7am: vibrate only, no chime
+        quickLog: [],                            // Today buttons chosen by the parent ([] = age-based default)
         installTipDismissed: false
       }
     };

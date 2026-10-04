@@ -96,34 +96,47 @@
     return '<button class="tile" data-action="log" data-type="' + type + '"><span class="tile__k">' + k + '</span><span class="tile__v">' + v + '</span>' + s + '</button>';
   }
 
-  // The seven things parents log most, plus "More" for the rest — two rows,
-  // so they stay on screen even with a timer card above them.
-  function quickItems(days) {
+  // Every button the Today grid can show. Parents choose which ones and
+  // in what order (Settings or More → Edit buttons); the rest live under More.
+  function allItems() {
     var t = S.timers();
-    var tummy = ['tummy', '🤸', t.tummy ? 'Stop tummy' : 'Tummy', !!t.tummy, 'tummy-toggle'];
-    var solids = ['solids', '🥣', 'Solids', false, 'log-solids'];
-    var main = [
-      ['feed', '🍼', t.breast ? 'Feeding…' : 'Feed', !!t.breast, 'log'],
-      ['diaper', '🧷', 'Diaper', false, 'log'],
-      ['sleep', t.sleep ? '☀️' : '🌙', t.sleep ? 'Woke up' : 'Sleep', !!t.sleep, 'sleep-toggle'],
-      G.tummyGoalMin(days) && days < 150 ? tummy : solids,
-      ['pump', '🧴', t.pump ? 'Pumping…' : 'Pump', !!t.pump, 'log'],
-      ['med', '💊', 'Medicine', false, 'log'],
-      ['temp', '🌡️', 'Temp', false, 'log']
-    ];
-    var more = [
-      main[3] === tummy ? solids : tummy,
-      ['growth', '📏', 'Growth', false, 'log'],
-      ['bath', '🛁', 'Bath', false, 'log'],
-      ['milestone', '⭐', 'Milestone', false, 'log'],
-      ['note', '📝', 'Note', false, 'log'],
-      ['sounds', '🎶', 'Sleep sounds', !!window.BabySound.playing(), 'help-sounds']
-    ];
-    return { main: main, more: more };
+    return {
+      feed:      ['feed', '🍼', t.breast ? 'Feeding…' : 'Feed', !!t.breast, 'log'],
+      diaper:    ['diaper', '🧷', 'Diaper', false, 'log'],
+      sleep:     ['sleep', t.sleep ? '☀️' : '🌙', t.sleep ? 'Woke up' : 'Sleep', !!t.sleep, 'sleep-toggle'],
+      tummy:     ['tummy', '🤸', t.tummy ? 'Stop tummy' : 'Tummy', !!t.tummy, 'tummy-toggle'],
+      solids:    ['solids', '🥣', 'Solids', false, 'log-solids'],
+      pump:      ['pump', '🧴', t.pump ? 'Pumping…' : 'Pump', !!t.pump, 'log'],
+      med:       ['med', '💊', 'Medicine', false, 'log'],
+      temp:      ['temp', '🌡️', 'Temp', false, 'log'],
+      scan:      ['scan', '📷', 'Scan Rx', false, 'rx-scan'],
+      visit:     ['visit', '🩺', 'Visit', false, 'appt-edit'],
+      growth:    ['growth', '📏', 'Growth', false, 'log'],
+      bath:      ['bath', '🛁', 'Bath', false, 'log'],
+      milestone: ['milestone', '⭐', 'Milestone', false, 'log'],
+      note:      ['note', '📝', 'Note', false, 'log'],
+      sounds:    ['sounds', '🎶', 'Sounds', !!window.BabySound.playing(), 'help-sounds'],
+      cry:       ['cry', '😭', 'Crying?', false, 'help']
+    };
+  }
+  var ITEM_ORDER = ['feed', 'diaper', 'sleep', 'tummy', 'solids', 'pump', 'med', 'temp', 'scan', 'visit', 'growth', 'bath', 'milestone', 'note', 'sounds', 'cry'];
+  function defaultQuick(days) {
+    return ['feed', 'diaper', 'sleep', G.tummyGoalMin(days) && days < 150 ? 'tummy' : 'solids', 'pump', 'med', 'temp'];
+  }
+  // The parent's chosen buttons (or the age-based default), then everything else.
+  function quickIds(days) {
+    var saved = S.get().settings.quickLog;
+    var ids = Array.isArray(saved) && saved.length ? saved.filter(function (id) { return ITEM_ORDER.indexOf(id) >= 0; }) : defaultQuick(days);
+    return { main: ids, more: ITEM_ORDER.filter(function (id) { return ids.indexOf(id) < 0; }) };
+  }
+  function quickItems(days) {
+    var all = allItems(), ids = quickIds(days);
+    var pick = function (id) { return all[id]; };
+    return { main: ids.main.map(pick), more: ids.more.map(pick) };
   }
   function qaButtons(list) {
     return list.map(function (q) {
-      return '<button class="qa' + (q[3] ? ' qa--on' : '') + '" data-action="' + q[4] + '" data-type="' + q[0] + '"><span class="qa__icon">' + q[1] + '</span><span class="qa__label">' + q[2] + '</span></button>';
+      return '<button class="qa' + (q[3] ? ' qa--on' : '') + '" data-action="' + q[4] + '" data-type="' + q[0] + '"' + (q[0] === 'cry' ? ' data-topic="cry"' : '') + '><span class="qa__icon">' + q[1] + '</span><span class="qa__label">' + q[2] + '</span></button>';
     }).join('');
   }
   function quickActions(days) {
@@ -132,7 +145,28 @@
     return '<div class="qa-grid">' + qaButtons(it.main) +
       '<button class="qa' + (moreOn ? ' qa--on' : '') + '" data-action="log-more"><span class="qa__icon">➕</span><span class="qa__label">More</span></button></div>';
   }
-  function moreActions(days) { return '<div class="qa-grid qa-grid--3">' + qaButtons(quickItems(days).more) + '</div>'; }
+  function moreActions(days) {
+    var more = quickItems(days).more;
+    return (more.length ? '<div class="qa-grid qa-grid--3">' + qaButtons(more) + '</div>' : '<p class="muted">Every button is already on Today.</p>') +
+      '<button class="btn btn--block" data-action="quick-edit">✏️ Choose which buttons show on Today</button>';
+  }
+
+  // Pick and order the Today buttons. Changes apply straight away.
+  function quickEditor(days) {
+    var all = allItems(), ids = quickIds(days), on = ids.main;
+    var rows = on.concat(ids.more).map(function (id) {
+      var q = all[id], i = on.indexOf(id), shown = i >= 0;
+      return '<div class="row qe-row' + (shown ? '' : ' qe-row--off') + '">' +
+        '<label class="check-line qe-row__main"><input type="checkbox" data-action-change="quick-toggle" data-id="' + id + '"' + (shown ? ' checked' : '') + ' /><span class="row__icon">' + q[1] + '</span>' + esc(q[2].replace('…', '')) + '</label>' +
+        (shown ? '<button class="iconbtn" data-action="quick-move" data-id="' + id + '" data-d="-1" aria-label="Move ' + esc(q[2]) + ' earlier"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+          '<button class="iconbtn" data-action="quick-move" data-id="' + id + '" data-d="1" aria-label="Move ' + esc(q[2]) + ' later"' + (i === on.length - 1 ? ' disabled' : '') + '>▼</button>' : '') + '</div>';
+    }).join('');
+    var n = on.length, full = (n + 1) % 4 === 0;
+    return '<p class="muted">Ticked buttons show on Today in this order, followed by <strong>More</strong> for the rest.</p>' +
+      '<p class="faint">' + h.plural(n, 'button') + ' + More' + (full ? ' — fills ' + ((n + 1) / 4) + ' full rows.' : ' — tip: 3, 7 or 11 buttons fill whole rows.') + '</p>' +
+      '<div class="rows">' + rows + '</div>' +
+      '<div class="btn-row sheet-save"><button class="btn" data-action="quick-reset">Reset to default</button><button class="btn btn--primary btn--lg" data-action="sheet-close">Done</button></div>';
+  }
 
   // One-time tip: installing matters for notifications (iPhone) and for keeping logs (Safari).
   function installTip() {
@@ -364,5 +398,5 @@
   }
   function stat(v, k) { return '<div class="stat"><div class="stat__v">' + v + '</div><div class="stat__k">' + k + '</div></div>'; }
 
-  window.BabyViews = { moreActions: moreActions, today: today, history: history, trends: trends, checks: checks, reminderRows: reminderRows, dayStats: dayStats };
+  window.BabyViews = { quickEditor: quickEditor, quickIds: quickIds, ITEM_ORDER: ITEM_ORDER, moreActions: moreActions, today: today, history: history, trends: trends, checks: checks, reminderRows: reminderRows, dayStats: dayStats };
 })();

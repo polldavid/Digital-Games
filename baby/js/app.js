@@ -193,6 +193,10 @@
       '<button class="btn btn--sm" data-action="custom-add" style="margin-top:8px">＋ New reminder</button>' +
       '<p class="faint" style="margin-top:12px">Reminders fire while Baby Log is open or in the background. Phones may pause web apps that are fully closed, so for night feeds add Baby Log to your Home Screen and leave it open on the nightstand.</p></div>';
 
+    // Today screen
+    html += '<div class="section-title">Today screen</div><div class="card">' +
+      row('Quick log buttons', 'Choose which buttons show on Today, and their order.', '<button class="btn btn--sm" data-action="quick-edit">Edit</button>') + '</div>';
+
     // Units
     html += '<div class="section-title">Units</div><div class="card">' +
       row('Volume', '', sel('volume', [['ml', 'ml'], ['oz', 'fl oz']], s.volume)) +
@@ -382,6 +386,14 @@
     },
     'log-solids': function () { F.open('feed', null, { kind: 'solids' }); },
     'log-more': function () { h.openSheet({ title: 'Log something else', html: function () { return V.moreActions(S.ageDays(Date.now())); } }); },
+    'quick-edit': function () { h.openSheet({ title: 'Today buttons', html: function () { return V.quickEditor(S.ageDays(Date.now())); } }); },
+    'quick-move': function (n) {
+      var ids = V.quickIds(S.ageDays(Date.now())).main.slice(), id = n.getAttribute('data-id'), i = ids.indexOf(id), j = i + (+n.getAttribute('data-d'));
+      if (i < 0 || j < 0 || j >= ids.length) return;
+      ids.splice(i, 1); ids.splice(j, 0, id);
+      S.get().settings.quickLog = ids; commit();
+    },
+    'quick-reset': function () { S.get().settings.quickLog = []; commit(); h.toast('Today buttons reset'); },
     'log-vitd': function () {
       var e = S.addEvent({ type: 'med', time: Date.now(), data: { medId: 'vitd', name: 'Vitamin D drops', dose: '', intervalH: 24, maxPerDay: 1, remind: false } });
       commit(); h.toast('Vitamin D logged ☀️', { label: 'Undo', fn: function () { S.removeEvent(e.id); commit(); } });
@@ -400,7 +412,7 @@
       });
     },
 
-    'sleep-toggle': function () { if (S.isAsleep()) sleepStop(); else sleepStart(); },
+    'sleep-toggle': function () { if (App.ui.sheet) h.closeSheet(); if (S.isAsleep()) sleepStop(); else sleepStart(); },
     'sleep-start': function () { sleepStart(); if (App.ui.sheet && App.ui.sheet.type === 'sleep') h.closeSheet(); dismissKind('nap'); },
     'sleep-stop': function () { sleepStop(); if (App.ui.sheet && App.ui.sheet.type === 'sleep') h.closeSheet(); },
     'tummy-toggle': function () { if (App.ui.sheet) h.closeSheet(); if (S.timers().tummy) tummyStop(); else tummyStart(); },
@@ -661,6 +673,14 @@
         delete b.milestones[k];
       }
       S.save(); render();
+    } else if (ac === 'quick-toggle') {
+      var qids = V.quickIds(S.ageDays(Date.now())).main.slice(), qid = t.getAttribute('data-id');
+      if (t.checked) { if (qids.indexOf(qid) < 0) qids.push(qid); }
+      else {
+        if (qids.length <= 1) { t.checked = true; h.toast('Keep at least one button on Today.'); return; }
+        qids = qids.filter(function (x) { return x !== qid; });
+      }
+      S.get().settings.quickLog = qids; commit();
     } else if (ac === 'vax-schedule') {
       S.health().vaccines.schedule = t.value; S.save(); h.renderSheet(); render();
     } else if (t.id === 'sound-timer') {

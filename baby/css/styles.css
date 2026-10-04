@@ -556,3 +556,10 @@ body.sheet-open .toasts { bottom: auto; top: max(12px, env(safe-area-inset-top))
 .scanmed { display: flex; flex-direction: column; gap: 12px; border: 1px solid var(--stroke-strong); }
 .scantext { white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.5; padding: 12px; border-radius: 12px; background: var(--card-2); color: var(--text); max-height: 50vh; overflow: auto; }
 .scantext--big { font-size: 15px; font-family: var(--font); }
+
+/* ---------- Today-button editor ---------- */
+.qe-row { gap: 6px; padding: 6px 2px; }
+.qe-row__main { flex: 1; min-width: 0; gap: 10px; }
+.qe-row--off { opacity: 0.6; }
+.qe-row .iconbtn { width: 44px; height: 44px; font-size: 14px; flex: none; }
+.qe-row .iconbtn[disabled] { opacity: 0.3; cursor: default; }

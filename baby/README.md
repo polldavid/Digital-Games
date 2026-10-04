@@ -99,8 +99,9 @@ disclaimer.
 
 ## Also
 
-- **Today dashboard:** live timers, eight one-tap log buttons (the rest under
-  *More*), last feed / diaper / sleep tiles, next side, "is baby getting
+- **Today dashboard:** live timers, one-tap log buttons the parent chooses and
+  orders (Settings → Today screen, or More → Choose which buttons show; the
+  rest stay under *More* — including **Scan Rx**, **Visit** and **Crying?**), last feed / diaper / sleep tiles, next side, "is baby getting
   enough?" checks, upcoming reminders, today's log.
 - **Made for one tired thumb:** Save is pinned to the bottom of every form,
   sheets close with a swipe down or the phone's Back button, tap targets are
