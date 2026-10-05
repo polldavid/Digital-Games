@@ -17,6 +17,11 @@
      ===================================================== */
   // Paint first, write to storage just after: a year of logs takes ~15 ms to
   // save, which a tap shouldn't wait for. Native reminders follow the change.
+  // Run a button's action from code (voice logging): data = { side: 'L' } etc.
+  App.act = function (name, data) {
+    var fn = ACTIONS[name];
+    if (fn) fn({ getAttribute: function (k) { return data && data[k.replace(/^data-/, '')] != null ? String(data[k.replace(/^data-/, '')]) : null; }, disabled: false });
+  };
   function commit() { syncAlerts(); render(); if (App.ui.sheet) h.renderSheet(); S.saveSoon(); N.syncReminders(); }
   App.commit = commit;
 
@@ -41,6 +46,7 @@
     h.patch(el, h.regions(v === 'today' ? V.today() : v === 'log' ? (trends ? V.trends() : V.history()) : v === 'health' ? Hl.view() : v === 'help' ? Help.view() : settingsView()));
     Files.hydrate(el);
     renderBanner();
+    if (window.BabyMic) BabyMic.paintButton();
     // Closing a sheet returns focus to the button that opened it, even if that button was rebuilt.
     if (App.ui.returnFocus && !App.ui.sheet) {
       var a = document.activeElement;
@@ -216,7 +222,8 @@
 
     // Today screen
     html += '<div class="section-title"><h2>Today screen</h2></div><div class="card">' +
-      row('Quick log buttons', 'Choose which buttons show on Today, and their order.', '<button class="btn btn--sm" data-action="quick-edit">Edit</button>') + '</div>';
+      row('Quick log buttons', 'Choose which buttons show on Today, and their order.', '<button class="btn btn--sm" data-action="quick-edit">Edit</button>') +
+      (window.BabyMic ? BabyMic.settingsRows(row, sel) : '') + '</div>';
 
     // Units
     html += '<div class="section-title"><h2>Units</h2></div><div class="card">' +
@@ -717,6 +724,7 @@
       var s = S.get().settings;
       if (t.type === 'checkbox') {
         if (key === 'notify' && t.checked && 'Notification' in window && Notification.permission !== 'granted') { t.checked = false; requestNotify(); return; }
+        if (key === 'voice' && t.checked && window.BabyMic) { t.checked = false; BabyMic.enable(); return; }
         s[key] = t.checked;
       } else s[key] = /^\d+(\.\d+)?$/.test(t.value) ? parseFloat(t.value) : t.value;
       commit();
@@ -948,6 +956,20 @@
     setInterval(softRender, 60000);
     setTimeout(checkReminders, 1500);
     if (window.BabyShare) BabyShare.init();
+    if (window.BabyMic) BabyMic.init();
+    runShortcut();
+  }
+
+  // Home-screen shortcuts (long-press the app icon): ./?do=sleep|diaper|feed|voice
+  function runShortcut() {
+    var m = /[?&]do=(\w+)/.exec(location.search);
+    if (!m) return;
+    try { history.replaceState(history.state, '', location.pathname + location.hash); } catch (e) {}
+    if (!S.baby()) return;
+    App.ui.view = 'today'; render();
+    if (m[1] === 'sleep') ACTIONS['sleep-toggle']();
+    else if (m[1] === 'diaper' || m[1] === 'feed') F.open(m[1]);
+    else if (m[1] === 'voice' && window.BabyMic) { if (S.get().settings.voice && BabyMic.supported()) BabyMic.listen(); else { showView('settings'); h.toast('Turn on voice logging first (Settings → Today screen).'); } }
   }
 
   // Exposed for tests / debugging.

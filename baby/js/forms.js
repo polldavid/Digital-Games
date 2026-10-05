@@ -345,10 +345,10 @@
       // Start on the medicine last given; for young babies, vitamin D (the everyday one).
       var lastMed = S.last('med'), rxs = activeRx();
       var d = ev ? ev.data : {};
-      var medId = preset && preset.rxId ? 'rx:' + preset.rxId : d.rxId ? 'rx:' + d.rxId : d.medId || (rxs.length ? 'rx:' + rxs[0].id : lastMed ? (lastMed.data.rxId ? 'rx:' + lastMed.data.rxId : lastMed.data.medId) : days() < 91 ? 'vitd' : 'acetaminophen');
+      var medId = preset && preset.rxId ? 'rx:' + preset.rxId : preset && preset.medId ? preset.medId : d.rxId ? 'rx:' + d.rxId : d.medId || (rxs.length ? 'rx:' + rxs[0].id : lastMed ? (lastMed.data.rxId ? 'rx:' + lastMed.data.rxId : lastMed.data.medId) : days() < 91 ? 'vitd' : 'acetaminophen');
       var p = medInfo(medId);
       if (p.id === 'custom' && /^rx:/.test(medId)) medId = 'custom';
-      var dose0 = d.dose || (p.rx ? p.rx.dose || '' : '');
+      var dose0 = d.dose || (preset && preset.dose) || (p.rx ? p.rx.dose || '' : '');
       return '<label class="field"><span class="field__label">Medicine</span><select class="input" name="medId">' +
         (rxs.length ? '<optgroup label="Prescribed">' + rxs.map(function (rx) { return '<option value="rx:' + rx.id + '"' + ('rx:' + rx.id === medId ? ' selected' : '') + '>💊 ' + esc(rx.name + (rx.strength ? ' ' + rx.strength : '')) + '</option>'; }).join('') + '</optgroup><optgroup label="Other">' : '') +
         G.MEDICINES.map(function (m) { return '<option value="' + m.id + '"' + (m.id === medId ? ' selected' : '') + '>' + esc(m.label) + '</option>'; }).join('') + (rxs.length ? '</optgroup>' : '') + '</select></label>' +
@@ -358,7 +358,7 @@
         '<label class="field"><span class="field__label">Max doses / 24h</span><input class="input" type="number" inputmode="numeric" min="0" max="24" name="maxPerDay" value="' + (d.maxPerDay != null ? d.maxPerDay : p.maxPerDay) + '" /></label></div>' +
         '<label class="check-line"><input type="checkbox" name="remind"' + ((ev ? d.remind : p.intervalH > 0 && p.intervalH < 24 && !p.rx) ? ' checked' : '') + ' /> Remind me when the next dose is allowed' + '</label>' +
         '<div id="med-status"></div>' +
-        h.timeField('time', ev ? ev.time : Date.now(), 'Given at') + noteField(d.note) +
+        h.timeField('time', ev ? ev.time : preset && preset.time || Date.now(), 'Given at') + noteField(d.note) +
         '<p class="faint">Baby Log never suggests doses. Dosing for babies is by weight — follow the label or your pediatrician, and use the syringe that came with the medicine.</p>' + footer(ev);
     },
     parse: function (form) {

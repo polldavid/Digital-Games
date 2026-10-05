@@ -126,6 +126,16 @@ disclaimer.
 - **Share by hand:** a text summary of the last 24h for a partner or
   sitter; JSON backup/import (merges, never overwrites) to move logs between
   phones; CSV export for the pediatrician.
+- **Voice logging (opt-in):** tap 🎤 and say “bottle 120 ml formula”, “wet
+  diaper 20 minutes ago”, “she’s asleep”, “fed left 15 minutes”, “temp 37.8”,
+  “weighs 5.2 kg” — English or Taglish (“umihi si Ava”, “dumede sa kaliwa”).
+  A card shows what will be saved and saves itself after 3 s unless you
+  touch it or tap Cancel. Medicine never saves itself: it opens the medicine
+  form, filled in, so the spacing checks run. `js/voice.js` is the parser
+  (pure, tested); speech-to-text is the phone's own service (Google / Apple),
+  which the app explains before it's turned on.
+- **App-icon shortcuts:** long-press the installed app (Android) for Sleep,
+  Diaper, Feed and Voice (`?do=` links in the manifest).
 - **Growth charts:** Trends → Growth plots weight, length and head on the WHO
   3rd–97th percentile band (15th/50th/85th lines), using the WHO Child Growth
   Standards LMS tables (via CDC/NCHS) — set the baby's sex in Settings.
@@ -153,6 +163,7 @@ baby/
 └── js/
     ├── guide.js   # age norms, thresholds, milestones, vaccine schedules, cry ranking — pure, no DOM
     ├── rx.js      # prescription text → draft medicines (shorthand, brands) — pure, no DOM
+    ├── voice.js   # spoken phrase → draft entry or timer action (English + Taglish) — pure, no DOM
     ├── files.js   # photo storage (IndexedDB) and compression
     ├── store.js   # state, persistence, queries, timers, reminder engine — no DOM
     ├── sync.js    # partner sync: record diffing, encryption, push/pull client — no DOM
@@ -164,6 +175,7 @@ baby/
     ├── health.js  # Health tab: visits, prescriptions + scanning, vaccines, records
     ├── native.js  # web ↔ app-store differences: notifications, files, share, durable storage
     ├── share.js   # partner-sync screens: set up, invite (QR), join, combine, status
+    ├── mic.js     # voice logging: listening, the confirm card and countdown
     └── app.js     # boot, actions, notifications, settings, import/export
 ```
 
@@ -180,6 +192,8 @@ update.
 node baby/tests/unit.test.js        # pure logic: guide.js, store.js, rx.js — no install needed
 npm i --no-save playwright && npx playwright install chromium   # one-time
 node baby/tests/e2e.smoke.js        # main flows in Chromium at iPhone size (HEADED=1 to watch)
+node baby/tests/voice.test.js       # voice phrases → entries
+node baby/tests/e2e.voice.js        # voice logging + app shortcuts in Chromium (fake recognizer)
 node baby/tests/sync.test.js        # partner sync with three simulated phones (SYNC_URL=… for a real server)
 SYNC_URL=http://127.0.0.1:8787 node baby/tests/e2e.sync.js   # two browsers, against `wrangler dev` (see server/)
 ```
