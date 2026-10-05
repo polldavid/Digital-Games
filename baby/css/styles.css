@@ -123,6 +123,15 @@ strong { font-weight: 700; }
   display: grid; place-items: center;
 }
 
+/* Partner sync: a quiet status button that turns amber when a sync fails. */
+.iconbtn--sync { margin-left: auto; font-size: calc(15 * var(--u)); }
+.iconbtn--warn { background: var(--warn-bg); border-color: var(--warn-line); }
+.iconbtn--warn::after { content: '!'; position: absolute; top: -3px; right: -3px; width: 18px; height: 18px; border-radius: 50%; background: var(--warn-line); color: var(--text); font-size: 12px; font-weight: 800; display: grid; place-items: center; }
+/* QR codes need dark-on-light to scan, in either theme. */
+.qr { display: grid; place-items: center; margin: 12px auto 16px; width: min(260px, 100%); aspect-ratio: 1; padding: 10px; border-radius: 16px; background: #fff; }
+.qr svg { width: 100%; height: 100%; }
+.qr .faint { color: #555; text-align: center; }
+
 /* ---------- Welcome ---------- */
 .welcome { min-height: 100dvh; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top)) 16px 32px; }
 .welcome__inner { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }

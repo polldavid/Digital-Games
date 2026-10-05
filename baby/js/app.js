@@ -224,6 +224,9 @@
       row('Temperature', '', sel('temp', [['C', '°C'], ['F', '°F']], s.temp, 'Temperature unit')) +
       row('Weight & length', '', sel('length', [['cm', 'kg · cm'], ['in', 'lb · in']], s.length, 'Weight and length units')) + '</div>';
 
+    // Partner sync
+    if (window.BabyShare) html += BabyShare.settingsSection(row);
+
     // Data
     html += '<div class="section-title"><h2>Your data</h2></div><div class="card">' +
       row('Share a summary', 'The last 24 hours as text — for a partner, sitter or doctor.', '<button class="btn btn--sm" data-action="handoff">Share</button>') +
@@ -231,7 +234,7 @@
       row('Import a backup', 'Merges entries — nothing is overwritten.', '<button class="btn btn--sm" data-action="import-open">Import</button>') +
       row('Spreadsheet (CSV)', 'For your pediatrician or your own analysis.', '<button class="btn btn--sm" data-action="export-csv">CSV</button>') +
       row('Erase everything', 'Deletes all babies, logs and photos from this device.', '<button class="btn btn--sm btn--danger" data-action="erase">Erase</button>') +
-      '<p class="faint" style="margin-top:10px">Private by design: no account, no tracking, no server. Your logs never leave this device unless you export them.</p></div>';
+      '<p class="faint" style="margin-top:10px">Private by design: no account, no tracking. Your logs never leave this device unless you export them or turn on sharing (encrypted on the phone).</p></div>';
 
     html += '<p class="disclaimer">Baby Log gives general information from AAP, CDC, WHO and NHS guidance — it is not medical advice. Always call your pediatrician if you’re worried.<br><a href="../">← All games &amp; tools</a></p>';
     return html;
@@ -542,7 +545,7 @@
     'baby-delete': function (n) {
       var b = S.baby(n.getAttribute('data-id'));
       if (!b) return;
-      h.ask({ title: 'Delete ' + b.name + '?', text: 'All of ' + b.name + '’s logs and health records are removed from this device. This can’t be undone.', ok: 'Delete', danger: true }, function () {
+      h.ask({ title: 'Delete ' + b.name + '?', text: 'All of ' + b.name + '’s logs and health records are removed from this device' + (window.BabyShare && BabyShare.client.on() ? ' and every phone you share with' : '') + '. This can’t be undone.', ok: 'Delete', danger: true }, function () {
         S.removeBaby(b.id); h.closeSheet(); commit();
       });
     },
@@ -572,7 +575,9 @@
     'export-csv': function () { download('baby-log-' + (S.baby().name || 'baby').toLowerCase().replace(/\W+/g, '-') + '-' + h.todayISO() + '.csv', S.exportCSV(), 'text/csv'); },
     'import-open': function () { $('#import-file').click(); },
     'erase': function () {
-      h.ask({ title: 'Erase everything?', text: 'All babies, logs and photos are removed from this device. Export a backup first if you might want them back.', ok: 'Erase all', danger: true }, function () {
+      var sharing = window.BabyShare && BabyShare.client.on();
+      h.ask({ title: 'Erase everything?', text: 'All babies, logs and photos are removed from this device. ' + (sharing ? 'Sharing stops on this phone first, so your partner’s log isn’t touched. ' : '') + 'Export a backup first if you might want them back.', ok: 'Erase all', danger: true }, function () {
+        if (sharing) BabyShare.client.leave();
         Files.keys().then(function (ks) { (ks || []).forEach(function (k) { Files.remove(k); }); }).catch(function () {});
         S.reset(); S.save(); App.ui.alerts = []; h.closeSheet(); App.ui.view = 'today'; render(); N.syncReminders();
       });
@@ -939,6 +944,7 @@
     setInterval(checkReminders, 15000);
     setInterval(softRender, 60000);
     setTimeout(checkReminders, 1500);
+    if (window.BabyShare) BabyShare.init();
   }
 
   // Exposed for tests / debugging.

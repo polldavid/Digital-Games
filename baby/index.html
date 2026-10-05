@@ -14,8 +14,8 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="css/styles.css?v=14" />
-  <link rel="stylesheet" href="../theme.css?v=14" />
+  <link rel="stylesheet" href="css/styles.css?v=15" />
+  <link rel="stylesheet" href="../theme.css?v=15" />
 </head>
 <body>
   <button class="theme-toggle" data-theme-toggle aria-label="Toggle light or dark mode">🌙</button>
@@ -58,6 +58,7 @@
         <button class="btn btn--primary btn--block btn--lg" type="submit">Start tracking</button>
         <p class="fineprint">Everything stays on this device. No account, no ads, works offline.</p>
       </form>
+      <button class="btn btn--link" type="button" data-action="share-join">Join a partner’s log</button>
       <button class="btn btn--link" type="button" data-action="import-open">Restore from a backup</button>
       <a class="link-back" href="../">← All games &amp; tools</a>
     </div>
@@ -67,6 +68,7 @@
   <div class="app" id="app" hidden>
     <header class="topbar">
       <button class="babychip" data-action="baby-switch" aria-label="Baby profile" id="babychip"></button>
+      <button class="iconbtn iconbtn--sync" data-action="go" data-view="settings" data-focus="share" id="syncchip" hidden aria-label="Sharing">🔄</button>
       <button class="iconbtn" data-action="go" data-view="settings" data-focus="reminders" aria-label="Reminders" id="bell">🔔<span class="iconbtn__badge" id="bell-badge" hidden></span></button>
     </header>
 
@@ -119,18 +121,20 @@
   <div class="tip" id="tip" role="tooltip" hidden></div>
   <input type="file" id="import-file" accept="application/json,.json" hidden />
 
-  <script src="../theme.js?v=14"></script>
-  <script src="js/guide.js?v=14"></script>
-  <script src="js/store.js?v=14"></script>
-  <script src="js/sound.js?v=14"></script>
-  <script src="js/rx.js?v=14"></script>
-  <script src="js/files.js?v=14"></script>
-  <script src="js/ui.js?v=14"></script>
-  <script src="js/forms.js?v=14"></script>
-  <script src="js/views.js?v=14"></script>
-  <script src="js/help.js?v=14"></script>
-  <script src="js/health.js?v=14"></script>
-  <script src="js/native.js?v=14"></script>
-  <script src="js/app.js?v=14"></script>
+  <script src="../theme.js?v=15"></script>
+  <script src="js/guide.js?v=15"></script>
+  <script src="js/store.js?v=15"></script>
+  <script src="js/sync.js?v=15"></script>
+  <script src="js/sound.js?v=15"></script>
+  <script src="js/rx.js?v=15"></script>
+  <script src="js/files.js?v=15"></script>
+  <script src="js/ui.js?v=15"></script>
+  <script src="js/forms.js?v=15"></script>
+  <script src="js/views.js?v=15"></script>
+  <script src="js/help.js?v=15"></script>
+  <script src="js/health.js?v=15"></script>
+  <script src="js/native.js?v=15"></script>
+  <script src="js/share.js?v=15"></script>
+  <script src="js/app.js?v=15"></script>
 </body>
 </html>

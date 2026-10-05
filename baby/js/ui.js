@@ -173,6 +173,8 @@
         break;
     }
     if (d.note) out.sub = out.sub ? out.sub + ' · ' + d.note : d.note;
+    var by = window.BabyShare && window.BabyShare.byline(e);
+    if (by) out.sub = out.sub ? out.sub + ' · by ' + by : 'by ' + by;
     return out;
   }
 

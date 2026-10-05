@@ -1,0 +1,9 @@
+# Baby Log sync server. See README.md in this folder.
+name = "babylog-sync"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "babylog-sync"
+database_id = "60056cef-7efd-4857-93a0-e1be1083774d"

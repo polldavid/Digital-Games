@@ -73,6 +73,7 @@
     }
     if (saveFailed) { saveFailed = false; if (api.onSaveOk) api.onSaveOk(); }
     if (api.onSaved) api.onSaved(json);
+    for (var i = 0; i < listeners.length; i++) try { listeners[i](json); } catch (e) {}
     return true;
   }
   // Writing a year of logs costs ~15 ms; do it just after the screen updates
@@ -88,6 +89,11 @@
     return true;
   }
   function flush() { if (pending) return save(); return !saveFailed; }
+  // Anyone else who needs to know the log was saved (partner sync).
+  var listeners = [];
+  function onSave(fn) { listeners.push(fn); }
+  // After entries are changed from outside (partner sync): keep them sorted and drop cached spans.
+  function touch() { rev++; sortEvents(); if (!baby(state.activeBaby)) state.activeBaby = state.babies[0] ? state.babies[0].id : null; }
 
   // Fill in anything missing (older saves, imports).
   function normalize(s) {
@@ -635,7 +641,7 @@
 
   var api = {
     STORE_KEY: STORE_KEY, uid: uid, defaults: defaults,
-    load: load, save: save, saveSoon: saveSoon, flush: flush, get: get, set: set, reset: reset, normalize: normalize,
+    load: load, save: save, saveSoon: saveSoon, flush: flush, onSave: onSave, touch: touch, get: get, set: set, reset: reset, normalize: normalize,
     onSaveError: null, onSaveOk: null, onSaved: null,
     baby: baby, addBaby: addBaby, updateBaby: updateBaby, removeBaby: removeBaby, ageDays: ageDays,
     addEvent: addEvent, updateEvent: updateEvent, removeEvent: removeEvent, findEvent: findEvent, events: events, last: last,
