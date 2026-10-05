@@ -68,7 +68,7 @@
       now: Date.now(), volume: st.settings.volume, temp: st.settings.temp, weight: st.settings.length === 'in' ? 'lb' : 'kg',
       babies: st.babies.map(function (x) { return { id: x.id, name: x.name }; }), activeBaby: st.activeBaby, feeding: b ? b.feeding : 'breast',
       rx: (H.rx || []).filter(function (r) { return S.rxStatus(r).active; }).map(function (r) { return { id: r.id, name: r.name }; }),
-      timers: { sleep: !!T.sleep, breast: T.breast || null, pump: !!T.pump, tummy: !!T.tummy }, nextSide: next
+      timers: { sleep: !!T.sleep, breast: T.breast || null, pump: !!T.pump, tummy: !!T.tummy, bottle: !!T.bottle }, nextSide: next
     };
   }
 
@@ -133,13 +133,15 @@
     'sleep-start': ['😴', 'Start the sleep timer'], 'sleep-stop': ['☀️', 'Woke up — stop the sleep timer'],
     'breast-side': ['🤱', 'Breastfeeding'], 'breast-finish': ['🤱', 'Finish the feed and save it'], 'breast-pause': ['⏸️', 'Pause the feed'],
     'pump-both': ['🧴', 'Start pumping (both sides)'], 'pump-side': ['🧴', 'Pumping'], 'pump-finish': ['🧴', 'Stop pumping and enter amounts'],
-    'tummy-start': ['🤸', 'Start tummy time'], 'tummy-stop': ['🤸', 'Stop tummy time']
+    'tummy-start': ['🤸', 'Start tummy time'], 'tummy-stop': ['🤸', 'Stop tummy time'],
+    'bottle-start': ['🍼', 'Start the bottle timer'], 'bottle-done': ['🍼', 'Bottle finished']
   };
   function summary(r) {
     var who = r.baby && r.baby !== S.get().activeBaby && S.baby(r.baby) ? ' · ' + S.baby(r.baby).name : '';
     if (r.kind === 'action') {
       var a = ACTION_TEXT[r.action] || ['•', r.action];
       var title = a[1] + (r.action === 'breast-side' ? (S.timers().breast ? ' — switch to the ' : ' — start on the ') + (r.side === 'R' ? 'right' : 'left') : r.action === 'pump-side' ? ' — ' + (r.side === 'R' ? 'right' : 'left') + ' side' : '');
+      if (r.action === 'bottle-done') { var bt = S.timers().bottle; title += r.amountMl ? ' — ' + h.vol(r.amountMl) : ' — enter the amount'; if (bt) return { icon: a[0], title: title + who, sub: 'Took ' + h.durMs(bt.done ? bt.acc : S.bottleTotal(bt)) }; }
       var when = r.action === 'sleep-start' && r.time && Date.now() - r.time > MIN ? 'Fell asleep ' + h.ago(r.time, Date.now()) : 'Now';
       return { icon: a[0], title: title + who, sub: when };
     }
@@ -206,6 +208,7 @@
     var r = state.r;
     finishSheet();
     h.closeSheet();
+    if (r.kind === 'action' && r.action === 'bottle-done' && r.amountMl) { switchBaby(r.baby); saveBottle(r.amountMl); return; }
     if (r.kind === 'action') {
       switchBaby(r.baby);
       App.act(r.action, { side: r.side });
@@ -217,6 +220,21 @@
     var d = h.describe(ev);
     if (thenEdit) { F.open(ev.type, ev); return; }
     h.toast('🎤 Saved · ' + d.title + (d.sub ? ' · ' + d.sub : ''), { label: 'Undo', fn: function () { S.removeEvent(ev.id); App.commit(); } });
+  }
+
+  // "Done, 15 ml" with the bottle timer running: save it the way the form would.
+  function saveBottle(ml) {
+    var b = S.bottleFinish();
+    if (!b) return;
+    var lastB = S.last('feed', function (x) { return x.data.kind === 'bottle'; }), baby = S.baby();
+    var data = { kind: 'bottle', amountMl: ml, milk: lastB ? lastB.data.milk : baby.feeding === 'breast' ? 'breast' : 'formula', durationMs: b.acc, note: '' };
+    var nip = S.last('feed', function (x) { return x.data.kind === 'bottle' && x.data.nipple; });
+    if (nip) data.nipple = nip.data.nipple;
+    var ev = S.addEvent({ type: 'feed', time: b.start, end: b.start + b.acc, data: data });
+    var saved = S.stopTimer('bottle');
+    App.commit();
+    var d = h.describe(ev);
+    h.toast('🎤 Saved · Bottle · ' + d.sub, { label: 'Undo', fn: function () { S.removeEvent(ev.id); saved.done = false; delete saved.end; S.timers().bottle = saved; App.commit(); } });
   }
 
   var ACTIONS = {

@@ -212,8 +212,14 @@
       return out({ kind: 'action', action: 'tummy-start' });
     }
 
-    // Bottle: "bottle 120 ml formula", "drank 4 oz", "dede 90"
     var amt = amountMl(s, ctx.volume);
+    // Bottle timer: "start bottle"; while it runs, "done, 15 ml" finishes and saves it.
+    if (T.bottle && !has(s, W.diaper) && (has(s, W.stop) || has(s, /\b(finished|ubos|naubos|drank|ininom)\b/) || (amt && /\b(ml|oz)\b/.test(s)))) {
+      return out({ kind: 'action', action: 'bottle-done', amountMl: amt && amt <= 400 ? amt : null });
+    }
+    if (/\b(bottle|bote)\b/.test(s) && has(s, W.start) && !(amt && /\b(ml|oz)\b/.test(s))) return out({ kind: 'action', action: 'bottle-start' });
+
+    // Bottle: "bottle 120 ml formula", "drank 4 oz", "dede 90"
     if ((has(s, W.bottle) || /\b(ml|oz)\b/.test(s)) && amt && !has(s, W.diaper)) {
       var milk = /\b(formula|gatas ng lata)\b/.test(s) ? 'formula' : /\b(breast ?milk|expressed|pumped|gatas ng ina)\b/.test(s) ? 'breast' : (ctx.feeding === 'formula' || ctx.feeding === 'mixed' ? 'formula' : 'breast');
       if (amt > 0 && amt <= 400) return out({ kind: 'entry', type: 'feed', time: t, end: null, data: { kind: 'bottle', amountMl: amt, milk: milk, note: '' } });

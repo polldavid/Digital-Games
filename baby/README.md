@@ -10,7 +10,7 @@ dependencies, no server. It installs to the home screen and works offline.
 
 | | |
 | --- | --- |
-| 🍼 **Feeds** | Breast timer with Left/Right switching, pause and "start on this side next"; bottles (breast milk or formula, ml or oz; ± 1 ml / 0.1 oz with a +5 ml / +0.5 oz jump); solids with first-try and reaction tracking |
+| 🍼 **Feeds** | Breast timer with Left/Right switching, pause and "start on this side next"; bottles (breast milk or formula, ml or oz; ± 1 ml / 0.1 oz with a +5 ml / +0.5 oz jump) with an optional **bottle timer** (pause for burping), offered vs finished, nipple/flow size and a pace check (ml/min — flags slow or very fast feeds and compares nipple sizes in Trends); solids with first-try and reaction tracking |
 | 🧷 **Diapers** | Wet / dirty / both, poop colour and texture with instant "normal or call the doctor" feedback, rash |
 | 😴 **Sleep** | One-tap sleep timer, or log past sleeps; wake windows and the next nap window |
 | 🧴 **Pumping** | Tap-to-start timer with independent Left and Right sides (run both at once for a double pump, or one at a time), then enter each side's amount; milk-storage times |

@@ -357,6 +357,40 @@
     return { L: side(p.L), R: side(p.R), total: now - p.start, running: p.L.on || p.R.on };
   }
 
+  /* ---------- Bottle timer ----------
+     Times a bottle so a slow nipple (or a tired baby) shows up as minutes
+     per ml. Finishing keeps the session until the amount is saved, so
+     closing the sheet never loses it. */
+  function bottleStart(now) {
+    now = now || Date.now();
+    var t = timers();
+    t.bottle = { start: now, seg: now, acc: 0, paused: false };
+    return t.bottle;
+  }
+  function bottlePause(now) {
+    var b = timers().bottle;
+    if (!b || b.done) return b || null;
+    now = now || Date.now();
+    if (b.paused) { b.paused = false; b.seg = now; } else { b.acc += now - b.seg; b.paused = true; }
+    return b;
+  }
+  function bottleFinish(now) {
+    var b = timers().bottle;
+    if (!b || b.done) return b || null;
+    now = now || Date.now();
+    if (!b.paused) b.acc += now - b.seg;
+    b.paused = true; b.done = true; b.end = now;
+    return b;
+  }
+  // "Not finished — keep timing"
+  function bottleResume(now) {
+    var b = timers().bottle;
+    if (!b) return null;
+    b.done = false; delete b.end; b.paused = false; b.seg = now || Date.now();
+    return b;
+  }
+  function bottleTotal(b, now) { return b.acc + (b.paused ? 0 : (now || Date.now()) - b.seg); }
+
   /* ---------- Derived status ---------- */
   function isAsleep(id) { return !!timers(id).sleep; }
 
@@ -650,6 +684,7 @@
     timers: timers, startTimer: startTimer, stopTimer: stopTimer,
     breastSwitch: breastSwitch, breastPause: breastPause, breastTotals: breastTotals,
     pumpSide: pumpSide, pumpBoth: pumpBoth, pumpFinish: pumpFinish, pumpTotals: pumpTotals,
+    bottleStart: bottleStart, bottlePause: bottlePause, bottleFinish: bottleFinish, bottleResume: bottleResume, bottleTotal: bottleTotal,
     isAsleep: isAsleep, awakeSince: awakeSince, lastFeedAnchor: lastFeedAnchor, feedIntervalH: feedIntervalH,
     daySummary: daySummary, last24: last24, medStatus: medStatus, medKeyOf: medKeyOf,
     health: health, findIn: findIn, rxStatus: rxStatus,

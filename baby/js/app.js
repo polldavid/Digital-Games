@@ -465,6 +465,15 @@
     },
     'breast-pause': function () { S.breastPause(); commit(); },
     'breast-finish': breastFinish,
+    'bottle-start': function () {
+      if (S.isAsleep()) { var t = S.stopTimer('sleep'); if (Date.now() - t.start >= MIN) S.addEvent({ type: 'sleep', time: t.start, end: Date.now(), data: {} }); }
+      S.bottleStart(); commit();
+      if (!App.ui.sheet) h.toast('Bottle timer running 🍼');
+    },
+    'bottle-pause': function () { S.bottlePause(); commit(); },
+    'bottle-finish': function () { S.bottleFinish(); commit(); if (!App.ui.sheet) F.open('feed'); },
+    'bottle-resume': function () { S.bottleResume(); commit(); },
+    'bottle-discard': function () { h.ask({ title: 'Discard this bottle timer?', text: 'The timer stops and nothing is saved.', ok: 'Discard', danger: true }, function () { S.stopTimer('bottle'); commit(); }); },
     'pump-side': function (n) { S.pumpSide(n.getAttribute('data-side')); commit(); },
     'pump-both': function () { S.pumpBoth(); commit(); },
     'pump-finish': function () { S.pumpFinish(); commit(); F.open('pump', null, { timer: true }); },

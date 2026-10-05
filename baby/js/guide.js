@@ -396,6 +396,17 @@
     { id: 'teeth',   icon: '🦷', q: 'Is my baby teething? How can I help?',    tool: 'teeth' }
   ];
 
+  /* ---------- Bottle pace ----------
+     A paced bottle feed usually takes about 10–20 minutes. Much longer
+     (or well under 1 ml a minute) often means the nipple flow is too slow,
+     or baby is too sleepy or tired to feed well; a full bottle in a few
+     minutes can mean it's too fast (gulping, coughing, spit-up). */
+  function bottlePace(ml, ms) {
+    if (!ml || !ms || ms < MIN) return null;
+    var min = ms / MIN, rate = ml / min;
+    return { min: min, rate: rate, level: min > 30 || (min >= 15 && rate < 1) ? 'slow' : min < 5 && ml >= 30 ? 'fast' : 'ok' };
+  }
+
   /* ---------- Growth percentiles (WHO Child Growth Standards, 0–24 months) ----------
      L, M, S by completed month for boys (m) and girls (f), from the WHO tables
      as published by CDC/NCHS (WHO-*-for-age-Percentiles.csv). Ages between
@@ -480,6 +491,7 @@
     cryReasons: cryReasons, CRY_RED_FLAGS: CRY_RED_FLAGS,
     QUESTIONS: QUESTIONS,
     VACCINES: VACCINES, vaccinePlan: vaccinePlan,
+    bottlePace: bottlePace,
     WHO_GROWTH: WHO_GROWTH, growthLMS: growthLMS, growthZ: growthZ, growthPercentile: growthPercentile, growthAt: growthAt, linesCrossed: linesCrossed, normalCdf: normalCdf,
     fmtDur: fmtDur, fmtHours: fmtHours
   };

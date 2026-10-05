@@ -72,8 +72,10 @@
     title: function (ev) { return ev ? 'Edit feed' : 'Log a feed'; },
     html: function (ev) {
       var b = S.baby(), d = ev ? ev.data : {};
-      var kind = d.kind || (S.timers().breast ? 'breast' : b.feeding === 'formula' ? 'bottle' : 'breast');
-      var time = ev ? ev.time : Date.now();
+      var bt = S.timers().bottle;
+      var kind = d.kind || (S.timers().breast ? 'breast' : bt ? 'bottle' : b.feeding === 'formula' ? 'bottle' : 'breast');
+      var time = ev ? ev.time : bt && bt.done ? bt.start : Date.now();
+      var bMin = d.durationMs ? Math.round(d.durationMs / MIN * 10) / 10 : !ev && bt && bt.done ? Math.max(1, Math.round(bt.acc / MIN)) : '';
       var amount = d.amountMl != null ? h.volToDisplay(d.amountMl) : h.volToDisplay(lastBottleMl() || G.feedingFor(days(), b.feeding).ml[0] || 60);
       var html = seg('kind', [['breast', '🤱 Breast'], ['bottle', '🍼 Bottle'], ['solids', '🥣 Solids']], kind);
 
@@ -87,15 +89,22 @@
         '</div>' + (!ev ? '</details>' : '') + '</div>';
 
       // Bottle
-      html += '<div data-panel="bottle" class="form"' + (kind !== 'bottle' ? ' hidden' : '') + '>' +
+      html += '<div data-panel="bottle" class="form"' + (kind !== 'bottle' ? ' hidden' : '') + '>' + (ev ? '' : bottleLive()) +
+        '<div data-bottle-fields' + (!ev && bt && !bt.done ? ' hidden' : '') + ' class="form">' +
+        '<span class="field__label">Baby finished</span>' +
         // ± nudge by 1 ml / 0.1 oz; the separate button jumps by 5 ml / 0.5 oz.
         '<div class="stepper"><button type="button" class="btn" data-action="step" data-target="amount" data-vol="-fine" data-step="-' + volStep('fine') + '" aria-label="Less">−</button>' +
         '<div class="stepper__v"><input class="stepper__input" name="amount" type="number" inputmode="decimal" step="any" min="0" value="' + amount + '" aria-label="Amount" /><button type="button" class="unit-btn" data-action="unit-toggle" data-unit="volume" data-target="amount" aria-label="Switch between ml and oz">' + h.volUnit() + '</button></div>' +
         '<button type="button" class="btn" data-action="step" data-target="amount" data-vol="fine" data-step="' + volStep('fine') + '" aria-label="More">+</button></div>' +
         '<div class="stepper-extra"><button type="button" class="btn btn--sm" data-action="step" data-target="amount" data-vol="big" data-step="' + volStep('big') + '">+' + volStep('big') + ' ' + h.volUnit() + '</button></div>' +
         '<div class="field"><span class="field__label">What’s in the bottle?</span>' + seg('milk', [['breast', 'Breast milk'], ['formula', 'Formula']], d.milk || (b.feeding === 'breast' ? 'breast' : 'formula')) + '</div>' +
+        '<div class="field__row"><label class="field"><span class="field__label">Offered (' + h.volUnit() + ', optional)</span><input class="input" type="number" inputmode="decimal" step="any" min="0" name="offered" value="' + (d.offeredMl ? h.volToDisplay(d.offeredMl) : '') + '" /></label>' +
+        '<label class="field"><span class="field__label">Took (min, optional)</span><input class="input" type="number" inputmode="decimal" step="any" min="0" max="180" name="bottleMin" value="' + bMin + '" /></label></div>' +
+        '<label class="field"><span class="field__label">Nipple / flow size (optional)</span><input class="input" name="nipple" maxlength="20" list="nipples" value="' + esc(ev ? d.nipple || '' : lastNipple()) + '" placeholder="e.g. SS, S, M, Level 1" autocomplete="off" /></label>' +
+        '<datalist id="nipples">' + nipplesUsed().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
+        '<div id="bottle-feedback"></div>' +
         '<p class="faint">Typical at this age: ' + bottleRange() + ' per feed. Follow baby’s cues — stopping, turning away and relaxed hands mean full.</p>' +
-        '</div>';
+        '</div></div>';
 
       // Solids
       html += '<div data-panel="solids" class="form"' + (kind !== 'solids' ? ' hidden' : '') + '>' +
@@ -124,6 +133,13 @@
         data.amountMl = Math.round(h.volFromDisplay(val(form, 'amount')));
         data.milk = radio(form, 'milk');
         if (!data.amountMl) return { field: 'amount', error: 'How much did baby drink?' };
+        var off = h.volFromDisplay(val(form, 'offered')), bmin = num(form, 'bottleMin'), nip = val(form, 'nipple').trim(), btm = S.timers().bottle;
+        if (off) data.offeredMl = Math.round(off);
+        if (data.offeredMl && data.amountMl > data.offeredMl) return { field: 'offered', error: 'Finished is more than offered — check the two amounts.' };
+        if (nip) data.nipple = nip;
+        if (val(form, 'fromBottleTimer') && btm && btm.done) { time = btm.start; data.durationMs = bmin ? Math.round(bmin * MIN) : btm.acc; }
+        else if (bmin) data.durationMs = Math.round(bmin * MIN);
+        if (data.durationMs) end = time + data.durationMs;
       } else {
         data.food = val(form, 'food').trim();
         data.newFood = checked(form, 'newFood');
@@ -140,9 +156,13 @@
         h.$all('[data-panel]', form).forEach(function (p) { p.hidden = p.getAttribute('data-panel') !== k; });
         var details = form.querySelector('[data-panel="breast"] details');
         var manual = details && details.open;
-        form.querySelector('[data-panel-save]').hidden = k === 'breast' && !editing && !manual;
-        form.querySelector('[data-panel-common]').hidden = k === 'breast' && !editing && !manual;
+        var timing = k === 'bottle' && !editing && S.timers().bottle && !S.timers().bottle.done;
+        form.querySelector('[data-panel-save]').hidden = (k === 'breast' && !editing && !manual) || timing;
+        form.querySelector('[data-panel-common]').hidden = (k === 'breast' && !editing && !manual) || timing;
+        var fb = form.querySelector('#bottle-feedback');
+        if (fb) fb.innerHTML = k === 'bottle' ? bottleFeedback(form) : '';
       };
+      form.addEventListener('input', sync); form.addEventListener('stepped', sync);
       h.$all('input[name="kind"]', form).forEach(function (r) { r.addEventListener('change', sync); });
       var det = form.querySelector('details'); if (det) det.addEventListener('toggle', sync);
       sync();
@@ -150,6 +170,38 @@
   };
 
   function volStep(kind) { var oz = h.volUnit() === 'oz'; return kind === 'big' ? (oz ? 0.5 : 5) : (oz ? 0.1 : 1); }
+  // Bottle timer, shown at the top of the Bottle panel (like the breast timer).
+  function bottleLive() {
+    var b = S.timers().bottle;
+    if (!b) return '<button type="button" class="btn btn--primary btn--block btn--lg" data-action="bottle-start">▶ Start bottle timer</button>' +
+      '<p class="faint" style="text-align:center">Times the feed, so you can see whether the nipple flow suits baby. Or just enter the amount below.</p>';
+    if (!b.done) return '<p class="bottle-clock"><span data-bottle>' + h.clock(S.bottleTotal(b)) + '</span></p>' +
+      '<p class="faint" style="text-align:center">Started ' + h.fmtTime(b.start) + (b.paused ? ' · <strong>paused</strong>' : '') + '</p>' +
+      '<div class="btn-row"><button type="button" class="btn" data-action="bottle-pause">' + (b.paused ? '▶ Resume' : '⏸ Pause (burping)') + '</button>' +
+      '<button type="button" class="btn btn--primary" data-action="bottle-finish">✓ Finished</button></div>' +
+      '<button type="button" class="btn btn--link" data-action="bottle-discard">Discard this timer</button>';
+    return '<input type="hidden" name="fromBottleTimer" value="1" />' + h.note('ok', 'Took ' + h.durMs(b.acc), 'Started ' + h.fmtTime(b.start) + '. Now enter how much baby finished.') +
+      '<button type="button" class="btn btn--link" data-action="bottle-resume">Not finished — keep timing</button>';
+  }
+  function lastNipple() { var e = S.last('feed', function (x) { return x.data.kind === 'bottle' && x.data.nipple; }); return e ? e.data.nipple : ''; }
+  function nipplesUsed() {
+    var seen = {};
+    S.events({ type: 'feed' }).forEach(function (e) { if (e.data.nipple) seen[e.data.nipple] = 1; });
+    ['SS', 'S', 'M', 'L', 'LL', 'Y-cut', 'Slow flow', 'Level 1', 'Level 2', 'Size 1', 'Size 2'].forEach(function (n) { seen[n] = 1; });
+    return Object.keys(seen);
+  }
+  // Pace check for what's typed in, compared with earlier feeds on the same nipple.
+  function bottleFeedback(form) {
+    var ml = h.volFromDisplay(val(form, 'amount')), mins = num(form, 'bottleMin'), nip = val(form, 'nipple').trim();
+    var p = G.bottlePace(ml, mins ? mins * MIN : 0);
+    if (!p) return '';
+    var rate = Math.round(p.rate * 10) / 10, head = h.vol(ml) + ' in ' + Math.round(p.min) + ' min · ' + rate + ' ml/min';
+    var same = nip ? S.events({ type: 'feed' }).filter(function (e) { return e.id !== form.getAttribute('data-id') && e.data.kind === 'bottle' && e.data.nipple === nip && e.data.durationMs; }) : [];
+    var hist = same.length >= 2 ? ' Earlier on “' + nip + '”: ' + (Math.round(same.reduce(function (a, e) { return a + e.data.amountMl / (e.data.durationMs / MIN); }, 0) / same.length * 10) / 10) + ' ml/min over ' + same.length + ' feeds.' : '';
+    if (p.level === 'slow') return h.note('warn', 'Slow feed: ' + head, 'Bottle feeds usually take about 10–20 minutes. Much longer often means the nipple flow is too slow — try the next flow size up, check the nipple isn’t collapsing flat, and keep its tip full of milk. If baby tires, sweats or falls asleep before finishing at most feeds, tell your pediatrician.' + hist);
+    if (p.level === 'fast') return h.note('warn', 'Fast feed: ' + head, 'A full bottle in a few minutes can mean the flow is too fast — watch for gulping, coughing or milk spilling from the mouth. Try a slower nipple and paced feeding: baby more upright, bottle closer to flat, pauses to burp.' + hist);
+    return h.note('ok', head, 'Within the usual pace for a bottle (about 10–20 minutes).' + hist);
+  }
   function lastBottleMl() { var e = S.last('feed', function (x) { return x.data.kind === 'bottle'; }); return e ? e.data.amountMl : 0; }
   function bottleRange() { var r = G.feedingFor(days(), S.baby().feeding).ml; return r[1] ? h.volToDisplay(r[0]) + '–' + h.vol(r[1]) : 'varies'; }
   function foodsTried() {
@@ -554,6 +606,7 @@
     if (ev) return S.updateEvent(id, { time: r.time, end: r.end !== undefined ? r.end : ev.end, data: r.data });
     var saved = S.addEvent({ type: type, time: r.time, end: r.end || null, data: r.data });
     if (type === 'pump' && val(form, 'fromTimer')) S.stopTimer('pump'); // the timed session is now logged
+    if (type === 'feed' && r.data.kind === 'bottle' && val(form, 'fromBottleTimer')) S.stopTimer('bottle');
     h.$all('input[name="alsoFor"]:checked', form).forEach(function (c) {
       api.lastCopies.push(S.addEvent({ baby: c.value, type: type, time: r.time, end: r.end || null, data: JSON.parse(JSON.stringify(r.data)) }));
     });

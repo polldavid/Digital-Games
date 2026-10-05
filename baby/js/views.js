@@ -19,6 +19,12 @@
         '<button class="btn btn--sm" data-action="breast-pause">' + (b.paused ? '▶ Resume' : '⏸ Pause') + '</button>' +
         '<button class="btn btn--sm btn--primary" data-action="breast-finish">✓ Done</button></div></div>';
     }
+    if (t.bottle) {
+      var bo = t.bottle, bs = bo.done ? 'Bottle finished — how much?' : bo.paused ? 'Bottle paused' : 'Bottle feeding';
+      out += '<div class="card live"><div class="live__head"><span class="live__icon">🍼</span><div><div class="live__label">' + (bo.done || bo.paused ? '' : '<span class="pulse"></span>') + bs + '</div><div class="live__sub">started ' + h.fmtTime(bo.start) + '</div></div><span class="live__clock" data-bottle>' + h.clock(S.bottleTotal(bo)) + '</span></div>' +
+        (bo.done ? '<button class="btn btn--primary btn--block" data-action="bottle-finish">Enter amount</button>'
+          : '<div class="btn-row"><button class="btn btn--sm" data-action="bottle-pause">' + (bo.paused ? '▶ Resume' : '⏸ Pause') + '</button><button class="btn btn--sm btn--primary" data-action="bottle-finish">✓ Finished</button></div>') + '</div>';
+    }
     if (t.sleep) {
       out += '<div class="card live live--sleep"><div class="live__head"><span class="live__icon">😴</span><div><div class="live__label"><span class="pulse"></span>Asleep</div><div class="live__sub">since ' + h.fmtTime(t.sleep.start) + '</div></div><span class="live__clock" data-elapsed="' + t.sleep.start + '">0:00</span></div>' +
         '<button class="btn btn--primary btn--block" data-action="sleep-stop">☀️ Woke up</button></div>';
@@ -101,7 +107,7 @@
   function allItems() {
     var t = S.timers();
     return {
-      feed:      ['feed', '🍼', t.breast ? 'Feeding…' : 'Feed', !!t.breast, 'log'],
+      feed:      ['feed', '🍼', t.breast || t.bottle ? 'Feeding…' : 'Feed', !!(t.breast || t.bottle), 'log'],
       diaper:    ['diaper', '🧷', 'Diaper', false, 'log'],
       sleep:     ['sleep', t.sleep ? '☀️' : '🌙', t.sleep ? 'Woke up' : 'Sleep', !!t.sleep, 'sleep-toggle'],
       tummy:     ['tummy', '🤸', t.tummy ? 'Stop tummy' : 'Tummy', !!t.tummy, 'tummy-toggle'],
@@ -346,6 +352,27 @@
       '<div class="daymap">' + rows.join('') + '<div class="daymap__axis"><span></span><div class="daymap__ticks"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div></div></div></div>';
   }
 
+  /* Bottle pace: minutes and ml per minute for timed bottles, and how each
+     nipple size compares — a slow flow shows up as a low ml/min. */
+  function bottlePaceCard(from) {
+    var list = S.events({ type: 'feed', from: from }).filter(function (e) { return e.data.kind === 'bottle' && e.data.durationMs && e.data.amountMl; });
+    if (!list.length) return '';
+    var rate = function (e) { return e.data.amountMl / (e.data.durationMs / MIN); }, r1 = function (v) { return Math.round(v * 10) / 10; };
+    var by = {};
+    list.forEach(function (e) { var k = e.data.nipple || 'not noted'; (by[k] = by[k] || []).push(e); });
+    var sizes = Object.keys(by).map(function (k) {
+      var es = by[k], avgR = es.reduce(function (a, e) { return a + rate(e); }, 0) / es.length, avgM = es.reduce(function (a, e) { return a + e.data.durationMs; }, 0) / es.length / MIN;
+      return '<tr><td>' + esc(k) + '</td><td class="num">' + es.length + '</td><td class="num">' + Math.round(avgM) + ' min</td><td class="num">' + r1(avgR) + '</td></tr>';
+    }).join('');
+    var rows = list.slice().reverse().slice(0, 8).map(function (e) {
+      var p = G.bottlePace(e.data.amountMl, e.data.durationMs);
+      return '<tr><td>' + h.fmtDate(e.time) + ' ' + h.fmtTime(e.time) + '</td><td class="num">' + h.vol(e.data.amountMl) + (e.data.offeredMl ? '<br><span class="faint">of ' + h.vol(e.data.offeredMl) + '</span>' : '') + '</td><td class="num">' + Math.round(p.min) + ' min</td><td class="num">' + (p.level !== 'ok' ? '⚠️ ' : '') + r1(p.rate) + '</td><td>' + esc(e.data.nipple || '—') + '</td></tr>';
+    }).join('');
+    return '<div class="card chart"><div class="chart__title">Bottle pace</div><div class="chart__sub">Timed bottles. A feed usually takes about 10–20 minutes; much longer, or well under 1 ml a minute, often means the nipple flow is too slow.</div>' +
+      '<div class="tbl-wrap" tabindex="0" role="region" aria-label="By nipple size"><table class="tbl"><thead><tr><th>Nipple</th><th class="num">Feeds</th><th class="num">Avg time</th><th class="num">ml/min</th></tr></thead><tbody>' + sizes + '</tbody></table></div>' +
+      '<details class="more" style="margin-top:8px"><summary>Recent timed bottles</summary><div class="tbl-wrap" tabindex="0" role="region" aria-label="Recent timed bottles (scrolls sideways)"><table class="tbl"><thead><tr><th>When</th><th class="num">Finished</th><th class="num">Took</th><th class="num">ml/min</th><th>Nipple</th></tr></thead><tbody>' + rows + '</tbody></table></div></details></div>';
+  }
+
   /* Growth: the baby's measurements over the WHO 3rd–97th percentile band (with
      the 15th, 50th and 85th lines), by age, like the paper chart at check-ups.
      Without a sex set, or past 2 years, it falls back to the measurement over time. */
@@ -434,6 +461,7 @@
     html += barChart({ title: 'Diapers per day', sub: 'Wet and dirty changes (a “both” counts once in each).' + (aWet != null ? ' Average wet: ' + Math.round(aWet * 10) / 10 + '.' : ''), days: ds, series: [{ key: 'wet', label: 'Wet' }, { key: 'dirty', label: 'Dirty', cls: 'bar--2' }], value: function (d, k) { return d[k]; }, fmt: function (v) { return String(v); } });
     if (ds.some(function (d) { return d.bottleMl; })) html += barChart({ title: 'Bottle volume per day', sub: 'Total from logged bottles, in ' + h.volUnit() + '.', days: ds, series: [{ key: 'b', label: 'Bottle' }], value: function (d) { return h.volToDisplay(d.bottleMl); }, fmt: function (v) { return String(Math.round(v)); } });
     if (ds.some(function (d) { return d.pumpMl; })) html += barChart({ title: 'Pumped per day', sub: 'Total pumped, in ' + h.volUnit() + '.', days: ds, series: [{ key: 'p', label: 'Pumped' }], value: function (d) { return h.volToDisplay(d.pumpMl); }, fmt: function (v) { return String(Math.round(v)); } });
+    html += bottlePaceCard(now - n * DAY);
     html += growthCard();
     // Table view of the same numbers (accessibility + screen readers).
     html += '<details class="card more"><summary>Show as a table</summary><div class="tbl-wrap" tabindex="0" role="region" aria-label="Table (scrolls sideways)"><table class="tbl" style="margin-top:8px"><thead><tr><th>Day</th><th class="num">Feeds</th><th class="num">Wet</th><th class="num">Dirty</th><th class="num">Sleep</th></tr></thead><tbody>' +

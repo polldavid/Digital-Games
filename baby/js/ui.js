@@ -140,7 +140,13 @@
           if (d.right) parts.push('R ' + durMs(d.right));
           out.sub = parts.join(' · ') + (d.startSide ? ' · started ' + d.startSide : '');
         } else if (d.kind === 'bottle') {
-          out.title = 'Bottle'; out.sub = vol(d.amountMl || 0) + ' ' + (d.milk === 'formula' ? 'formula' : 'breast milk');
+          out.title = 'Bottle'; out.sub = vol(d.amountMl || 0) + (d.offeredMl ? ' of ' + vol(d.offeredMl) : '') + ' ' + (d.milk === 'formula' ? 'formula' : 'breast milk');
+          if (d.durationMs) {
+            var pace = G.bottlePace(d.amountMl, d.durationMs);
+            out.sub += ' · ' + durMs(d.durationMs) + (pace ? ' (' + (Math.round(pace.rate * 10) / 10) + ' ml/min)' : '');
+            if (pace && pace.level !== 'ok') out.flag = true;
+          }
+          if (d.nipple) out.sub += ' · nipple ' + d.nipple;
         } else if (d.kind === 'solids') {
           out.icon = '🥣'; out.title = 'Solids';
           out.sub = (d.food || 'Food') + (d.newFood ? ' · first try' : '') + (d.reaction ? ' · ' + REACTIONS[d.reaction] : '');
@@ -488,7 +494,7 @@
      [data-elapsed="ms"]  -> "1:02:33"
      [data-until="ms"]    -> "in 25 min"
      [data-breast="L|R|T"] -> breast timer totals */
-  var LIVE = '[data-ago],[data-elapsed],[data-since],[data-until],[data-breast],[data-pump]';
+  var LIVE = '[data-ago],[data-elapsed],[data-since],[data-until],[data-breast],[data-pump],[data-bottle]';
   function tick() {
     if (document.hidden) return; // nothing to see; visibilitychange re-renders on return
     var now = Date.now(), id = S.get().activeBaby;
@@ -503,6 +509,7 @@
       else if ((a = n.getAttribute('data-until')) != null) v = until(+a, now);
       else if ((a = n.getAttribute('data-breast')) != null) { if (tt) v = clock(a === 'L' ? tt.L : a === 'R' ? tt.R : tt.total); }
       else if ((a = n.getAttribute('data-pump')) != null) { if (pt) v = clock(a === 'L' ? pt.L : a === 'R' ? pt.R : pt.total); }
+      else if (n.hasAttribute('data-bottle')) { var bt = id && S.timers().bottle; if (bt) v = clock(S.bottleTotal(bt, now)); }
       // Only touch the DOM when the text actually changes ("12 min ago" holds for a minute).
       if (v != null && n.textContent !== v) n.textContent = v;
     }

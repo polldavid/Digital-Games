@@ -68,3 +68,13 @@ is('note: very fussy after the 6pm feed', r => { assert.strictEqual(r.type, 'not
 is('banana', r => { assert.strictEqual(r.kind, 'unknown'); assert.ok(r.suggest.length); });
 is('', r => assert.strictEqual(r.kind, 'unknown'));
 console.log('voice parser tests passed (' + n + ' phrases)');
+
+// Bottle timer
+is('start bottle', r => assert.strictEqual(r.action, 'bottle-start'));
+is('start the bottle timer', r => assert.strictEqual(r.action, 'bottle-start'));
+is('done, 15 ml', r => assert.deepStrictEqual([r.action, r.amountMl], ['bottle-done', 15]), { timers: { bottle: true } });
+is('she finished 30 ml', r => assert.deepStrictEqual([r.action, r.amountMl], ['bottle-done', 30]), { timers: { bottle: true } });
+is('done', r => assert.deepStrictEqual([r.action, r.amountMl], ['bottle-done', null]), { timers: { bottle: true } });
+is('wet diaper', r => assert.strictEqual(r.type, 'diaper'), { timers: { bottle: true } });
+is('bottle 60 ml', r => assert.strictEqual(r.type, 'feed'));
+console.log('bottle voice tests passed');

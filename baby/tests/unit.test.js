@@ -206,3 +206,30 @@ console.log('hardening unit tests passed');
   assert.deepStrictEqual([1, 2, 11, 12, 13, 21, 22, 50].map(at), ['1st', '2nd', '11th', '12th', '13th', '21st', '22nd', '50th']);
   console.log('growth percentile tests passed');
 }
+
+// Bottle timer and pace
+{
+  const p = require.resolve('../js/store.js'); delete require.cache[p];
+  const S = require(p), G = require('../js/guide.js');
+  S.reset(); S.addBaby({ name: 'B', birth: '2026-10-01' });
+  const t0 = 1e12, MIN = 60000;
+  S.bottleStart(t0);
+  S.bottlePause(t0 + 5 * MIN);                 // burp break
+  S.bottlePause(t0 + 7 * MIN);                 // resume
+  assert.strictEqual(S.bottleTotal(S.timers().bottle, t0 + 10 * MIN), 8 * MIN, 'pause time not counted');
+  S.bottleFinish(t0 + 20 * MIN);
+  const b = S.timers().bottle;
+  assert.ok(b.done && b.acc === 18 * MIN && b.end === t0 + 20 * MIN);
+  assert.strictEqual(S.bottleTotal(b, t0 + 99 * MIN), 18 * MIN, 'frozen once finished');
+  S.bottleResume(t0 + 21 * MIN);
+  assert.ok(!S.timers().bottle.done);
+  assert.strictEqual(S.bottleTotal(S.timers().bottle, t0 + 23 * MIN), 20 * MIN);
+  // Pace: 15 ml in 28 min is slow; 60 ml in 15 min fine; 120 ml in 3 min fast.
+  assert.strictEqual(G.bottlePace(15, 28 * MIN).level, 'slow');
+  assert.strictEqual(G.bottlePace(15, 20 * MIN).level, 'slow', 'under 1 ml/min after 15 min');
+  assert.strictEqual(G.bottlePace(60, 15 * MIN).level, 'ok');
+  assert.strictEqual(G.bottlePace(120, 3 * MIN).level, 'fast');
+  assert.strictEqual(G.bottlePace(60, 35 * MIN).level, 'slow');
+  assert.strictEqual(G.bottlePace(60, 20 * 1000), null, 'under a minute: no verdict');
+  console.log('bottle timer tests passed');
+}
