@@ -134,9 +134,7 @@ baby/
 ├── index.html             # shell: welcome, tabs, bottom sheet
 ├── manifest.webmanifest   # install to home screen
 ├── sw.js                  # offline cache + notification taps
-├── DESIGN.md              # the visual system (Isotype day, sky-chart night) — read before UI work
-├── icons/                 # app icons (SVG + PNG, maskable) + pictos.svg (55 drawn pictograms, inlined in index.html)
-├── fonts/                 # Jost (self-hosted, SIL OFL) — works offline and in the store builds
+├── icons/                 # app icons (SVG + PNG, maskable)
 ├── css/styles.css
 └── js/
     ├── guide.js   # age norms, thresholds, milestones, vaccine schedules, cry ranking — pure, no DOM
@@ -144,7 +142,7 @@ baby/
     ├── files.js   # photo storage (IndexedDB) and compression
     ├── store.js   # state, persistence, queries, timers, reminder engine — no DOM
     ├── sound.js   # white/pink/brown noise, shush, heartbeat, chime (Web Audio)
-    ├── ui.js      # helpers: formatting, units, pictograms (ic/icon/tone), sheet, confirm dialog, field errors, toasts, tooltips
+    ├── ui.js      # helpers: formatting, units, sheet, confirm dialog, field errors, toasts, tooltips
     ├── forms.js   # one logging form per entry type (add + edit)
     ├── views.js   # Today, History, Trends
     ├── help.js    # Answers topics + sleep-sounds player

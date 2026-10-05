@@ -25,8 +25,8 @@
   function photo(id, cls) { return id ? '<button type="button" class="photo-btn" data-action="photo-view" data-id="' + esc(id) + '" aria-label="View the photo full size"><img class="' + (cls || 'thumb') + '" data-photo="' + esc(id) + '" alt="" decoding="async" /></button>' : ''; }
   function sticky(btns) { return '<div class="btn-row sheet-save">' + btns + '</div>'; }
 
-  var VISIT_TYPES = [['checkup', h.ic('stethoscope') + 'Check-up'], ['vaccine', h.ic('syringe') + 'Vaccines'], ['sick', h.ic('thermometer') + 'Sick visit'], ['other', h.ic('list') + 'Other']];
-  function visitIcon(t) { return { checkup: 'stethoscope', vaccine: 'syringe', sick: 'thermometer', other: 'list' }[t] || 'stethoscope'; } // pictogram name
+  var VISIT_TYPES = [['checkup', '🩺 Check-up'], ['vaccine', '💉 Vaccines'], ['sick', '🤒 Sick visit'], ['other', '📋 Other']];
+  function visitIcon(t) { return { checkup: '🩺', vaccine: '💉', sick: '🤒', other: '📋' }[t] || '🩺'; }
 
   /* =====================================================
      Health tab
@@ -34,7 +34,7 @@
   function view() {
     var now = Date.now(), H = hl(), b = S.baby();
     var html = '<h1 class="h1">Health</h1>' +
-      '<div class="btn-row"><button class="btn" data-action="rx-scan">' + h.ic('camera') + 'Scan prescription</button><button class="btn" data-action="appt-edit">' + h.ic('plus') + 'Visit</button></div>';
+      '<div class="btn-row"><button class="btn" data-action="rx-scan">📷 Scan prescription</button><button class="btn" data-action="appt-edit">＋ Visit</button></div>';
 
     // Next visit
     var upcoming = H.appointments.filter(function (a) { return !a.done && a.at >= now - 3 * HOUR; }).sort(function (a, b) { return a.at - b.at; });
@@ -42,21 +42,21 @@
     html += '<div class="section-title"><h2>Next visit</h2></div><div class="card">';
     if (upcoming.length) {
       var a = upcoming[0];
-      html += '<button class="row" data-action="appt-edit" data-id="' + a.id + '"><span class="row__icon">' + h.ic(visitIcon(a.type)) + '</span><div class="row__main"><div class="row__t">' + esc(a.title || 'Doctor’s visit') + '</div><div class="row__s">' + esc(when(a.at)) + (a.place ? ' · ' + esc(a.place) : '') + '</div></div><div class="row__time"><strong data-until="' + a.at + '">' + h.until(a.at, now) + '</strong></div></button>' +
+      html += '<button class="row" data-action="appt-edit" data-id="' + a.id + '"><span class="row__icon">' + visitIcon(a.type) + '</span><div class="row__main"><div class="row__t">' + esc(a.title || 'Doctor’s visit') + '</div><div class="row__s">' + esc(when(a.at)) + (a.place ? ' · ' + esc(a.place) : '') + '</div></div><div class="row__time"><strong data-until="' + a.at + '">' + h.until(a.at, now) + '</strong></div></button>' +
         (a.questions ? '<p class="small muted" style="margin-top:6px"><strong>Questions:</strong> ' + esc(a.questions) + '</p>' : '') +
-        '<div class="btn-row" style="margin-top:8px"><button class="btn btn--sm" data-action="visit-summary">' + h.ic('share') + 'Summary for the doctor</button></div>';
+        '<div class="btn-row" style="margin-top:8px"><button class="btn btn--sm" data-action="visit-summary">📤 Summary for the doctor</button></div>';
       if (upcoming.length > 1) html += '<p class="faint" style="margin-top:8px">+ ' + h.plural(upcoming.length - 1, 'more visit') + ' scheduled — see the calendar.</p>';
     } else {
-      html += '<div class="empty"><span class="empty__icon">' + h.ic('calendar') + '</span>No visits scheduled.<br><button class="btn btn--sm" data-action="appt-edit" style="margin-top:8px">Add a visit</button></div>';
+      html += '<div class="empty"><span class="empty__icon">🗓️</span>No visits scheduled.<br><button class="btn btn--sm" data-action="appt-edit" style="margin-top:8px">Add a visit</button></div>';
     }
     html += '</div>';
 
     // Medicines
     var active = H.rx.filter(function (rx) { return S.rxStatus(rx, now).active; });
     var ended = H.rx.filter(function (rx) { return !S.rxStatus(rx, now).active; });
-    html += '<div class="section-title"><h2>Medicines</h2> <button class="btn--link" data-action="rx-edit">' + h.ic('plus') + 'Add</button></div><div class="card">';
+    html += '<div class="section-title"><h2>Medicines</h2> <button class="btn--link" data-action="rx-edit">＋ Add</button></div><div class="card">';
     if (active.length) html += '<div class="rows">' + active.map(function (rx) { return rxRow(rx, now); }).join('') + '</div>';
-    else html += '<div class="empty"><span class="empty__icon">' + h.ic('pill') + '</span>No medicines right now.<br><span class="small">Scan a prescription or add one by hand.</span></div>';
+    else html += '<div class="empty"><span class="empty__icon">💊</span>No medicines right now.<br><span class="small">Scan a prescription or add one by hand.</span></div>';
     if (ended.length) html += '<details class="more"><summary>Past medicines (' + ended.length + ')</summary><div class="rows">' + ended.sort(function (a, b) { return b.start - a.start; }).map(function (rx) { return rxRow(rx, now); }).join('') + '</div></details>';
     html += '</div>';
 
@@ -69,20 +69,20 @@
     // Records
     var P = H.profile;
     html += '<div class="section-title"><h2>Records</h2></div><div class="card"><div class="rows">' +
-      '<button class="row" data-action="profile-edit"><span class="row__icon">' + h.ic('card') + '</span><div class="row__main"><div class="row__t">Health profile</div><div class="row__s">' + esc([P.blood && 'Blood type ' + P.blood, P.allergies ? 'Allergies: ' + P.allergies : 'No allergies noted', P.doctor && 'Dr. ' + P.doctor.replace(/^dr\.?\s*/i, '')].filter(Boolean).join(' · ')) + '</div></div><span class="faint">Edit' + h.ic('chevron') + '</span></button>' +
-      '<button class="row" data-action="emergency"><span class="row__icon">' + h.ic('sos') + '</span><div class="row__main"><div class="row__t">Emergency info</div><div class="row__s">For a sitter, grandparent or the ER — share or show</div></div><span class="faint">' + h.ic('chevron') + '</span></button>' +
-      '<button class="row" data-action="visit-summary"><span class="row__icon">' + h.ic('share') + '</span><div class="row__main"><div class="row__t">Summary for the doctor</div><div class="row__s">Last 7 days of feeds, diapers, sleep, meds, fevers, growth</div></div><span class="faint">' + h.ic('chevron') + '</span></button>' +
+      '<button class="row" data-action="profile-edit"><span class="row__icon">🪪</span><div class="row__main"><div class="row__t">Health profile</div><div class="row__s">' + esc([P.blood && 'Blood type ' + P.blood, P.allergies ? 'Allergies: ' + P.allergies : 'No allergies noted', P.doctor && 'Dr. ' + P.doctor.replace(/^dr\.?\s*/i, '')].filter(Boolean).join(' · ')) + '</div></div><span class="faint">Edit ›</span></button>' +
+      '<button class="row" data-action="emergency"><span class="row__icon">🆘</span><div class="row__main"><div class="row__t">Emergency info</div><div class="row__s">For a sitter, grandparent or the ER — share or show</div></div><span class="faint">›</span></button>' +
+      '<button class="row" data-action="visit-summary"><span class="row__icon">📤</span><div class="row__main"><div class="row__t">Summary for the doctor</div><div class="row__s">Last 7 days of feeds, diapers, sleep, meds, fevers, growth</div></div><span class="faint">›</span></button>' +
       '</div></div>';
 
-    html += '<div class="section-title"><h2>Documents</h2> <button class="btn--link" data-action="doc-edit">' + h.ic('plus') + 'Add</button></div><div class="card">';
+    html += '<div class="section-title"><h2>Documents</h2> <button class="btn--link" data-action="doc-edit">＋ Add</button></div><div class="card">';
     if (H.docs.length) html += '<div class="docs">' + H.docs.slice().sort(function (a, b) { return b.date - a.date; }).map(function (d) {
-      return '<button class="doc" data-action="doc-edit" data-id="' + d.id + '">' + (d.photoId ? '<img class="doc__img" data-photo="' + esc(d.photoId) + '" alt="" loading="lazy" decoding="async" />' : '<span class="doc__img doc__img--none">' + h.ic('document') + '</span>') + '<span class="doc__t">' + esc(d.title || 'Document') + '</span><span class="doc__s">' + esc(dateOnly(d.date)) + '</span></button>';
+      return '<button class="doc" data-action="doc-edit" data-id="' + d.id + '">' + (d.photoId ? '<img class="doc__img" data-photo="' + esc(d.photoId) + '" alt="" loading="lazy" decoding="async" />' : '<span class="doc__img doc__img--none">📄</span>') + '<span class="doc__t">' + esc(d.title || 'Document') + '</span><span class="doc__s">' + esc(dateOnly(d.date)) + '</span></button>';
     }).join('') + '</div>';
-    else html += '<div class="empty"><span class="empty__icon">' + h.ic('folder') + '</span>Keep photos of lab results, the vaccine card, or the birth certificate here.</div>';
+    else html += '<div class="empty"><span class="empty__icon">🗂️</span>Keep photos of lab results, the vaccine card, or the birth certificate here.</div>';
     html += '</div>';
 
     if (past.length) html += '<div class="section-title"><h2>Past visits</h2></div><div class="card"><div class="rows">' + past.slice(0, 10).map(function (a) {
-      return '<button class="row" data-action="appt-edit" data-id="' + a.id + '"><span class="row__icon">' + h.ic(visitIcon(a.type)) + '</span><div class="row__main"><div class="row__t">' + esc(a.title || 'Doctor’s visit') + '</div><div class="row__s">' + esc(a.outcome || a.place || '') + '</div></div><div class="row__time"><strong>' + esc(dateOnly(a.at)) + '</strong></div></button>';
+      return '<button class="row" data-action="appt-edit" data-id="' + a.id + '"><span class="row__icon">' + visitIcon(a.type) + '</span><div class="row__main"><div class="row__t">' + esc(a.title || 'Doctor’s visit') + '</div><div class="row__s">' + esc(a.outcome || a.place || '') + '</div></div><div class="row__time"><strong>' + esc(dateOnly(a.at)) + '</strong></div></button>';
     }).join('') + '</div></div>';
 
     html += '<p class="disclaimer">Keep using your pediatrician’s instructions and the medicine label as the final word on doses.</p>';
@@ -94,7 +94,7 @@
     var line = [rx.dose, rx.prn ? 'as needed' : rx.intervalH ? (rx.intervalH >= 24 ? 'once a day' : 'every ' + rx.intervalH + 'h') : '', rs.expected ? rs.doses + ' of ' + rs.expected + ' doses' : rs.doses ? h.plural(rs.doses, 'dose') + ' given' : ''].filter(Boolean).join(' · ');
     var state = !rs.active ? (rx.stopped ? 'Stopped' : 'Finished') + (rs.end ? ' ' + new Date(Math.min(rs.end, rx.stoppedAt || rs.end)).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '')
       : [rs.nextAt ? (rs.nextAt <= now ? '<strong class="due">Due now</strong>' : 'Next ' + h.fmtTime(rs.nextAt)) : '', rs.end ? 'until ' + new Date(rs.end).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''].filter(Boolean).join(' · ');
-    return '<div class="row rxrow"><button class="rxrow__main" data-action="rx-edit" data-id="' + rx.id + '"><span class="row__icon">' + h.ic('pill') + '</span><div class="row__main"><div class="row__t">' + esc(rx.name) + (rx.strength ? ' <span class="faint">' + esc(rx.strength) + '</span>' : '') + '</div><div class="row__s">' + esc(line) + '</div>' + (state ? '<div class="row__s">' + state + '</div>' : '') + '</div></button>' +
+    return '<div class="row rxrow"><button class="rxrow__main" data-action="rx-edit" data-id="' + rx.id + '"><span class="row__icon">💊</span><div class="row__main"><div class="row__t">' + esc(rx.name) + (rx.strength ? ' <span class="faint">' + esc(rx.strength) + '</span>' : '') + '</div><div class="row__s">' + esc(line) + '</div>' + (state ? '<div class="row__s">' + state + '</div>' : '') + '</div></button>' +
       (rs.active ? '<button class="btn btn--sm btn--primary" data-action="rx-dose" data-id="' + rx.id + '">Give dose</button>' : '') + '</div>';
   }
 
@@ -103,7 +103,7 @@
 
   function vaxSummary(now) {
     var H = hl();
-    if (!H.vaccines.schedule) return '<p class="muted">Pick a schedule to get a checklist with due dates from ' + name() + '’s birthday.</p><div class="btn-row" style="margin-top:8px"><button class="btn btn--sm" data-action="vax-schedule" data-s="ph">Philippines</button><button class="btn btn--sm" data-action="vax-schedule" data-s="us">United States</button></div>';
+    if (!H.vaccines.schedule) return '<p class="muted">Pick a schedule to get a checklist with due dates from ' + name() + '’s birthday.</p><div class="btn-row" style="margin-top:8px"><button class="btn btn--sm" data-action="vax-schedule" data-s="ph">🇵🇭 Philippines</button><button class="btn btn--sm" data-action="vax-schedule" data-s="us">🇺🇸 United States</button></div>';
     var p = plan(now), given = p.filter(function (v) { return v.status === 'given'; }).length;
     var overdue = p.filter(function (v) { return v.status === 'overdue'; }), due = p.filter(function (v) { return v.status === 'due'; });
     var next = p.filter(function (v) { return v.status === 'upcoming'; })[0];
@@ -119,7 +119,7 @@
       title: 'Vaccines',
       html: function () {
         var H = hl(), now = Date.now(), sch = H.vaccines.schedule;
-        var html = '<div class="seg" role="radiogroup">' + [['ph', 'Philippines'], ['us', 'US (CDC)']].map(function (o) {
+        var html = '<div class="seg" role="radiogroup">' + [['ph', '🇵🇭 Philippines'], ['us', '🇺🇸 US (CDC)']].map(function (o) {
           return '<label><input type="radio" name="vaxsch" value="' + o[0] + '" data-action-change="vax-schedule"' + (sch === o[0] ? ' checked' : '') + ' /><span>' + o[1] + '</span></label>';
         }).join('') + '</div>';
         if (!sch) return html + '<p class="muted">Pick the schedule your pediatrician follows.</p>';
@@ -131,14 +131,14 @@
           var list = groups[k], label = +k === 0 ? 'At birth' : +k < 120 ? Math.round(k / 7) + ' weeks' : Math.round(k / 30.4) + ' months';
           html += '<div class="vaxgroup"><div class="vaxgroup__h"><span>' + label + '</span><span class="faint">' + esc(dateOnly(list[0].due)) + '</span></div>' + list.map(function (v) {
             var pill = v.status === 'given' ? h.statusPill('ok', 'Given ' + new Date(v.given.date).toLocaleDateString([], { month: 'short', day: 'numeric' })) : v.status === 'overdue' ? h.statusPill('warn', 'Past due') : v.status === 'due' ? h.statusPill('info', 'Due soon') : '';
-            return '<button class="row" data-action="vax-item" data-key="' + v.key + '"><span class="row__icon">' + (v.status === 'given' ? h.ic('check', 'c-ok') : h.ic('syringe')) + '</span><div class="row__main"><div class="row__t">' + esc(v.name) + (v.program ? ' <span class="tag">' + esc(v.program) + '</span>' : '') + '</div><div class="row__s">' + esc(v.note || '') + '</div></div>' + pill + '</button>';
+            return '<button class="row" data-action="vax-item" data-key="' + v.key + '"><span class="row__icon">' + (v.status === 'given' ? '✅' : '💉') + '</span><div class="row__main"><div class="row__t">' + esc(v.name) + (v.program ? ' <span class="tag">' + esc(v.program) + '</span>' : '') + '</div><div class="row__s">' + esc(v.note || '') + '</div></div>' + pill + '</button>';
           }).join('') + '</div>';
         });
         var custom = H.vaccines.custom;
         if (custom.length) html += '<div class="vaxgroup"><div class="vaxgroup__h"><span>Other vaccines</span></div>' + custom.map(function (c) {
-          return '<button class="row" data-action="vax-custom" data-id="' + c.id + '"><span class="row__icon">' + h.ic('check', 'c-ok') + '</span><div class="row__main"><div class="row__t">' + esc(c.name) + '</div><div class="row__s">' + esc(dateOnly(c.date) + (c.note ? ' · ' + c.note : '')) + '</div></div></button>';
+          return '<button class="row" data-action="vax-custom" data-id="' + c.id + '"><span class="row__icon">✅</span><div class="row__main"><div class="row__t">' + esc(c.name) + '</div><div class="row__s">' + esc(dateOnly(c.date) + (c.note ? ' · ' + c.note : '')) + '</div></div></button>';
         }).join('') + '</div>';
-        html += '<button class="btn btn--block" data-action="vax-custom">' + h.ic('plus') + 'Record another vaccine</button>';
+        html += '<button class="btn btn--block" data-action="vax-custom">＋ Record another vaccine</button>';
         return html;
       }
     });
@@ -179,16 +179,16 @@
 
   function calendarMarks(from, to, now) {
     var H = hl(), marks = {};
-    var add = function (t, kind, label, icon) { var k = isoDate(t); (marks[k] = marks[k] || []).push({ kind: kind, label: label, icon: icon, t: t }); };
-    H.appointments.forEach(function (a) { if (a.at >= from && a.at < to) add(a.at, 'visit', (a.title || 'Doctor’s visit') + ' · ' + h.fmtTime(a.at), visitIcon(a.type)); });
+    var add = function (t, kind, label) { var k = isoDate(t); (marks[k] = marks[k] || []).push({ kind: kind, label: label, t: t }); };
+    H.appointments.forEach(function (a) { if (a.at >= from && a.at < to) add(a.at, 'visit', visitIcon(a.type) + ' ' + (a.title || 'Doctor’s visit') + ' · ' + h.fmtTime(a.at)); });
     plan(now).forEach(function (v) {
-      if (v.status === 'given') { if (v.given.date >= from && v.given.date < to) add(v.given.date, 'vaxdone', v.name + ' given', 'check'); }
-      else if (v.due >= from && v.due < to) add(v.due, 'vax', v.name + ' due', 'syringe');
+      if (v.status === 'given') { if (v.given.date >= from && v.given.date < to) add(v.given.date, 'vaxdone', '✅ ' + v.name + ' given'); }
+      else if (v.due >= from && v.due < to) add(v.due, 'vax', '💉 ' + v.name + ' due');
     });
-    H.vaccines.custom.forEach(function (c) { if (c.date >= from && c.date < to) add(c.date, 'vaxdone', c.name + ' given', 'check'); });
+    H.vaccines.custom.forEach(function (c) { if (c.date >= from && c.date < to) add(c.date, 'vaxdone', '✅ ' + c.name + ' given'); });
     H.rx.forEach(function (rx) {
       var rs = S.rxStatus(rx, now), end = rs.end || (rx.stopped ? rx.stoppedAt : Math.max(now, rx.start + DAY));
-      for (var t = Math.max(S.startOfDay(rx.start), from); t < Math.min(end, to); t = S.startOfDay(t + 26 * HOUR)) add(t, 'rx', rx.name, 'pill');
+      for (var t = Math.max(S.startOfDay(rx.start), from); t < Math.min(end, to); t = S.startOfDay(t + 26 * HOUR)) add(t, 'rx', '💊 ' + rx.name);
     });
     return marks;
   }
@@ -198,7 +198,7 @@
     var first = new Date(m0), y = first.getFullYear(), mo = first.getMonth();
     var next = new Date(y, mo + 1, 1).getTime(), days = Math.round((next - m0) / DAY);
     var marks = calendarMarks(m0, next, now), today = isoDate(now), sel = App.ui.calDay || today;
-    var head = '<div class="cal__nav"><button class="iconbtn" data-action="cal-move" data-d="-1" aria-label="Previous month"><span style="display:inline-flex;transform:scaleX(-1)">' + h.ic('chevron') + '</span></button><strong>' + first.toLocaleDateString([], { month: 'long', year: 'numeric' }) + '</strong><button class="iconbtn" data-action="cal-move" data-d="1" aria-label="Next month">' + h.ic('chevron') + '</button></div>';
+    var head = '<div class="cal__nav"><button class="iconbtn" data-action="cal-move" data-d="-1" aria-label="Previous month">‹</button><strong>' + first.toLocaleDateString([], { month: 'long', year: 'numeric' }) + '</strong><button class="iconbtn" data-action="cal-move" data-d="1" aria-label="Next month">›</button></div>';
     var wk = []; for (var i = 0; i < 7; i++) wk.push('<span>' + new Date(2026, 1, 1 + i).toLocaleDateString([], { weekday: 'narrow' }) + '</span>'); // Feb 1 2026 is a Sunday
     var cells = '';
     for (var b = 0; b < first.getDay(); b++) cells += '<span class="cal__pad"></span>';
@@ -209,8 +209,8 @@
         '<span class="cal__dots">' + ['visit', 'vax', 'vaxdone', 'rx'].filter(function (k) { return kinds[k]; }).map(function (k) { return '<i class="cal__dot cal__dot--' + k + '"></i>'; }).join('') + '</span></button>';
     }
     var selMarks = (calendarMarks(fromIsoDate(sel) - 12 * HOUR, fromIsoDate(sel) + 12 * HOUR, now)[sel]) || [];
-    var list = '<div class="cal__list"><div class="cal__list-h">' + esc(dateOnly(fromIsoDate(sel))) + '</div>' + (selMarks.length ? selMarks.map(function (x) { return '<div class="small">' + (x.icon ? h.ic(x.icon) : '') + esc(x.label) + '</div>'; }).join('') : '<div class="small faint">Nothing scheduled.</div>') +
-      '<button class="btn btn--sm" data-action="appt-edit" data-day="' + sel + '" style="margin-top:6px">' + h.ic('plus') + 'Visit on this day</button></div>';
+    var list = '<div class="cal__list"><div class="cal__list-h">' + esc(dateOnly(fromIsoDate(sel))) + '</div>' + (selMarks.length ? selMarks.map(function (x) { return '<div class="small">' + esc(x.label) + '</div>'; }).join('') : '<div class="small faint">Nothing scheduled.</div>') +
+      '<button class="btn btn--sm" data-action="appt-edit" data-day="' + sel + '" style="margin-top:6px">＋ Visit on this day</button></div>';
     return head + '<div class="cal__wk" aria-hidden="true">' + wk.join('') + '</div><div class="cal__grid">' + cells + '</div>' +
       '<div class="legend" style="margin-top:8px"><span><i class="cal__dot cal__dot--visit"></i>Visit</span><span><i class="cal__dot cal__dot--vax"></i>Vaccine due</span><span><i class="cal__dot cal__dot--vaxdone"></i>Vaccine given</span><span><i class="cal__dot cal__dot--rx"></i>Medicine</span></div>' + list;
   }
@@ -232,7 +232,7 @@
           '<label class="field"><span class="field__label">Questions to ask</span><textarea class="input" name="questions" maxlength="600" placeholder="e.g. Is the rash normal? When can she start solids?">' + esc(a ? a.questions || '' : '') + '</textarea></label>' +
           (a ? '<label class="field"><span class="field__label">What the doctor said</span><textarea class="input" name="outcome" maxlength="800" placeholder="Advice, diagnosis, next steps">' + esc(a.outcome || '') + '</textarea></label>' +
             '<label class="check-line"><input type="checkbox" name="done"' + (a.done || past ? ' checked' : '') + ' /> Visit done</label>' +
-            '<div class="btn-row"><button type="button" class="btn btn--sm" data-action="log" data-type="growth">' + h.ic('ruler') + 'Log measurements</button><button type="button" class="btn btn--sm" data-action="vax-open">' + h.ic('syringe') + 'Vaccines given</button><button type="button" class="btn btn--sm" data-action="appt-next" data-id="' + a.id + '">' + h.ic('calendar') + 'Book next visit</button></div>' : '') +
+            '<div class="btn-row"><button type="button" class="btn btn--sm" data-action="log" data-type="growth">📏 Log measurements</button><button type="button" class="btn btn--sm" data-action="vax-open">💉 Vaccines given</button><button type="button" class="btn btn--sm" data-action="appt-next" data-id="' + a.id + '">🗓️ Book next visit</button></div>' : '') +
           sticky((a ? '<button type="button" class="btn btn--danger" data-action="appt-delete" data-id="' + a.id + '">Delete</button>' : '') + '<button type="submit" class="btn btn--primary btn--lg">Save</button>') + '</form>';
       }
     });
@@ -276,7 +276,7 @@
           (rs ? '<p class="muted">' + (rs.active ? 'Active' : cur.stopped ? 'Stopped' : 'Finished') + ' · ' + h.plural(rs.doses, 'dose') + ' given' + (rs.expected ? ' of ' + rs.expected : '') + (rs.lastDose ? ' · last ' + h.ago(rs.lastDose.time) : '') + '</p>' : '') +
           rxFields(cur || {}) +
           '<label class="field"><span class="field__label">Prescribed by (optional)</span><input class="input" name="prescriber" maxlength="60" value="' + esc(cur ? cur.prescriber || '' : hl().profile.doctor || '') + '" /></label>' +
-          (cur && rs.active ? '<button type="button" class="btn btn--block" data-action="rx-stop" data-id="' + cur.id + '">' + h.ic('stop') + 'Stop this medicine now</button>' : '') +
+          (cur && rs.active ? '<button type="button" class="btn btn--block" data-action="rx-stop" data-id="' + cur.id + '">⏹ Stop this medicine now</button>' : '') +
           sticky((cur ? '<button type="button" class="btn btn--danger" data-action="rx-delete" data-id="' + cur.id + '">Delete</button>' : '') + '<button type="submit" class="btn btn--primary btn--lg">Save</button>') + '</form>';
       }
     });
@@ -302,8 +302,8 @@
     h.openSheet({
       title: 'Scan a prescription',
       html: '<p class="muted">Take a clear photo of the prescription in good light, flat on a table. You’ll check everything before it’s saved.</p>' +
-        '<button class="btn btn--primary btn--lg btn--block" data-action="rx-photo" data-capture="1">' + h.ic('camera') + 'Take a photo</button>' +
-        '<button class="btn btn--block" data-action="rx-photo">' + h.ic('folder') + 'Choose from gallery</button>' +
+        '<button class="btn btn--primary btn--lg btn--block" data-action="rx-photo" data-capture="1">📷 Take a photo</button>' +
+        '<button class="btn btn--block" data-action="rx-photo">🖼️ Choose from gallery</button>' +
         '<p class="faint">Free and private: the photo stays on this phone and the text is read on the phone itself. Printed prescriptions read best; for handwriting you may need to type some lines.</p>'
     });
   }
@@ -423,10 +423,10 @@
         scan.meds.forEach(function (m, i) {
           html += '<fieldset class="card card--flat scanmed"><label class="check-line"><input type="checkbox" name="' + i + ':include" checked /> <span><strong>' + esc(m.name || 'Medicine ' + (i + 1)) + '</strong>' + (Rx.describe(m) ? '<br><span class="faint">' + esc(Rx.describe(m)) + '</span>' : '') + '</span></label>' + rxFields(m, i) + '</fieldset>';
         });
-        html += '<button type="button" class="btn btn--block" data-action="scan-add">' + h.ic('plus') + 'Add another medicine</button>' +
+        html += '<button type="button" class="btn btn--block" data-action="scan-add">＋ Add another medicine</button>' +
           '<label class="field"><span class="field__label">Prescribed by (optional)</span><input class="input" name="prescriber" maxlength="60" value="' + esc(scan.doctor || hl().profile.doctor || '') + '" /></label>';
         if (scan.text) html += '<details class="more"><summary>What was read from the photo</summary><pre class="scantext">' + esc(scan.text) + '</pre></details>';
-        if (scan.pass !== 2) html += '<button type="button" class="btn btn--block" data-action="scan-retry">' + h.ic('swap') + 'Missed something? Try reading it another way</button>';
+        if (scan.pass !== 2) html += '<button type="button" class="btn btn--block" data-action="scan-retry">🔁 Missed something? Try reading it another way</button>';
         html += '<p class="faint">Tip: lay the paper flat in bright, even light and fill the frame. Handwriting is hard for any free reader — type in what it couldn’t read.</p>';
         html += sticky('<button type="button" class="btn" data-action="scan-cancel">Cancel</button><button type="submit" class="btn btn--primary btn--lg">Save to records</button>') + '</form>';
         return html;
@@ -473,7 +473,7 @@
       html: function () {
         return '<form class="form" id="doc-form"' + (d ? ' data-id="' + d.id + '"' : '') + '>' +
           (draft.photoId ? '<div class="photo-wrap">' + photo(draft.photoId, 'photo') + '</div>' : '') +
-          '<div class="btn-row"><button type="button" class="btn btn--sm" data-action="doc-photo" data-capture="1">' + h.ic('camera') + (draft.photoId ? 'Retake' : 'Take photo') + '</button><button type="button" class="btn btn--sm" data-action="doc-photo">' + h.ic('folder') + (draft.photoId ? 'Replace' : 'From gallery') + '</button></div>' +
+          '<div class="btn-row"><button type="button" class="btn btn--sm" data-action="doc-photo" data-capture="1">📷 ' + (draft.photoId ? 'Retake' : 'Take photo') + '</button><button type="button" class="btn btn--sm" data-action="doc-photo">🖼️ ' + (draft.photoId ? 'Replace' : 'From gallery') + '</button></div>' +
           '<input type="hidden" name="photoId" value="' + esc(draft.photoId || '') + '" />' +
           '<label class="field"><span class="field__label">Title</span><input class="input" name="title" maxlength="60" required value="' + esc(d ? d.title : '') + '" placeholder="e.g. CBC result, vaccine card" /></label>' +
           '<label class="field"><span class="field__label">Date</span><input class="input" type="date" name="date" value="' + (d ? isoDate(d.date) : h.todayISO()) + '" /></label>' +

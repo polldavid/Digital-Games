@@ -24,16 +24,13 @@
     var b = S.baby();
     $('#welcome').hidden = !!b;
     $('#app').hidden = !b;
-    if (!b) { var tg0 = $('[data-theme-toggle]'); if (tg0 && tg0.parentNode !== document.body) document.body.insertBefore(tg0, document.body.firstChild); return; }
+    if (!b) return;
     var days = S.ageDays(Date.now()), many = S.get().babies.length > 1;
     var chip = $('#babychip');
-    chip.innerHTML = avatar(b, 'babychip__emoji') + '<span class="babychip__text"><span class="babychip__name">' + esc(b.name) + '</span><span class="babychip__age">' + esc(G.ageLabel(days)) + '</span></span>' + (many ? h.ic('chevron', 'babychip__caret') : '');
+    chip.innerHTML = '<span class="babychip__emoji" aria-hidden="true">' + esc(b.emoji || '👶') + '</span><span class="babychip__text"><span class="babychip__name">' + esc(b.name) + '</span><span class="babychip__age">' + esc(G.ageLabel(days)) + '</span></span>' + (many ? '<span class="babychip__caret" aria-hidden="true">▼</span>' : '');
     chip.setAttribute('aria-label', b.name + ', ' + G.ageLabel(days) + (many ? ' — switch baby' : ' — edit profile'));
     var v = App.ui.view;
     $all('.view').forEach(function (n) { n.hidden = n.id !== 'view-' + v; });
-    // The shared theme switch sits in the app's own header, not floating over it.
-    var tg = $('[data-theme-toggle]'), bar = $('.topbar');
-    if (tg && bar && tg.parentNode !== bar) bar.appendChild(tg);
     $all('.tab').forEach(function (t) { var on = t.getAttribute('data-view') === v; t.classList.toggle('tab--active', on); if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current'); });
     var el = $('#view-' + v);
     // Only the blocks that changed are rebuilt, so focus, open sections and
@@ -88,7 +85,7 @@
 
   function raiseAlert(r, b) {
     var st = S.get().settings, many = S.get().babies.length > 1, quiet = quietNow();
-    var title = r.title + (many ? ' · ' + b.name : '');
+    var title = r.icon + ' ' + r.title + (many ? ' · ' + b.name : '');
     if (st.notify && 'Notification' in window && Notification.permission === 'granted') {
       var opts = { body: r.text, tag: r.key, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', renotify: true, silent: quiet, vibrate: [200, 100, 200], data: { url: location.href } };
       try {
@@ -117,16 +114,11 @@
     var badge = $('#bell-badge');
     badge.hidden = !n; badge.textContent = n;
     $('#bell').setAttribute('aria-label', n ? 'Reminders — ' + n + ' due' : 'Reminders');
-    // On Today the colour field already says "Feed due now" with its own button — don't say it twice.
-    var t = S.timers();
-    // (Same for the nap window: the awake row under the field has its own Start sleep.)
-    var shownOnToday = function (x) { return x && App.ui.view === 'today' && x.baby === S.get().activeBaby && ((x.kind === 'feed' && !t.breast && !t.sleep && !t.pump && !t.tummy) || (x.kind === 'nap' && !t.sleep)); };
-    a = App.ui.alerts.filter(function (x) { return !shownOnToday(x); })[0];
     if (!a) { el.hidden = true; el.innerHTML = ''; el._src = ''; return; }
     var b = S.baby(a.baby), many = S.get().babies.length > 1;
     var act = { feed: ['Log feed', 'log', 'feed'], diaper: ['Log change', 'log', 'diaper'], nap: ['Start sleep', 'sleep-start', ''], med: ['Log dose', 'log', 'med'], vitd: ['Log it', 'log-vitd', ''], tummy: ['Start', 'tummy-start', ''], rx: ['Give dose', 'rx-dose', ''], appt: ['Open', 'appt-edit', ''], vax: ['Checklist', 'vax-open', ''] }[a.kind];
     var actId = a.rxId || a.apptId || '';
-    var html = h.icon(a.icon, 'banner__icon ' + h.tone(a.icon)) + '<div class="banner__text"><div class="banner__title">' + esc(a.title) + (many && b ? ' · ' + esc(b.name) : '') + '</div><div class="banner__sub">' + esc(a.text) + '</div></div>' +
+    var html = '<span class="banner__icon" aria-hidden="true">' + esc(a.icon) + '</span><div class="banner__text"><div class="banner__title">' + esc(a.title) + (many && b ? ' · ' + esc(b.name) : '') + '</div><div class="banner__sub">' + esc(a.text) + '</div></div>' +
       '<div class="banner__actions">' + (act ? '<button class="btn btn--sm btn--primary" data-action="alert-act" data-key="' + esc(a.key) + '" data-do="' + act[1] + '" data-type="' + act[2] + '" data-id="' + esc(actId) + '">' + act[0] + '</button>' : '') +
       '<button class="btn btn--sm" data-action="snooze" data-key="' + esc(a.key) + '">Snooze 15m</button>' +
       '<button class="btn btn--sm btn--ghost" data-action="alert-dismiss" data-key="' + esc(a.key) + '">Dismiss</button></div>';
@@ -143,8 +135,8 @@
       if (p === 'unsupported') { h.toast('This browser doesn’t support notifications — in-app alerts and the chime still work.'); return; }
       S.get().settings.notify = p === 'granted';
       commit();
-      h.toast(p === 'granted' ? 'Notifications on' : App.platform.native ? 'Notifications are off — you can allow them in your phone’s Settings for Baby Log.' : 'Notifications blocked — you can allow them in your browser’s site settings.');
-      if (p === 'granted' && swReg && !N.nativeReminders()) try { swReg.showNotification('Baby Log', { body: 'Reminders will show up like this.', tag: 'test', icon: 'icons/icon-192.png' }); } catch (e) {}
+      h.toast(p === 'granted' ? 'Notifications on 🔔' : App.platform.native ? 'Notifications are off — you can allow them in your phone’s Settings for Baby Log.' : 'Notifications blocked — you can allow them in your browser’s site settings.');
+      if (p === 'granted' && swReg && !N.nativeReminders()) try { swReg.showNotification('🔔 Baby Log', { body: 'Reminders will show up like this.', tag: 'test', icon: 'icons/icon-192.png' }); } catch (e) {}
     }).catch(function () { h.toast('Couldn’t ask for notification permission. In-app alerts and the chime still work.'); });
   }
 
@@ -156,7 +148,7 @@
     if (S.timers().tummy) tummyStop(true);
     S.startTimer('sleep');
     commit();
-    h.toast('Sleep timer started', { label: 'Undo', fn: function () { S.stopTimer('sleep'); commit(); } });
+    h.toast('Sleep timer started 🌙', { label: 'Undo', fn: function () { S.stopTimer('sleep'); commit(); } });
   }
   function sleepStop() {
     var t = S.stopTimer('sleep');
@@ -165,7 +157,7 @@
     if (now - t.start < MIN) { commit(); h.toast('Under a minute — not saved.'); return; }
     var e = S.addEvent({ type: 'sleep', time: t.start, end: now, data: {} });
     commit();
-    h.toast('Slept ' + h.durMs(now - t.start), { label: 'Undo', fn: function () { S.removeEvent(e.id); S.timers().sleep = t; commit(); } });
+    h.toast('Slept ' + h.durMs(now - t.start) + ' ☀️', { label: 'Undo', fn: function () { S.removeEvent(e.id); S.timers().sleep = t; commit(); } });
   }
   function tummyStart() { if (S.isAsleep()) { h.toast('Baby is asleep — wake-time only for tummy time.'); return; } S.startTimer('tummy'); commit(); }
   function tummyStop(quiet) {
@@ -173,7 +165,7 @@
     if (!t) return;
     var now = Date.now();
     if (now - t.start >= 30000) S.addEvent({ type: 'tummy', time: t.start, end: now, data: {} });
-    if (!quiet) { commit(); h.toast('Tummy time: ' + h.durMs(now - t.start)); }
+    if (!quiet) { commit(); h.toast('Tummy time: ' + h.durMs(now - t.start) + ' 💪'); }
   }
   function breastFinish() {
     var b = S.timers().breast;
@@ -200,8 +192,8 @@
 
     // Babies
     html += '<div class="section-title"><h2>Babies</h2></div><div class="card"><div class="rows">' + st.babies.map(function (x) {
-      return '<button class="row" data-action="baby-edit" data-id="' + x.id + '">' + avatar(x, 'row__icon') + '<div class="row__main"><div class="row__t">' + esc(x.name) + (x.id === st.activeBaby ? ' <span class="status status--ok">Active</span>' : '') + '</div><div class="row__s">' + esc(G.ageLabel(G.ageInDays(x.birth))) + ' · ' + ({ breast: 'Breastfed', formula: 'Formula', mixed: 'Breast + formula' })[x.feeding] + '</div></div>' + h.ic('chevron', 'row__go') + '</button>';
-    }).join('') + '</div><button class="btn btn--sm" data-action="baby-add" style="margin-top:8px">' + h.ic('plus') + 'Add a baby (twins, siblings)</button></div>';
+      return '<button class="row" data-action="baby-edit" data-id="' + x.id + '"><span class="row__icon">' + esc(x.emoji || '👶') + '</span><div class="row__main"><div class="row__t">' + esc(x.name) + (x.id === st.activeBaby ? ' <span class="status status--ok">Active</span>' : '') + '</div><div class="row__s">' + esc(G.ageLabel(G.ageInDays(x.birth))) + ' · ' + ({ breast: 'Breastfed', formula: 'Formula', mixed: 'Breast + formula' })[x.feeding] + '</div></div><span class="faint">Edit ›</span></button>';
+    }).join('') + '</div><button class="btn btn--sm" data-action="baby-add" style="margin-top:8px">＋ Add a baby (twins, siblings)</button></div>';
 
     // Reminders
     html += '<div class="section-title" id="set-reminders"><h2>Reminders</h2></div><div class="card">' +
@@ -209,17 +201,17 @@
         perm === 'granted' ? h.sw('notify', s.notify, 'Notifications') : perm === 'default' ? '<button class="btn btn--sm btn--primary" data-action="notify-enable">Turn on</button>' : '') +
       row('Chime', 'A soft two-note sound with each reminder. Never plays while a baby is asleep.', h.sw('chime', s.chime, 'Chime')) +
       row('Quiet at night', '10 pm – 7 am: vibrate and banner only, no sound.', h.sw('quietNight', s.quietNight, 'Quiet at night')) +
-      row(h.ic('bottle', 'c-feed') + 'Next feed', 'Counted from the start of the last feed.', h.sw('feedRemind', s.feedRemind, 'Feed reminder')) +
+      row('🍼 Next feed', 'Counted from the start of the last feed.', h.sw('feedRemind', s.feedRemind, 'Feed reminder')) +
       (s.feedRemind ? row('&nbsp;&nbsp;&nbsp;Every', '', sel('feedIntervalH', [[0, 'Auto (~' + G.fmtHours(autoH) + ')'], [1.5, '1½ hours'], [2, '2 hours'], [2.5, '2½ hours'], [3, '3 hours'], [3.5, '3½ hours'], [4, '4 hours'], [5, '5 hours'], [6, '6 hours']], s.feedIntervalH, 'Feed reminder interval')) : '') +
-      row(h.ic('diaper', 'c-dirty') + 'Diaper check', 'After the last change.', h.sw('diaperRemind', s.diaperRemind, 'Diaper reminder')) +
+      row('🧷 Diaper check', 'After the last change.', h.sw('diaperRemind', s.diaperRemind, 'Diaper reminder')) +
       (s.diaperRemind ? row('&nbsp;&nbsp;&nbsp;Every', '', sel('diaperIntervalH', [[2, '2 hours'], [3, '3 hours'], [4, '4 hours']], s.diaperIntervalH, 'Diaper reminder interval')) : '') +
-      row(h.ic('moon', 'c-sleep') + 'Nap window', 'When baby has been awake for a typical wake window.', h.sw('napRemind', s.napRemind, 'Nap reminder')) +
-      row(h.ic('sun', 'c-sleep') + 'Vitamin D drops', 'Daily — skipped if already logged.', h.sw('vitdRemind', s.vitdRemind, 'Vitamin D reminder')) +
+      row('😴 Nap window', 'When baby has been awake for a typical wake window.', h.sw('napRemind', s.napRemind, 'Nap reminder')) +
+      row('☀️ Vitamin D drops', 'Daily — skipped if already logged.', h.sw('vitdRemind', s.vitdRemind, 'Vitamin D reminder')) +
       (s.vitdRemind ? row('&nbsp;&nbsp;&nbsp;At', '', '<input class="input" type="time" data-setting="vitdTime" value="' + esc(s.vitdTime) + '" aria-label="Vitamin D time" />') : '') +
-      row(h.ic('tummy', 'c-ok') + 'Tummy time', 'Daily nudge if under today’s goal.', h.sw('tummyRemind', s.tummyRemind, 'Tummy reminder')) +
+      row('🤸 Tummy time', 'Daily nudge if under today’s goal.', h.sw('tummyRemind', s.tummyRemind, 'Tummy reminder')) +
       (s.tummyRemind ? row('&nbsp;&nbsp;&nbsp;At', '', '<input class="input" type="time" data-setting="tummyTime" value="' + esc(s.tummyTime) + '" aria-label="Tummy time reminder time" />') : '') +
       '<div class="section-title" style="margin-top:14px"><h2>Your reminders</h2></div>' + customList() +
-      '<button class="btn btn--sm" data-action="custom-add" style="margin-top:8px">' + h.ic('plus') + 'New reminder</button>' +
+      '<button class="btn btn--sm" data-action="custom-add" style="margin-top:8px">＋ New reminder</button>' +
       (N.nativeReminders() ? '' : '<p class="faint" style="margin-top:12px">Reminders fire while Baby Log is open or in the background. Phones may pause web apps that are fully closed, so for night feeds add Baby Log to your Home Screen and leave it open on the nightstand.</p>') + '</div>';
 
     // Today screen
@@ -252,22 +244,12 @@
     return '<div class="rows">' + list.map(function (r) {
       var next = rem.filter(function (x) { return x.customId === r.id; })[0];
       var when = r.repeat === 'daily' ? 'Daily at ' + r.time : r.repeat === 'every' ? 'Every ' + r.everyH + 'h' : 'Once · ' + h.fmtDate(r.at) + ' ' + h.fmtTime(r.at);
-      return '<button class="row" data-action="custom-edit" data-id="' + r.id + '">' + h.icon(r.icon || 'bell', 'row__icon ' + h.tone(r.icon)) + '<div class="row__main"><div class="row__t">' + esc(r.label) + '</div><div class="row__s">' + esc(when) + (next && !next.done ? ' · next ' + h.fmtTime(next.at) : next && next.done ? ' · done' : '') + '</div></div>' + h.ic('chevron', 'row__go') + '</button>';
+      return '<button class="row" data-action="custom-edit" data-id="' + r.id + '"><span class="row__icon">' + esc(r.icon || '🔔') + '</span><div class="row__main"><div class="row__t">' + esc(r.label) + '</div><div class="row__s">' + esc(when) + (next && !next.done ? ' · next ' + h.fmtTime(next.at) : next && next.done ? ' · done' : '') + '</div></div><span class="faint">Edit ›</span></button>';
     }).join('') + '</div>';
   }
 
   /* ---------- Baby profile sheet ---------- */
-  // Each baby gets a coloured monogram (the letter of their name) instead of an emoji.
-  var COLOURS = [['1', 'Indigo'], ['2', 'Red'], ['3', 'Blue'], ['4', 'Ochre'], ['5', 'Green'], ['6', 'Ink']];
-  function avatarColour(b) {
-    if (b.color) return b.color;
-    var s = String(b.name || 'Baby'), n = 0;
-    for (var i = 0; i < s.length; i++) n = (n * 31 + s.charCodeAt(i)) | 0;
-    return String(Math.abs(n) % 6 + 1);
-  }
-  function avatar(b, cls) {
-    return '<span class="avatar av-' + esc(avatarColour(b)) + (cls ? ' ' + cls : '') + '" aria-hidden="true">' + esc(String(b.name || 'B').trim().charAt(0).toUpperCase() || 'B') + '</span>';
-  }
+  var EMOJIS = ['👶', '🍼', '🐣', '🧸', '🌸', '⭐', '🐻', '🦁', '🐰', '🌈'];
   function babySheet(id) {
     var b = id ? S.baby(id) : null;
     h.openSheet({
@@ -278,7 +260,7 @@
           '<label class="field"><span class="field__label">Date of birth</span><input class="input" type="date" name="birth" required max="' + h.todayISO() + '" value="' + esc(b ? b.birth : '') + '" /></label>' +
           '<div class="field"><span class="field__label">Feeding</span><div class="seg">' + [['breast', 'Breast'], ['formula', 'Formula'], ['mixed', 'Both']].map(function (o) { return '<label><input type="radio" name="feeding" value="' + o[0] + '"' + ((b ? b.feeding : 'breast') === o[0] ? ' checked' : '') + ' /><span>' + o[1] + '</span></label>'; }).join('') + '</div></div>' +
           '<label class="field"><span class="field__label">Birth weight (' + h.weightUnit() + ', optional)</span><input class="input" type="number" step="any" min="0" inputmode="decimal" name="bw" value="' + (b && b.birthWeightKg ? h.weightToDisplay(b.birthWeightKg) : '') + '" /></label>' +
-          '<div class="field"><span class="field__label" id="icon-label">Colour</span><div class="chips" role="radiogroup" aria-labelledby="icon-label">' + COLOURS.map(function (c) { var cur = b ? avatarColour(b) : '1'; return '<label class="chip chip--pick"><input class="chip__input" type="radio" name="color" value="' + c[0] + '"' + (cur === c[0] ? ' checked' : '') + ' /><span class="avatar avatar--sm av-' + c[0] + '" aria-hidden="true"></span>' + c[1] + '</label>'; }).join('') + '</div></div>' +
+          '<div class="field"><span class="field__label" id="icon-label">Icon</span><div class="chips" role="radiogroup" aria-labelledby="icon-label">' + EMOJIS.map(function (e) { return '<label class="chip chip--pick"><input class="chip__input" type="radio" name="emoji" value="' + e + '"' + ((b ? b.emoji : '👶') === e ? ' checked' : '') + ' />' + e + '</label>'; }).join('') + '</div></div>' +
           '<div class="btn-row sheet-save">' + (b ? '<button type="button" class="btn btn--danger" data-action="baby-delete" data-id="' + b.id + '">Delete</button>' : '') + '<button class="btn btn--primary btn--lg" type="submit">' + (b ? 'Save' : 'Add baby') + '</button></div></form>';
       },
       mount: function (body) {
@@ -295,14 +277,14 @@
       title: 'Babies',
       html: function () {
         return '<div class="rows">' + st.babies.map(function (x) {
-          return '<button class="row" data-action="baby-select" data-id="' + x.id + '">' + avatar(x, 'row__icon') + '<div class="row__main"><div class="row__t">' + esc(x.name) + '</div><div class="row__s">' + esc(G.ageLabel(G.ageInDays(x.birth))) + '</div></div>' + (x.id === st.activeBaby ? h.statusPill('ok', 'Active') : '') + '</button>';
-        }).join('') + '</div><button class="btn btn--block" data-action="baby-add">' + h.ic('plus') + 'Add a baby</button>';
+          return '<button class="row" data-action="baby-select" data-id="' + x.id + '"><span class="row__icon">' + esc(x.emoji || '👶') + '</span><div class="row__main"><div class="row__t">' + esc(x.name) + '</div><div class="row__s">' + esc(G.ageLabel(G.ageInDays(x.birth))) + '</div></div>' + (x.id === st.activeBaby ? '<span class="status status--ok">✓ Active</span>' : '') + '</button>';
+        }).join('') + '</div><button class="btn btn--block" data-action="baby-add">＋ Add a baby</button>';
       }
     });
   }
 
   /* ---------- Custom reminder sheet ---------- */
-  var R_ICONS = [['bell', 'Bell'], ['pill', 'Medicine'], ['bottle', 'Bottle'], ['pump', 'Pump'], ['tub', 'Bath'], ['stethoscope', 'Doctor'], ['phone', 'Call'], ['sun', 'Sun'], ['basket', 'Laundry'], ['drop', 'Water']];
+  var R_ICONS = ['🔔', '💊', '🍼', '🧴', '🛁', '🩺', '📞', '☀️', '🧺', '💧'];
   function customSheet(id) {
     var r = id ? S.get().custom.filter(function (x) { return x.id === id; })[0] : null;
     var rep = r ? r.repeat : 'every';
@@ -312,7 +294,7 @@
         return '<form class="form" id="custom-form"' + (r ? ' data-id="' + r.id + '"' : '') + ' autocomplete="off">' +
           '<label class="field"><span class="field__label">What</span><input class="input" name="label" required maxlength="40" value="' + esc(r ? r.label : '') + '" placeholder="e.g. Antibiotic dose" autofocus /></label>' +
           '<label class="field"><span class="field__label">Details (optional)</span><input class="input" name="note" maxlength="80" value="' + esc(r ? r.note || '' : '') + '" placeholder="e.g. 5 ml with food" /></label>' +
-          '<div class="field"><span class="field__label" id="icon-label">Icon</span><div class="chips" role="radiogroup" aria-labelledby="icon-label">' + R_ICONS.map(function (e) { return '<label class="chip chip--pick chip--icon"><input class="chip__input" type="radio" name="icon" value="' + e[0] + '" aria-label="' + e[1] + '"' + (h.iconName(r ? r.icon : 'bell') === e[0] ? ' checked' : '') + ' />' + h.ic(e[0]) + '</label>'; }).join('') + '</div></div>' +
+          '<div class="field"><span class="field__label" id="icon-label">Icon</span><div class="chips" role="radiogroup" aria-labelledby="icon-label">' + R_ICONS.map(function (e) { return '<label class="chip chip--pick"><input class="chip__input" type="radio" name="icon" value="' + e + '"' + ((r ? r.icon : '🔔') === e ? ' checked' : '') + ' />' + e + '</label>'; }).join('') + '</div></div>' +
           '<div class="field"><span class="field__label">Repeat</span><div class="seg">' + [['every', 'Every few hours'], ['daily', 'Daily'], ['once', 'Once']].map(function (o) { return '<label><input type="radio" name="repeat" value="' + o[0] + '"' + (rep === o[0] ? ' checked' : '') + ' /><span>' + o[1] + '</span></label>'; }).join('') + '</div></div>' +
           '<div data-rep="every" class="form"><div class="field__row"><label class="field"><span class="field__label">Every (hours)</span><input class="input" type="number" min="0.5" max="48" step="0.5" name="everyH" value="' + (r && r.everyH ? r.everyH : 8) + '" /></label></div>' +
           h.timeField('anchor', r && r.anchor ? r.anchor : Date.now(), 'Starting from (last time it was done)') + '</div>' +
@@ -363,7 +345,7 @@
 
   function share(text, title) {
     N.shareText(text, title).then(function (how) {
-      if (how === 'copied') h.toast('Copied to clipboard');
+      if (how === 'copied') h.toast('Copied to clipboard 📋');
     }, function (e) {
       // Closing the share sheet isn't a failure; anything else falls back to copy-by-hand.
       if (e && (e.name === 'AbortError' || /cancel/i.test(e.message || ''))) return;
@@ -393,7 +375,7 @@
         var res = S.importJSON(text, 'merge');
         (photos ? Files.importAll(photos) : Promise.resolve()).then(function () {
           commit();
-          h.toast('Imported ' + (res.events === 1 ? '1 new entry' : res.events + ' new entries') + (photos ? ' and ' + h.plural(Object.keys(photos).length, 'photo') : ''));
+          h.toast('Imported ' + (res.events === 1 ? '1 new entry' : res.events + ' new entries') + (photos ? ' and ' + h.plural(Object.keys(photos).length, 'photo') : '') + ' ✓');
         });
       } catch (e) { h.toast('That file isn’t a Baby Log backup.'); }
     };
@@ -440,7 +422,7 @@
     'quick-reset': function () { S.get().settings.quickLog = []; commit(); h.toast('Today buttons reset'); },
     'log-vitd': function () {
       var e = S.addEvent({ type: 'med', time: Date.now(), data: { medId: 'vitd', name: 'Vitamin D drops', dose: '', intervalH: 24, maxPerDay: 1, remind: false } });
-      commit(); h.toast('Vitamin D logged', { label: 'Undo', fn: function () { S.removeEvent(e.id); commit(); } });
+      commit(); h.toast('Vitamin D logged ☀️', { label: 'Undo', fn: function () { S.removeEvent(e.id); commit(); } });
     },
     'edit': function (n) { var e = S.findEvent(n.getAttribute('data-id')); if (e) F.open(e.type, e); },
     'event-delete': function (n) {
@@ -646,11 +628,11 @@
     'profile-edit': function () { Hl.profileSheet(); },
     'emergency': function () {
       var text = Hl.emergencyText();
-      h.openSheet({ title: 'Emergency info', html: '<pre class="scantext scantext--big">' + esc(text) + '</pre><div class="btn-row sheet-save"><button class="btn" data-action="profile-edit">Edit details</button><button class="btn btn--primary btn--lg" data-action="share-text" data-what="emergency">' + h.ic('share') + 'Share</button></div>' });
+      h.openSheet({ title: 'Emergency info', html: '<pre class="scantext scantext--big">' + esc(text) + '</pre><div class="btn-row sheet-save"><button class="btn" data-action="profile-edit">Edit details</button><button class="btn btn--primary btn--lg" data-action="share-text" data-what="emergency">📤 Share</button></div>' });
     },
     'visit-summary': function () {
       var text = Hl.visitSummaryText();
-      h.openSheet({ title: 'Summary for the doctor', html: '<pre class="scantext">' + esc(text) + '</pre><div class="btn-row sheet-save"><button class="btn btn--primary btn--lg" data-action="share-text" data-what="visit">' + h.ic('share') + 'Share or copy</button></div>' });
+      h.openSheet({ title: 'Summary for the doctor', html: '<pre class="scantext">' + esc(text) + '</pre><div class="btn-row sheet-save"><button class="btn btn--primary btn--lg" data-action="share-text" data-what="visit">📤 Share or copy</button></div>' });
     },
     'share-text': function (n) {
       var w = n.getAttribute('data-what');
@@ -744,7 +726,7 @@
         var parts = k.split(':'), g = G.MILESTONES.filter(function (x) { return String(x.months) === parts[0]; })[0];
         var ev = S.addEvent({ type: 'milestone', time: Date.now(), data: { text: g.items[+parts[1]] } });
         b.milestones[k] = ev.id;
-        h.toast('Milestone saved to history');
+        h.toast('⭐ Milestone saved to history');
       } else {
         if (b.milestones[k] && b.milestones[k] !== true) S.removeEvent(b.milestones[k]);
         delete b.milestones[k];
@@ -782,7 +764,7 @@
       var d = h.describe(ev), copies = F.lastCopies.slice();
       var also = copies.length ? ' (also ' + copies.map(function (c) { return S.baby(c.baby).name; }).join(', ') + ')' : '';
       // One toast: a second one would replace this one and take its Undo with it.
-      h.toast((editing ? 'Updated · ' : 'Saved · ') + d.title + also + (d.flag && !editing ? ' · worth a look in History' : ''), editing ? null : { label: 'Undo', fn: function () { S.removeEvent(ev.id); copies.forEach(function (c) { S.removeEvent(c.id); }); commit(); } });
+      h.toast((editing ? 'Updated · ' : 'Saved · ') + d.title + also + (d.flag && !editing ? ' · ⚠️ worth a look in History' : ''), editing ? null : { label: 'Undo', fn: function () { S.removeEvent(ev.id); copies.forEach(function (c) { S.removeEvent(c.id); }); commit(); } });
     } else if (f.id === 'welcome-form' || f.id === 'baby-form') {
       e.preventDefault();
       var fd = new FormData(f), name = String(fd.get('name') || '').trim(), birth = String(fd.get('birth') || '');
@@ -790,7 +772,7 @@
       if (!birth) { h.fieldError(f, 'birth', 'Add the date of birth — feeding and sleep guidance depend on age.'); return; }
       if (birth > h.todayISO()) { h.fieldError(f, 'birth', 'The birth date can’t be in the future.'); return; }
       var data = { name: name, birth: birth, feeding: String(fd.get('feeding') || 'breast') };
-      if (fd.get('color')) data.color = String(fd.get('color'));
+      if (fd.get('emoji')) data.emoji = String(fd.get('emoji'));
       var bw = h.weightFromDisplay(fd.get('bw'));
       if (bw) data.birthWeightKg = bw;
       var id = f.getAttribute('data-id');
@@ -800,7 +782,7 @@
         S.addBaby(data);
       }
       h.closeSheet(); App.ui.view = App.ui.view || 'today'; commit();
-      if (f.id === 'welcome-form') { window.scrollTo(0, 0); h.toast('Welcome, ' + name); }
+      if (f.id === 'welcome-form') { window.scrollTo(0, 0); h.toast('Welcome, ' + name + ' 💛'); }
     } else if (f.id === 'custom-form') {
       e.preventDefault();
       var fd2 = new FormData(f), rid = f.getAttribute('data-id');
@@ -809,14 +791,14 @@
       var r = rid ? S.get().custom.filter(function (x) { return x.id === rid; })[0] : { id: S.uid(), baby: S.get().activeBaby, created: Date.now() };
       r.label = String(fd2.get('label') || '').trim() || 'Reminder';
       r.note = String(fd2.get('note') || '').trim();
-      r.icon = String(fd2.get('icon') || 'bell');
+      r.icon = String(fd2.get('icon') || '🔔');
       r.repeat = String(fd2.get('repeat'));
       r.on = true;
       if (r.repeat === 'every') { r.everyH = parseFloat(fd2.get('everyH')) || 3; r.anchor = h.fromLocalInput(String(fd2.get('anchor'))) || Date.now(); }
       if (r.repeat === 'daily') r.time = String(fd2.get('time') || '09:00');
       if (r.repeat === 'once') r.at = h.fromLocalInput(String(fd2.get('at')));
       if (!rid) S.get().custom.push(r);
-      h.closeSheet(); commit(); h.toast('Reminder saved');
+      h.closeSheet(); commit(); h.toast('Reminder saved 🔔');
     }
   }
 
@@ -859,7 +841,7 @@
       var key = f.getAttribute('data-key'), dt = Hl.fromIsoDate(fd('date'));
       if (!dt) { h.fieldError(f, 'date', 'Pick the date it was given.'); return; }
       H.vaccines.given[key] = { date: dt, note: fd('note') };
-      S.save(); Hl.vaxSheet(); render(); h.toast('Vaccine recorded');
+      S.save(); Hl.vaxSheet(); render(); h.toast('Vaccine recorded ✅');
     } else if (f.id === 'vaxc-form') {
       if (!fd('name')) { h.fieldError(f, 'name', 'Which vaccine was it?'); return; }
       var c = id ? S.findIn(H.vaccines.custom, id) : { id: S.uid() };
@@ -899,20 +881,17 @@
     if (!el) return;
     if (!on) { el.hidden = true; return; }
     if (!el.hidden) return;
-    el.innerHTML = h.ic('warning', 'banner__icon c-urgent') + '<div class="banner__text"><div class="banner__title">Not saved — your phone’s storage is full or blocked</div>' +
+    el.innerHTML = '<span class="banner__icon" aria-hidden="true">⚠️</span><div class="banner__text"><div class="banner__title">Not saved — your phone’s storage is full or blocked</div>' +
       '<div class="banner__sub">New entries will be lost when Baby Log closes. Free up space, or save a backup now.</div></div>' +
       '<div class="banner__actions"><button class="btn btn--sm btn--primary" data-action="export-json">Save a backup</button><button class="btn btn--sm" data-action="save-retry">Try again</button></div>';
     el.hidden = false;
   }
-  ACTIONS['save-retry'] = function () { if (S.save()) h.toast('Saved'); };
+  ACTIONS['save-retry'] = function () { if (S.save()) h.toast('Saved ✓'); };
 
   // The phone's status bar follows the theme (it's set once in index.html).
   function syncThemeColor() {
     var m = document.querySelector('meta[name="theme-color"]');
-    if (m) m.setAttribute('content', (getComputedStyle(document.documentElement).getPropertyValue('--ground') || '#070a12').trim());
-    // The shared toggle (../theme.js) writes an emoji; here it speaks the app's pictograms.
-    var t = document.querySelector('[data-theme-toggle]');
-    if (t) t.innerHTML = h.ic(document.documentElement.getAttribute('data-theme') === 'dark' ? 'sun' : 'moon');
+    if (m) m.setAttribute('content', (getComputedStyle(document.documentElement).getPropertyValue('--bg-1') || '#0e1424').trim());
   }
 
   function boot() {
@@ -954,7 +933,7 @@
     refreshPermission();
     render();
     // In the app shell, bring back a log the WebView lost (e.g. iOS clearing storage).
-    N.restoreIfEmpty().then(function (restored) { if (restored) { render(); h.toast('Your log was restored'); } });
+    N.restoreIfEmpty().then(function (restored) { if (restored) { render(); h.toast('Your log was restored ✓'); } });
     N.syncReminders();
     setInterval(h.tick, 1000);
     setInterval(checkReminders, 15000);

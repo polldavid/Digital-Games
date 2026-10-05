@@ -8,82 +8,92 @@
   var G = window.BabyGuide, S = window.BabyStore, App = window.BabyApp, h = App.h;
   var esc = h.esc, MIN = h.MIN, HOUR = h.HOUR, DAY = h.DAY;
 
-  /* ======================= TODAY =======================
-     Isotype: one drawn symbol means one thing. Today leads with one colour
-     field — what is happening now, or what comes next — then the last of
-     each thing, the log buttons, and the last 24 hours counted in symbols. */
+  /* ======================= TODAY ======================= */
 
-  var ic = h.ic;
-
-  // A running timer owns the field: it is what the parent is in the middle of.
   function liveCards(now) {
     var t = S.timers(), out = '';
     if (t.breast) {
       var b = t.breast;
-      out += '<div class="card live" aria-live="off"><div class="live__head">' + ic('breast', 'live__icon') + '<div><div class="live__label">' + (b.paused ? '' : '<span class="live-dot" aria-hidden="true"></span>') + (b.paused ? 'Feed paused' : 'Feeding · ' + (b.side === 'L' ? 'left' : 'right')) + '</div><div class="live__sub">started ' + h.fmtTime(b.start) + '</div></div><span class="live__clock" data-breast="T">0:00</span></div>' +
-        '<div class="btn-row"><button class="btn btn--sm btn--on-field" data-action="breast-side" data-side="' + (b.side === 'L' ? 'R' : 'L') + '">' + ic('swap') + 'Switch to ' + (b.side === 'L' ? 'right' : 'left') + '</button>' +
-        '<button class="btn btn--sm btn--on-field" data-action="breast-pause">' + (b.paused ? ic('play') + 'Resume' : ic('pause') + 'Pause') + '</button>' +
-        '<button class="btn btn--sm btn--field" data-action="breast-finish">' + ic('check') + 'Done</button></div></div>';
+      out += '<div class="card live" aria-live="off"><div class="live__head"><span class="live__icon">🤱</span><div><div class="live__label">' + (b.paused ? '' : '<span class="pulse" aria-hidden="true"></span>') + (b.paused ? 'Feed paused' : 'Feeding · ' + (b.side === 'L' ? 'left' : 'right')) + '</div><div class="live__sub">started ' + h.fmtTime(b.start) + '</div></div><span class="live__clock" data-breast="T">0:00</span></div>' +
+        '<div class="btn-row"><button class="btn btn--sm" data-action="breast-side" data-side="' + (b.side === 'L' ? 'R' : 'L') + '">⇄ Switch to ' + (b.side === 'L' ? 'right' : 'left') + '</button>' +
+        '<button class="btn btn--sm" data-action="breast-pause">' + (b.paused ? '▶ Resume' : '⏸ Pause') + '</button>' +
+        '<button class="btn btn--sm btn--primary" data-action="breast-finish">✓ Done</button></div></div>';
     }
     if (t.sleep) {
-      out += '<div class="card live live--sleep"><div class="live__head">' + ic('moon', 'live__icon') + '<div><div class="live__label"><span class="live-dot" aria-hidden="true"></span>Asleep</div><div class="live__sub">since ' + h.fmtTime(t.sleep.start) + '</div></div><span class="live__clock" data-elapsed="' + t.sleep.start + '">0:00</span></div>' +
-        '<button class="btn btn--field btn--block" data-action="sleep-stop">' + ic('sun') + 'Woke up</button></div>';
+      out += '<div class="card live live--sleep"><div class="live__head"><span class="live__icon">😴</span><div><div class="live__label"><span class="pulse"></span>Asleep</div><div class="live__sub">since ' + h.fmtTime(t.sleep.start) + '</div></div><span class="live__clock" data-elapsed="' + t.sleep.start + '">0:00</span></div>' +
+        '<button class="btn btn--primary btn--block" data-action="sleep-stop">☀️ Woke up</button></div>';
     }
     if (t.pump) {
       var p = t.pump, both = p.L.on && p.R.on;
       var state = p.done ? 'Pumping finished' : both ? 'Pumping · both sides' : p.L.on ? 'Pumping · left' : p.R.on ? 'Pumping · right' : 'Pumping paused';
-      out += '<div class="card live"><div class="live__head">' + ic('pump', 'live__icon') + '<div><div class="live__label">' + (p.done ? '' : '<span class="live-dot" aria-hidden="true"></span>') + state + '</div><div class="live__sub">L <span data-pump="L">0:00</span> · R <span data-pump="R">0:00</span></div></div><span class="live__clock" data-pump="T">0:00</span></div>' +
-        (p.done ? '<button class="btn btn--field btn--block" data-action="pump-finish">Enter amounts</button>'
-          : '<div class="btn-row"><button class="btn btn--sm btn--on-field" data-action="pump-both">' + (both ? ic('pause') + 'Pause' : ic('play') + 'Both sides') + '</button><button class="btn btn--sm btn--field" data-action="pump-finish">' + ic('check') + 'Done</button></div>') + '</div>';
+      out += '<div class="card live"><div class="live__head"><span class="live__icon">🧴</span><div><div class="live__label">' + (p.done ? '' : '<span class="pulse"></span>') + state + '</div><div class="live__sub">L <span data-pump="L">0:00</span> · R <span data-pump="R">0:00</span></div></div><span class="live__clock" data-pump="T">0:00</span></div>' +
+        (p.done ? '<button class="btn btn--primary btn--block" data-action="pump-finish">Enter amounts</button>'
+          : '<div class="btn-row"><button class="btn btn--sm" data-action="pump-both">' + (both ? '⏸ Pause' : '▶▶ Both') + '</button><button class="btn btn--sm btn--primary" data-action="pump-finish">✓ Done</button></div>') + '</div>';
     }
     if (t.tummy) {
-      out += '<div class="card live"><div class="live__head">' + ic('tummy', 'live__icon') + '<div><div class="live__label"><span class="live-dot" aria-hidden="true"></span>Tummy time</div><div class="live__sub">since ' + h.fmtTime(t.tummy.start) + '</div></div><span class="live__clock" data-elapsed="' + t.tummy.start + '">0:00</span></div>' +
-        '<button class="btn btn--field btn--block" data-action="tummy-stop">' + ic('check') + 'Done</button></div>';
+      out += '<div class="card live"><div class="live__head"><span class="live__icon">🤸</span><div><div class="live__label"><span class="pulse"></span>Tummy time</div><div class="live__sub">since ' + h.fmtTime(t.tummy.start) + '</div></div><span class="live__clock" data-elapsed="' + t.tummy.start + '">0:00</span></div>' +
+        '<button class="btn btn--primary btn--block" data-action="tummy-stop">✓ Done</button></div>';
     }
     return out;
   }
 
-  // No timer running: the field holds the next feed, the question every parent asks first.
-  function nextField(now) {
-    var lf = S.lastFeedAnchor(), b = S.baby();
-    if (!lf) {
-      return '<div class="card live live--next"><div class="next__k">Nothing logged yet</div><div class="next__big next__big--word">Log the first feed</div>' +
-        '<div class="next__sub">Feeds, diapers and sleep fill in Today as you go.</div><button class="btn btn--field" data-action="log" data-type="feed">' + ic('bottle') + 'Log a feed</button></div>';
-    }
-    var iv = S.feedIntervalH(now), at = lf.time + iv * HOUR, side = window.BabyForms.nextSide();
-    var due = at <= now, last = lf.event ? h.describe(lf.event) : null;
-    var detail = [last && last.sub, side && b.feeding !== 'formula' ? 'start on the ' + (side === 'L' ? 'left' : 'right') : ''].filter(Boolean).join(' · ');
-    return '<div class="card live live--next' + (due ? ' live--due' : '') + '"><div class="next__k">' + (due ? 'Feed due now' : 'Next feed') + '</div>' +
-      '<div class="next__row"><div class="next__big">' + h.fmtTime(at) + '</div><button class="btn btn--field" data-action="log" data-type="feed">' + ic('bottle') + 'Feed now</button></div>' +
-      '<div class="next__sub">' + (due ? 'due ' : '') + '<span data-until="' + at + '">' + h.until(at, now) + '</span> · last fed <span data-ago="' + lf.time + '">' + h.ago(lf.time, now) + '</span></div>' +
-      (detail ? '<div class="next__sub next__sub--2">' + esc(detail) + '</div>' : '') + '</div>';
-  }
+  function tiles(now, days) {
+    var b = S.baby(), out = [];
 
-  /* One hairline row under the field for the other thing a parent needs to
-     know right now: the next feed while a timer runs, or how long baby has
-     been awake. Everything else is counted below. */
-  function stateRow(now, days, live) {
-    var t = S.timers(), b = S.baby(), rows = [];
-    if (live && !t.breast) {
-      var lf = S.lastFeedAnchor();
-      if (lf) {
-        var at = lf.time + S.feedIntervalH(now) * HOUR, side = window.BabyForms.nextSide();
-        rows.push(srow('bottle', 'Next feed ' + h.fmtTime(at), '<span data-until="' + at + '">' + h.until(at, now) + '</span>' + (side && b.feeding !== 'formula' ? ' · start on the ' + (side === 'L' ? 'left' : 'right') : ''), 'log', 'feed', 'Feed'));
-      }
+    // Feed
+    var lf = S.lastFeedAnchor(), iv = S.feedIntervalH(now);
+    var feedV, feedS;
+    if (lf && lf.live) {
+      var prev = S.last('feed', function (e) { return e.data.kind !== 'solids'; });
+      feedV = prev ? '<span data-ago="' + prev.time + '">' + h.ago(prev.time, now) + '</span>' : '—';
+      feedS = '<span class="tile__s">' + (prev ? 'Previous feed, ' + esc(h.describe(prev).title.toLowerCase()) : 'First feed in progress') + '</span>';
     }
-    if (!t.sleep) {
+    else if (lf) {
+      var nextAt = lf.time + iv * HOUR, side = window.BabyForms.nextSide();
+      feedV = '<span data-ago="' + lf.time + '">' + h.ago(lf.time, now) + '</span>';
+      feedS = (nextAt <= now ? '<span class="tile__s tile__s--due">Due now (every ~' + G.fmtHours(iv) + ')</span>' : '<span class="tile__s">Next ~' + h.fmtTime(nextAt) + '</span>') +
+        (side && b.feeding !== 'formula' ? '<span class="tile__s">Next side: <strong>' + (side === 'L' ? 'Left' : 'Right') + '</strong></span>' : '');
+    } else { feedV = '—'; feedS = '<span class="tile__s">No feeds yet</span>'; }
+    out.push(tile('feed', '🍼 Last feed', feedV, feedS));
+
+    // Diaper
+    var ld = S.last('diaper');
+    out.push(tile('diaper', '🧷 Diaper', ld ? '<span data-ago="' + ld.time + '">' + h.ago(ld.time, now) + '</span>' : '—', '<span class="tile__s">' + (ld ? esc(h.describe(ld).title) : 'No changes yet') + '</span>'));
+
+    // Sleep / wake window
+    var t = S.timers(), sv, ss, sk = '😴 Sleep';
+    if (t.sleep) { sk = '😴 Asleep'; sv = '<span data-since="' + t.sleep.start + '">' + h.since(now - t.sleep.start) + '</span>'; ss = '<span class="tile__s">Since ' + h.fmtTime(t.sleep.start) + '</span>'; }
+    else {
       var woke = S.awakeSince(now);
       if (woke) {
         var nap = G.nextNap(days, woke, now);
-        var note = nap.state === 'early' ? 'nap window ' + h.fmtTime(nap.from) + '–' + h.fmtTime(nap.to) : nap.state === 'window' ? 'in the nap window now' : 'past the ' + nap.wake[1] + '-min wake window';
-        rows.push(srow('sun', 'Awake <span data-since="' + woke + '">' + h.since(now - woke) + '</span>', '<span class="' + (nap.state === 'late' || nap.state === 'over' ? 't-due' : '') + '">' + note + '</span>', 'sleep-start', '', 'Start sleep', true));
+        sk = '😴 Awake for'; sv = '<span data-since="' + woke + '">' + h.since(now - woke) + '</span>';
+        ss = nap.state === 'early' ? '<span class="tile__s">Nap window ' + h.fmtTime(nap.from) + '–' + h.fmtTime(nap.to) + '</span>'
+          : nap.state === 'window' ? '<span class="tile__s tile__s--ok">In the nap window now</span>'
+          : '<span class="tile__s tile__s--due">Past wake window (' + nap.wake[1] + ' min)</span>';
+      } else { sv = '—'; ss = '<span class="tile__s">Log a sleep to see wake windows</span>'; }
+    }
+    out.push(tile('sleep', sk, sv, ss));
+
+    // Medicine if any in the last 24h, else tummy time.
+    var lm = S.last('med');
+    if (lm && now - lm.time < DAY) {
+      var ms = S.medStatus(S.medKeyOf(lm.data), now);
+      var mv = ms && ms.nextAt && ms.nextAt > now ? 'Next ' + h.fmtTime(ms.nextAt) : 'OK to give';
+      if (ms && ms.nextAt && ms.nextAt <= now && ms.max && ms.count24 >= ms.max) mv = 'Daily max';
+      out.push(tile('med', '💊 ' + esc(lm.data.name || 'Medicine'), mv, '<span class="tile__s">Last <span data-ago="' + lm.time + '">' + h.ago(lm.time, now) + '</span></span>'));
+    } else {
+      var goal = G.tummyGoalMin(days), done = Math.round(S.daySummary(S.startOfDay(now), now).tummyMs / MIN);
+      if (goal) out.push(tile('tummy', '🤸 Tummy time', done + ' / ' + goal + ' min', '<span class="tile__s' + (done >= goal ? ' tile__s--ok' : '') + '">' + (done >= goal ? 'Goal reached today' : 'Today’s goal') + '</span>'));
+      else {
+        var lt = S.last('temp');
+        out.push(tile('temp', '🌡️ Temperature', lt ? h.temp(lt.data.tempC) : '—', '<span class="tile__s">' + (lt ? h.ago(lt.time, now) : 'Not taken') + '</span>'));
       }
     }
-    return rows.length ? '<div class="state">' + rows.join('') + '</div>' : '';
+    return '<div class="tiles">' + out.join('') + '</div>';
   }
-  function srow(icon, title, sub, action, type, label, raw) {
-    return '<div class="srow">' + ic(icon, 'srow__icon ' + h.tone(icon)) + '<div class="srow__main"><div class="srow__t">' + title + '</div><div class="srow__s">' + sub + '</div></div>' +
-      '<button class="btn btn--link srow__go" data-action="' + action + '"' + (type ? ' data-type="' + type + '"' : '') + '>' + label + '</button></div>';
+  function tile(type, k, v, s) {
+    return '<button class="tile" data-action="log" data-type="' + type + '"><span class="tile__k">' + k + '</span><span class="tile__v">' + v + '</span>' + s + '</button>';
   }
 
   // Every button the Today grid can show. Parents choose which ones and
@@ -91,22 +101,22 @@
   function allItems() {
     var t = S.timers();
     return {
-      feed:      ['feed', 'bottle', t.breast ? 'Feeding…' : 'Feed', !!t.breast, 'log'],
-      diaper:    ['diaper', 'diaper', 'Diaper', false, 'log'],
-      sleep:     ['sleep', t.sleep ? 'sun' : 'moon', t.sleep ? 'Woke up' : 'Sleep', !!t.sleep, 'sleep-toggle'],
-      tummy:     ['tummy', 'tummy', t.tummy ? 'Stop tummy' : 'Tummy', !!t.tummy, 'tummy-toggle'],
-      solids:    ['solids', 'bowl', 'Solids', false, 'log-solids'],
-      pump:      ['pump', 'pump', t.pump ? 'Pumping…' : 'Pump', !!t.pump, 'log'],
-      med:       ['med', 'pill', 'Medicine', false, 'log'],
-      temp:      ['temp', 'thermometer', 'Temp', false, 'log'],
-      scan:      ['scan', 'camera', 'Scan Rx', false, 'rx-scan'],
-      visit:     ['visit', 'stethoscope', 'Visit', false, 'appt-edit'],
-      growth:    ['growth', 'ruler', 'Growth', false, 'log'],
-      bath:      ['bath', 'tub', 'Bath', false, 'log'],
-      milestone: ['milestone', 'star', 'Milestone', false, 'log'],
-      note:      ['note', 'note', 'Note', false, 'log'],
-      sounds:    ['sounds', 'wave', 'Sounds', !!window.BabySound.playing(), 'help-sounds'],
-      cry:       ['cry', 'cry', 'Crying?', false, 'help']
+      feed:      ['feed', '🍼', t.breast ? 'Feeding…' : 'Feed', !!t.breast, 'log'],
+      diaper:    ['diaper', '🧷', 'Diaper', false, 'log'],
+      sleep:     ['sleep', t.sleep ? '☀️' : '🌙', t.sleep ? 'Woke up' : 'Sleep', !!t.sleep, 'sleep-toggle'],
+      tummy:     ['tummy', '🤸', t.tummy ? 'Stop tummy' : 'Tummy', !!t.tummy, 'tummy-toggle'],
+      solids:    ['solids', '🥣', 'Solids', false, 'log-solids'],
+      pump:      ['pump', '🧴', t.pump ? 'Pumping…' : 'Pump', !!t.pump, 'log'],
+      med:       ['med', '💊', 'Medicine', false, 'log'],
+      temp:      ['temp', '🌡️', 'Temp', false, 'log'],
+      scan:      ['scan', '📷', 'Scan Rx', false, 'rx-scan'],
+      visit:     ['visit', '🩺', 'Visit', false, 'appt-edit'],
+      growth:    ['growth', '📏', 'Growth', false, 'log'],
+      bath:      ['bath', '🛁', 'Bath', false, 'log'],
+      milestone: ['milestone', '⭐', 'Milestone', false, 'log'],
+      note:      ['note', '📝', 'Note', false, 'log'],
+      sounds:    ['sounds', '🎶', 'Sounds', !!window.BabySound.playing(), 'help-sounds'],
+      cry:       ['cry', '😭', 'Crying?', false, 'help']
     };
   }
   var ITEM_ORDER = ['feed', 'diaper', 'sleep', 'tummy', 'solids', 'pump', 'med', 'temp', 'scan', 'visit', 'growth', 'bath', 'milestone', 'note', 'sounds', 'cry'];
@@ -126,19 +136,19 @@
   }
   function qaButtons(list) {
     return list.map(function (q) {
-      return '<button class="qa' + (q[3] ? ' qa--on' : '') + '" data-action="' + q[4] + '" data-type="' + q[0] + '"' + (q[0] === 'cry' ? ' data-topic="cry"' : '') + '>' + ic(q[1], 'qa__icon ' + h.tone(q[1])) + '<span class="qa__label">' + q[2] + '</span></button>';
+      return '<button class="qa' + (q[3] ? ' qa--on' : '') + '" data-action="' + q[4] + '" data-type="' + q[0] + '"' + (q[0] === 'cry' ? ' data-topic="cry"' : '') + '><span class="qa__icon">' + q[1] + '</span><span class="qa__label">' + q[2] + '</span></button>';
     }).join('');
   }
   function quickActions(days) {
     var it = quickItems(days);
     var moreOn = it.more.some(function (q) { return q[3]; });
     return '<div class="qa-grid">' + qaButtons(it.main) +
-      '<button class="qa' + (moreOn ? ' qa--on' : '') + '" data-action="log-more">' + ic('more', 'qa__icon c-mute') + '<span class="qa__label">More</span></button></div>';
+      '<button class="qa' + (moreOn ? ' qa--on' : '') + '" data-action="log-more"><span class="qa__icon">➕</span><span class="qa__label">More</span></button></div>';
   }
   function moreActions(days) {
     var more = quickItems(days).more;
     return (more.length ? '<div class="qa-grid qa-grid--3">' + qaButtons(more) + '</div>' : '<p class="muted">Every button is already on Today.</p>') +
-      '<button class="btn btn--block" data-action="quick-edit">' + ic('edit') + 'Choose which buttons show on Today</button>';
+      '<button class="btn btn--block" data-action="quick-edit">✏️ Choose which buttons show on Today</button>';
   }
 
   // Pick and order the Today buttons. Changes apply straight away.
@@ -147,9 +157,9 @@
     var rows = on.concat(ids.more).map(function (id) {
       var q = all[id], i = on.indexOf(id), shown = i >= 0;
       return '<div class="row qe-row' + (shown ? '' : ' qe-row--off') + '">' +
-        '<label class="check-line qe-row__main"><input type="checkbox" data-action-change="quick-toggle" data-id="' + id + '"' + (shown ? ' checked' : '') + ' />' + ic(q[1], 'row__icon ' + h.tone(q[1])) + esc(q[2].replace('…', '')) + '</label>' +
-        (shown ? '<button class="iconbtn" data-action="quick-move" data-id="' + id + '" data-d="-1" aria-label="Move ' + esc(q[2]) + ' earlier"' + (i === 0 ? ' disabled' : '') + '>' + ic('chevron', 'ic--up') + '</button>' +
-          '<button class="iconbtn" data-action="quick-move" data-id="' + id + '" data-d="1" aria-label="Move ' + esc(q[2]) + ' later"' + (i === on.length - 1 ? ' disabled' : '') + '>' + ic('chevron', 'ic--down') + '</button>' : '') + '</div>';
+        '<label class="check-line qe-row__main"><input type="checkbox" data-action-change="quick-toggle" data-id="' + id + '"' + (shown ? ' checked' : '') + ' /><span class="row__icon">' + q[1] + '</span>' + esc(q[2].replace('…', '')) + '</label>' +
+        (shown ? '<button class="iconbtn" data-action="quick-move" data-id="' + id + '" data-d="-1" aria-label="Move ' + esc(q[2]) + ' earlier"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+          '<button class="iconbtn" data-action="quick-move" data-id="' + id + '" data-d="1" aria-label="Move ' + esc(q[2]) + ' later"' + (i === on.length - 1 ? ' disabled' : '') + '>▼</button>' : '') + '</div>';
     }).join('');
     var n = on.length, full = (n + 1) % 4 === 0;
     return '<p class="muted">Ticked buttons show on Today in this order, followed by <strong>More</strong> for the rest.</p>' +
@@ -162,114 +172,98 @@
   function installTip() {
     var P = App.platform;
     if (P.standalone || S.get().settings.installTipDismissed) return '';
-    if (P.ios) return '<div class="card tipcard"><div class="tipcard__t">' + ic('share') + 'Add Baby Log to your Home Screen</div><p class="muted small">In Safari, tap <strong>Share</strong> then <strong>Add to Home Screen</strong>, and open it from the new icon. On iPhone that’s what lets reminders arrive as notifications — and it stops Safari clearing your logs if you don’t visit for a week.</p><div class="btn-row"><button class="btn btn--sm" data-action="install-dismiss">Got it</button></div></div>';
-    if (App.installPrompt) return '<div class="card tipcard"><div class="tipcard__t">' + ic('share') + 'Install Baby Log</div><p class="muted small">Opens like an app, works offline, and sends reminders as notifications.</p><div class="btn-row"><button class="btn btn--sm" data-action="install-dismiss">Not now</button><button class="btn btn--sm btn--primary" data-action="install-prompt">Install</button></div></div>';
+    if (P.ios) return '<div class="card tipcard"><div class="tipcard__t">📲 Add Baby Log to your Home Screen</div><p class="muted small">In Safari, tap <strong>Share</strong> <span aria-hidden="true">⬆︎</span> then <strong>Add to Home Screen</strong>, and open it from the new icon. On iPhone that’s what lets reminders arrive as notifications — and it stops Safari clearing your logs if you don’t visit for a week.</p><div class="btn-row"><button class="btn btn--sm" data-action="install-dismiss">Got it</button></div></div>';
+    if (App.installPrompt) return '<div class="card tipcard"><div class="tipcard__t">📲 Install Baby Log</div><p class="muted small">Opens like an app, works offline, and sends reminders as notifications.</p><div class="btn-row"><button class="btn btn--sm" data-action="install-dismiss">Not now</button><button class="btn btn--sm btn--primary" data-action="install-prompt">Install</button></div></div>';
     return '';
   }
 
-  /* "Is baby getting enough?" — the last 24 hours against age norms, drawn
-     the Isotype way: one symbol per feed, per diaper, per hour of sleep.
-     Filled = what happened; faint = the rest of the expected range. Symbols
-     never grow or shrink — more means more of them. */
-  var ROW_CAP = 16;
-  function counted(name, n, lo, hi) {
-    var shown = Math.min(n, ROW_CAP), reach = Math.min(Math.max(hi || lo || 0, n), ROW_CAP), s = '';
-    for (var i = 0; i < reach; i++) {
-      s += ic(name, i < shown ? 'count__on' : 'count__off');
-      // Neurath's countability rule: a gap after every fifth symbol.
-      if (i % 5 === 4 && i < reach - 1) s += '<span class="count__gap" aria-hidden="true"></span>';
-    }
-    if (n > ROW_CAP) s += '<span class="count__more">+' + (n - ROW_CAP) + '</span>';
-    return s;
-  }
+  // "Is baby getting enough?" — the last 24 hours against age norms.
   function checks(now, days) {
     var b = S.baby(), s = S.last24(now);
     var feed = G.feedingFor(days, b.feeding), dia = G.diapersFor(days), sl = G.sleepFor(days), tg = G.tummyGoalMin(days);
     var first = S.events()[0];
     var partial = !first || now - first.time < DAY;
     var rows = [];
-    // One row per kind of thing; the unit is in the label, the explanations live in "What's normal?".
-    function row(name, label, unitNote, value, shownValue, lo, hi, unit, show, perSymbol) {
+    function row(icon, label, value, target, max, unit, noteText, show) {
       if (show === false) return;
-      var range = lo ? (hi ? lo + '–' + hi : lo + '+') + (unit ? ' ' + unit : '') : '';
-      var level = !lo ? 'info' : value >= lo ? 'ok' : partial ? 'info' : 'warn';
-      var per = perSymbol || 1;
-      rows.push('<div class="count count--' + level + ' ' + h.tone(name) + '">' +
-        '<div class="count__k"><span class="count__label">' + label + (unitNote ? '<span class="count__unit">' + unitNote + '</span>' : '') + '</span><span class="count__v">' + shownValue + (unit ? '<small> ' + unit + '</small>' : '') + '</span>' + (range ? '<span class="count__range">of ' + range + '</span>' : '') + '</div>' +
-        '<div class="count__row" role="img" aria-label="' + esc(label + ': ' + shownValue + (unit ? ' ' + unit : '') + (range ? ', expected ' + range : '')) + '">' + counted(name, Math.round(value / per), Math.round(lo / per), Math.round((hi || lo) / per)) + '</div></div>');
+      var pct = target ? Math.min(100, (value / target) * 100) : 100;
+      var level = !target ? 'info' : value >= target ? 'ok' : partial ? 'info' : 'warn';
+      var fillCls = level === 'ok' ? ' check__fill--ok' : level === 'warn' ? ' check__fill--warn' : '';
+      rows.push('<div class="check"><span class="check__icon">' + icon + '</span><span class="check__k">' + label + '</span><span class="check__v">' + value + unit + (target ? ' <span class="faint">/ ' + (max ? target + '–' + max : target + '+') + unit + '</span>' : '') + '</span>' +
+        '<div class="check__bar" role="img" aria-label="' + esc(label + ': ' + value + ' of ' + target) + '"><div class="check__fill' + fillCls + '" style="width:' + pct + '%"></div></div>' +
+        (noteText ? '<div class="check__note">' + noteText + '</div>' : '') + '</div>');
     }
     var sleepH = Math.round(s.sleepMs / HOUR * 10) / 10;
-    row('bottle', 'Feeds', '', s.feeds, s.feeds, feed.perDay[0], feed.perDay[1], '');
-    row('drop', 'Wet', '', s.wet, s.wet, dia.wet, 0, '');
-    row('poo', 'Dirty', '', s.dirty, s.dirty, dia.dirty, 0, '');
-    row('moon', 'Sleep', '1 per 2 h', sleepH, sleepH, sl.totalH[0], sl.totalH[1], 'h', true, 2);
-    row('tummy', 'Tummy', '1 per 5 min', Math.round(s.tummyMs / MIN), Math.round(s.tummyMs / MIN), tg, 0, 'min', tg > 0, 5);
-    var html = '<div class="counts"><p class="counts__key">One symbol = one feed or one diaper. Faint = the rest of the usual range.</p>' + rows.join('') + '</div>';
-    if (partial) html += '<p class="faint">' + (first ? 'You started logging ' + h.ago(first.time, now) + ' — this check is complete after a full 24 hours.' : 'Log feeds, diapers and sleep and this fills in.') + '</p>';
+    row('🍼', 'Feeds', s.feeds, feed.perDay[0], feed.perDay[1], '', s.bottleMl ? 'Bottles: ' + h.vol(s.bottleMl) + (s.breastMs ? ' · breast ' + h.durMs(s.breastMs) : '') : (s.breastMs ? 'Breast: ' + h.durMs(s.breastMs) + ' total' : ''));
+    row('💧', 'Wet diapers', s.wet, dia.wet, 0, '', days < 5 ? 'Day ' + (days + 1) + ' of life: expect at least ' + dia.wet + '. From day 5, 6+ a day.' : 'Pale yellow pee is a good sign of enough milk.');
+    row('💩', 'Dirty diapers', s.dirty, dia.dirty, 0, '', esc(dia.dirtyNote));
+    row('😴', 'Sleep', sleepH, sl.totalH[0], sl.totalH[1], 'h', 'Only counts sleeps you’ve logged.');
+    row('🤸', 'Tummy time', Math.round(s.tummyMs / MIN), tg, 0, ' min', '', tg > 0);
+    var html = '<div class="checks">' + rows.join('') + '</div>';
+    if (partial) html += '<p class="faint" style="margin-top:12px">' + (first ? 'You started logging ' + h.ago(first.time, now) + ' — this check is complete after a full 24 hours.' : 'Log feeds, diapers and sleep and this fills in.') + '</p>';
     else {
       var low = [];
       if (s.wet < dia.wet) low.push('wet diapers');
       if (s.feeds < feed.perDay[0]) low.push('feeds');
-      if (low.length) html += h.note('warn', 'Fewer ' + low.join(' and ') + ' than usual', 'Missed logging some? If not — and especially with fewer wet diapers, sleepiness at feeds or dark pee — call your pediatrician or a lactation consultant today.');
-      else html += '<p class="verdict">' + ic('check', 'c-ok') + 'Looking good — feeds and wet diapers are in the usual range for ' + esc(G.ageLabel(days).toLowerCase()) + '.</p>';
+      if (low.length) html += '<div style="margin-top:12px">' + h.note('warn', 'Fewer ' + low.join(' and ') + ' than usual', 'Missed logging some? If not — and especially with fewer wet diapers, sleepiness at feeds or dark pee — call your pediatrician or a lactation consultant today.') + '</div>';
+      else html += '<div style="margin-top:12px">' + h.note('ok', 'Looking good', 'Feeds and wet diapers are in the expected range for ' + esc(G.ageLabel(days).toLowerCase()) + '.') + '</div>';
     }
     return html;
   }
 
   function reminderRows(list, now) {
-    if (!list.length) return '<p class="quiet">No reminders coming up.</p>';
+    if (!list.length) return '<div class="empty"><span class="empty__icon">🔕</span>No reminders coming up.</div>';
     return '<div class="rows">' + list.map(function (r) {
       var overdue = r.at <= now;
-      return '<div class="row' + (r.done ? ' row--done' : '') + '">' + h.icon(r.icon, 'row__icon ' + h.tone(r.icon)) + '<div class="row__main"><div class="row__t">' + esc(r.title) + '</div><div class="row__s">' + esc(r.text) + '</div></div>' +
+      return '<div class="row' + (r.done ? ' row--done' : '') + '"><span class="row__icon" aria-hidden="true">' + esc(r.icon) + '</span><div class="row__main"><div class="row__t">' + esc(r.title) + '</div><div class="row__s">' + esc(r.text) + '</div></div>' +
         '<div class="row__time"><strong>' + h.fmtTime(r.at) + '</strong><span data-until="' + r.at + '">' + h.until(r.at, now) + '</span>' +
         (overdue ? '<br><button class="btn btn--link btn--sm" data-action="snooze" data-key="' + esc(r.key) + '" data-at="' + r.at + '">Snooze 15m</button>' : '') + '</div></div>';
     }).join('') + '</div>';
   }
 
   function timelineRows(list, now) {
-    if (!list.length) return '<p class="quiet">Nothing logged yet today — tap a button above to start.</p>';
+    if (!list.length) return '<div class="empty"><span class="empty__icon">🗒️</span>Nothing logged yet today. Tap a button above to start.</div>';
     return '<div class="rows">' + list.map(function (e) {
       var d = h.describe(e, now);
-      return '<button class="row' + (d.flag ? ' row--flag' : '') + '" data-action="edit" data-id="' + e.id + '">' + ic(d.icon, 'row__icon ' + h.tone(d.icon)) + '<div class="row__main"><div class="row__t">' + esc(d.title) + (d.flag ? ' ' + h.statusPill('warn', 'worth a look') : '') + '</div><div class="row__s">' + esc(d.sub || ' ') + '</div></div>' +
+      return '<button class="row' + (d.flag ? ' row--flag' : '') + '" data-action="edit" data-id="' + e.id + '"><span class="row__icon">' + d.icon + '</span><div class="row__main"><div class="row__t">' + esc(d.title) + (d.flag ? ' ⚠️' : '') + '</div><div class="row__s">' + esc(d.sub || ' ') + '</div></div>' +
         '<div class="row__time"><strong>' + h.fmtTime(e.time) + '</strong>' + h.ago(e.end || e.time, now) + '</div></button>';
     }).join('') + '</div>';
   }
 
   function today() {
-    var now = Date.now(), days = S.ageDays(now);
+    var now = Date.now(), days = S.ageDays(now), b = S.baby();
     var rem = S.reminders(now).filter(function (r) { return !r.done; }).slice(0, 4);
     var todays = S.events({ from: S.startOfDay(now) }).filter(function (e) { return e.time >= S.startOfDay(now); }).reverse();
-    var live = liveCards(now);
-    return '<h1 class="sr-only">Today</h1>' + (live || nextField(now)) +
-      stateRow(now, days, !!live) +
+    return '<h1 class="sr-only">Today</h1>' + liveCards(now) +
       quickActions(days) +
+      tiles(now, days) +
+      '<button class="cry-cta" data-action="help" data-topic="cry"><span class="cry-cta__icon">😭</span><span class="cry-cta__t">Crying? See the likely reasons</span><span class="cry-cta__go">›</span></button>' +
+      installTip() +
       '<div class="section-title"><h2>Last 24 hours</h2> <button class="btn--link" data-action="help" data-topic="enough">What’s normal?</button></div>' +
       '<div class="card">' + checks(now, days) + '</div>' +
-      '<button class="cry-cta" data-action="help" data-topic="cry">' + ic('cry', 'cry-cta__icon') + '<span class="cry-cta__t">Crying? See the likely reasons</span>' + ic('chevron', 'cry-cta__go') + '</button>' +
       '<div class="section-title"><h2>Coming up</h2> <button class="btn--link" data-action="go" data-view="settings" data-focus="reminders">Manage</button></div>' +
       '<div class="card">' + reminderRows(rem, now) + '</div>' +
       '<div class="section-title"><h2>Today</h2> <button class="btn--link" data-action="go" data-view="log">All history</button></div>' +
       '<div class="card">' + timelineRows(todays.slice(0, 10), now) +
-      (todays.length > 10 ? '<button class="btn btn--link btn--block" data-action="go" data-view="log">See all ' + todays.length + ' entries today</button>' : '') + '</div>' +
-      installTip();
+      (todays.length > 10 ? '<button class="btn btn--link btn--block" data-action="go" data-view="log">See all ' + todays.length + ' entries today</button>' : '') + '</div>';
   }
 
   /* ======================= HISTORY ======================= */
   function modeSwitch(cur) {
-    return '<h1 class="h1">History</h1><div class="seg" role="tablist">' + [['timeline', 'Timeline'], ['trends', 'Trends']].map(function (m) {
+    return '<h1 class="h1">History</h1><div class="seg" role="tablist">' + [['timeline', '📋 Timeline'], ['trends', '📈 Trends']].map(function (m) {
       return '<button class="seg__btn' + (cur === m[0] ? ' seg__btn--on' : '') + '" role="tab" aria-selected="' + (cur === m[0]) + '" data-action="hist-mode" data-mode="' + m[0] + '">' + m[1] + '</button>';
     }).join('') + '</div>';
   }
-  var FILTERS = [['all', 'All', ''], ['feed', 'Feeds', 'bottle'], ['diaper', 'Diapers', 'diaper'], ['sleep', 'Sleep', 'moon'], ['pump', 'Pump', 'pump'], ['med', 'Meds', 'pill'], ['temp', 'Temp', 'thermometer'], ['growth', 'Growth', 'ruler'], ['tummy', 'Tummy', 'tummy'], ['milestone', 'Milestones', 'star'], ['note', 'Notes', 'note'], ['bath', 'Baths', 'tub']];
+  var FILTERS = [['all', 'All'], ['feed', '🍼 Feeds'], ['diaper', '🧷 Diapers'], ['sleep', '😴 Sleep'], ['pump', '🧴 Pump'], ['med', '💊 Meds'], ['temp', '🌡️ Temp'], ['growth', '📏 Growth'], ['tummy', '🤸 Tummy'], ['milestone', '⭐ Milestones'], ['note', '📝 Notes'], ['bath', '🛁 Baths']];
 
   function history() {
     var ui = App.ui, now = Date.now();
     var from = S.startOfDay(now) - (ui.historyDays - 1) * DAY;
     var list = S.events({ from: from, type: ui.historyType === 'all' ? null : ui.historyType }).filter(function (e) { return e.time >= from; }).reverse();
     var html = modeSwitch('timeline') +
-      '<div class="btn-row"><button class="btn btn--sm" data-action="add-past">' + ic('plus') + 'Add past entry</button><button class="btn btn--sm" data-action="handoff">' + ic('share') + 'Share summary</button></div>' +
-      '<div class="chips chips--scroll" role="toolbar" aria-label="Filter">' + FILTERS.map(function (f) { return '<button class="chip" data-action="hist-filter" data-type="' + f[0] + '" aria-pressed="' + (ui.historyType === f[0]) + '">' + (f[2] ? ic(f[2], h.tone(f[2])) : '') + f[1] + '</button>'; }).join('') + '</div>';
-    if (!list.length) return html + '<div class="card"><div class="empty">' + ic('note', 'empty__icon') + 'Nothing here for the last ' + h.plural(ui.historyDays, 'day') + '.</div></div>';
+      '<div class="btn-row"><button class="btn btn--sm" data-action="add-past">＋ Add past entry</button><button class="btn btn--sm" data-action="handoff">📤 Share summary</button></div>' +
+      '<div class="chips chips--scroll" role="toolbar" aria-label="Filter">' + FILTERS.map(function (f) { return '<button class="chip" data-action="hist-filter" data-type="' + f[0] + '" aria-pressed="' + (ui.historyType === f[0]) + '">' + f[1] + '</button>'; }).join('') + '</div>';
+    if (!list.length) return html + '<div class="card"><div class="empty"><span class="empty__icon">🗒️</span>Nothing here for the last ' + h.plural(ui.historyDays, 'day') + '.</div></div>';
     var groups = {}, order = [];
     list.forEach(function (e) { var k = S.startOfDay(e.time); if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push(e); });
     html += '<div class="card">';
@@ -319,10 +313,9 @@
     var band = o.band ? '<div class="bars__band" style="bottom:' + (o.band[0] / max * 100) + '%;height:' + ((o.band[1] - o.band[0]) / max * 100) + '%"></div>' : '';
     var every = o.days.length > 14 ? 5 : 1; // thin out labels on the 30-day view
     var labels = o.days.map(function (d, i) { var last = i === o.days.length - 1; return '<span>' + (last || (o.days.length - 1 - i) % every === 0 ? h.shortDay(d.start) : '') + '</span>'; }).join('');
-    // Bars take the colour of what they count: sleep is sleep's colour everywhere.
-    var legend = o.series.length > 1 ? '<div class="legend">' + o.series.map(function (s) { return '<span class="' + (s.tone || o.tone) + '"><i></i>' + s.label + '</span>'; }).join('') + '</div>' : '';
+    var legend = o.series.length > 1 ? '<div class="legend">' + o.series.map(function (s) { return '<span><i style="background:var(--' + (s.cls === 'bar--2' ? 'series-2' : 'series-1') + ')"></i>' + s.label + '</span>'; }).join('') + '</div>' : '';
     return '<div class="card chart"><div class="chart__title">' + o.title + '</div><div class="chart__sub">' + o.sub + '</div>' + legend +
-      '<div class="bars ' + o.tone + '" role="group" aria-label="' + esc(o.title) + ', one bar per day">' + band + cols + '</div><div class="bars__labels" aria-hidden="true">' + labels + '</div></div>';
+      '<div class="bars" role="group" aria-label="' + esc(o.title) + ', one bar per day">' + band + cols + '</div><div class="bars__labels" aria-hidden="true">' + labels + '</div></div>';
   }
 
   function dayMap(n, now) {
@@ -349,7 +342,7 @@
       rows.push('<div class="daymap__row"><span class="daymap__label" aria-hidden="true">' + h.shortDay(start, now) + '</span><div class="daymap__track" role="img" aria-label="' + esc(said) + '">' + segs + ticks + '</div></div>');
     }
     return '<div class="card chart"><div class="chart__title">Daily rhythm</div><div class="chart__sub">Each row is one day, midnight to midnight. Watch night sleep join up over the weeks.</div>' +
-      '<div class="legend"><span class="c-sleep"><i></i>Sleep</span><span class="c-feed"><i></i>Feed</span></div>' +
+      '<div class="legend"><span><i style="background:var(--series-1)"></i>Sleep</span><span><i style="background:var(--series-2)"></i>Feed</span></div>' +
       '<div class="daymap">' + rows.join('') + '<div class="daymap__axis"><span></span><div class="daymap__ticks"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div></div></div></div>';
   }
 
@@ -367,15 +360,15 @@
       var d = pts.map(function (p, i) { return (i ? 'L' : 'M') + X(p.t).toFixed(1) + ' ' + Y(p.w).toFixed(1); }).join(' ');
       svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="Weight over time" style="display:block;margin:6px 0 4px">' +
         '<line x1="0" x2="' + W + '" y1="' + (H - pad) + '" y2="' + (H - pad) + '" stroke="var(--grid)" />' +
-        '<path d="' + d + '" fill="none" stroke="var(--c-ok)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />' +
-        pts.map(function (p) { return '<circle cx="' + X(p.t).toFixed(1) + '" cy="' + Y(p.w).toFixed(1) + '" r="4.5" fill="var(--c-ok)" stroke="var(--ground)" stroke-width="2" tabindex="0" data-tip="' + esc((p.birth ? 'Birth' : h.fmtDate(p.t)) + ': ' + h.weight(p.w)) + '" />'; }).join('') + '</svg>';
+        '<path d="' + d + '" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />' +
+        pts.map(function (p) { return '<circle cx="' + X(p.t).toFixed(1) + '" cy="' + Y(p.w).toFixed(1) + '" r="4.5" fill="var(--series-1)" stroke="var(--bg-1)" stroke-width="2" tabindex="0" data-tip="' + esc((p.birth ? 'Birth' : h.fmtDate(p.t)) + ': ' + h.weight(p.w)) + '" />'; }).join('') + '</svg>';
     }
     var rowsH = g.slice().reverse().slice(0, 8).map(function (e) {
       return '<tr><td>' + h.fmtDate(e.time) + '</td><td class="num">' + (e.data.weightKg ? h.weight(e.data.weightKg) : '—') + '</td><td class="num">' + (e.data.lengthCm ? h.len(e.data.lengthCm) : '—') + '</td><td class="num">' + (e.data.headCm ? h.len(e.data.headCm) : '—') + '</td></tr>';
     }).join('');
     return '<div class="card chart"><div class="chart__title">Growth</div><div class="chart__sub">Weight' + (b.birthWeightKg ? ' since birth (' + h.weight(b.birthWeightKg) + ')' : '') + '. Your pediatrician plots this on WHO growth charts at check-ups.</div>' + svg +
       (rowsH ? '<div class="tbl-wrap" tabindex="0" role="region" aria-label="Table (scrolls sideways)"><table class="tbl"><thead><tr><th>Date</th><th class="num">Weight</th><th class="num">Length</th><th class="num">Head</th></tr></thead><tbody>' + rowsH + '</tbody></table></div>' : '') +
-      '<button class="btn btn--sm" data-action="log" data-type="growth" style="margin-top:10px">' + ic('plus') + 'Add measurement</button></div>';
+      '<button class="btn btn--sm" data-action="log" data-type="growth" style="margin-top:10px">＋ Add measurement</button></div>';
   }
 
   function trends() {
@@ -396,11 +389,11 @@
       '</div>';
     if (!full.length) html += h.note('info', 'Trends need a full day of logs', 'Averages use complete days only, so they’ll appear from tomorrow. The charts below already include today.');
     if (n <= 14) html += dayMap(n, now);
-    html += barChart({ title: 'Sleep per day', sub: 'Shaded band: typical ' + sl.totalH[0] + '–' + sl.totalH[1] + 'h for ' + sl.label.toLowerCase() + '.', days: ds, tone: 'c-sleep', series: [{ key: 'sleep', label: 'Sleep' }], value: function (d) { return d.sleepMs / HOUR; }, fmt: function (v) { return (Math.round(v * 10) / 10) + 'h'; }, band: sl.totalH });
-    html += barChart({ title: 'Feeds per day', sub: 'Shaded band: typical ' + feed.perDay[0] + '–' + feed.perDay[1] + ' at ' + feed.label.toLowerCase() + '.', days: ds, tone: 'c-feed', series: [{ key: 'feeds', label: 'Feeds' }], value: function (d) { return d.feeds; }, fmt: function (v) { return String(v); }, band: feed.perDay });
-    html += barChart({ title: 'Diapers per day', sub: 'Wet and dirty changes (a “both” counts once in each).' + (aWet != null ? ' Average wet: ' + Math.round(aWet * 10) / 10 + '.' : ''), days: ds, tone: 'c-wet', series: [{ key: 'wet', label: 'Wet', tone: 'c-wet' }, { key: 'dirty', label: 'Dirty', cls: 'bar--2', tone: 'c-dirty' }], value: function (d, k) { return d[k]; }, fmt: function (v) { return String(v); } });
-    if (ds.some(function (d) { return d.bottleMl; })) html += barChart({ title: 'Bottle volume per day', sub: 'Total from logged bottles, in ' + h.volUnit() + '.', days: ds, tone: 'c-feed', series: [{ key: 'b', label: 'Bottle' }], value: function (d) { return h.volToDisplay(d.bottleMl); }, fmt: function (v) { return String(Math.round(v)); } });
-    if (ds.some(function (d) { return d.pumpMl; })) html += barChart({ title: 'Pumped per day', sub: 'Total pumped, in ' + h.volUnit() + '.', days: ds, tone: 'c-feed', series: [{ key: 'p', label: 'Pumped' }], value: function (d) { return h.volToDisplay(d.pumpMl); }, fmt: function (v) { return String(Math.round(v)); } });
+    html += barChart({ title: 'Sleep per day', sub: 'Green band: typical ' + sl.totalH[0] + '–' + sl.totalH[1] + 'h for ' + sl.label.toLowerCase() + '.', days: ds, series: [{ key: 'sleep', label: 'Sleep' }], value: function (d) { return d.sleepMs / HOUR; }, fmt: function (v) { return (Math.round(v * 10) / 10) + 'h'; }, band: sl.totalH });
+    html += barChart({ title: 'Feeds per day', sub: 'Green band: typical ' + feed.perDay[0] + '–' + feed.perDay[1] + ' at ' + feed.label.toLowerCase() + '.', days: ds, series: [{ key: 'feeds', label: 'Feeds' }], value: function (d) { return d.feeds; }, fmt: function (v) { return String(v); }, band: feed.perDay });
+    html += barChart({ title: 'Diapers per day', sub: 'Wet and dirty changes (a “both” counts once in each).' + (aWet != null ? ' Average wet: ' + Math.round(aWet * 10) / 10 + '.' : ''), days: ds, series: [{ key: 'wet', label: 'Wet' }, { key: 'dirty', label: 'Dirty', cls: 'bar--2' }], value: function (d, k) { return d[k]; }, fmt: function (v) { return String(v); } });
+    if (ds.some(function (d) { return d.bottleMl; })) html += barChart({ title: 'Bottle volume per day', sub: 'Total from logged bottles, in ' + h.volUnit() + '.', days: ds, series: [{ key: 'b', label: 'Bottle' }], value: function (d) { return h.volToDisplay(d.bottleMl); }, fmt: function (v) { return String(Math.round(v)); } });
+    if (ds.some(function (d) { return d.pumpMl; })) html += barChart({ title: 'Pumped per day', sub: 'Total pumped, in ' + h.volUnit() + '.', days: ds, series: [{ key: 'p', label: 'Pumped' }], value: function (d) { return h.volToDisplay(d.pumpMl); }, fmt: function (v) { return String(Math.round(v)); } });
     html += growthCard();
     // Table view of the same numbers (accessibility + screen readers).
     html += '<details class="card more"><summary>Show as a table</summary><div class="tbl-wrap" tabindex="0" role="region" aria-label="Table (scrolls sideways)"><table class="tbl" style="margin-top:8px"><thead><tr><th>Day</th><th class="num">Feeds</th><th class="num">Wet</th><th class="num">Dirty</th><th class="num">Sleep</th></tr></thead><tbody>' +

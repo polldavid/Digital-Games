@@ -5,16 +5,15 @@
    the front when a reminder notification is tapped.
    When any cached file changes, bump V here AND every ?v= in index.html
    (tests/unit.test.js fails if they differ). The page asks for
-   styles.css?v=13 etc., so a new page can never be paired with an old
+   styles.css?v=14 etc., so a new page can never be paired with an old
    cached stylesheet or script — not from this cache, nor from the
    browser's HTTP cache (GitHub Pages caches files for 10 minutes).
    ========================================================= */
-var V = '13';
+var V = '14';
 var VERSION = 'babylog-v' + V;
 var VERSIONED = ['css/styles.css', '../theme.css', '../theme.js',
   'js/guide.js', 'js/store.js', 'js/sound.js', 'js/rx.js', 'js/files.js', 'js/ui.js', 'js/forms.js', 'js/views.js', 'js/help.js', 'js/health.js', 'js/native.js', 'js/app.js'];
 var FILES = ['./', 'index.html', 'manifest.webmanifest',
-  'fonts/jost-latin.woff2', 'fonts/jost-latin-ext.woff2',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'
 ].concat(VERSIONED.map(function (f) { return f + '?v=' + V; }));
 

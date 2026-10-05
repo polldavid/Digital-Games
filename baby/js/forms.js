@@ -52,15 +52,15 @@
     var b = S.timers().breast, ns = nextSide();
     var side = function (k, label) {
       var on = b && b.side === k && !b.paused;
-      var hint = on ? '<span class="live-dot"></span>Feeding' : (!b && ns === k ? 'Start here' : (b ? 'Tap to switch' : 'Tap to start'));
+      var hint = on ? '● Feeding' : (!b && ns === k ? 'Start here' : (b ? 'Tap to switch' : 'Tap to start'));
       return '<button type="button" class="side' + (on ? ' side--on' : '') + (!b && ns === k ? ' side--next' : '') + '" data-action="breast-side" data-side="' + k + '" aria-pressed="' + on + '">' +
         '<span class="side__k">' + label + '</span><span class="side__v" data-breast="' + k + '">0:00</span><span class="side__hint">' + hint + '</span></button>';
     };
     var html = '<div class="sides">' + side('L', 'Left') + side('R', 'Right') + '</div>';
     if (b) {
       html += '<p class="faint" style="text-align:center">Total <strong data-breast="T">0:00</strong> · started ' + h.fmtTime(b.start) + (b.paused ? ' · <strong>paused</strong>' : '') + '</p>' +
-        '<div class="btn-row"><button type="button" class="btn" data-action="breast-pause">' + (b.paused ? h.ic('play') + 'Resume' : h.ic('pause') + 'Pause') + '</button>' +
-        '<button type="button" class="btn btn--primary" data-action="breast-finish">' + h.ic('check') + 'Done — save feed</button></div>' +
+        '<div class="btn-row"><button type="button" class="btn" data-action="breast-pause">' + (b.paused ? '▶ Resume' : '⏸ Pause') + '</button>' +
+        '<button type="button" class="btn btn--primary" data-action="breast-finish">✓ Done — save feed</button></div>' +
         '<button type="button" class="btn btn--link" data-action="breast-discard">Discard this timer</button>';
     } else {
       html += ns ? '<p class="faint" style="text-align:center">Last feed started on the ' + (ns === 'L' ? 'right' : 'left') + ' — start on the <strong>' + (ns === 'L' ? 'left' : 'right') + '</strong> this time.</p>' : '<p class="faint" style="text-align:center">Tap a side to start the timer. Switch sides any time — it keeps running when you close this or lock your phone.</p>';
@@ -75,7 +75,7 @@
       var kind = d.kind || (S.timers().breast ? 'breast' : b.feeding === 'formula' ? 'bottle' : 'breast');
       var time = ev ? ev.time : Date.now();
       var amount = d.amountMl != null ? h.volToDisplay(d.amountMl) : h.volToDisplay(lastBottleMl() || G.feedingFor(days(), b.feeding).ml[0] || 60);
-      var html = seg('kind', [['breast', h.ic('breast', h.tone('breast')) + 'Breast'], ['bottle', h.ic('bottle', h.tone('bottle')) + 'Bottle'], ['solids', h.ic('bowl', h.tone('bowl')) + 'Solids']], kind);
+      var html = seg('kind', [['breast', '🤱 Breast'], ['bottle', '🍼 Bottle'], ['solids', '🥣 Solids']], kind);
 
       // Breast
       html += '<div data-panel="breast"' + (kind !== 'breast' ? ' hidden' : '') + '>';
@@ -89,9 +89,9 @@
       // Bottle
       html += '<div data-panel="bottle" class="form"' + (kind !== 'bottle' ? ' hidden' : '') + '>' +
         // ± nudge by 1 ml / 0.1 oz; the separate button jumps by 5 ml / 0.5 oz.
-        '<div class="stepper"><button type="button" class="btn" data-action="step" data-target="amount" data-vol="-fine" data-step="-' + volStep('fine') + '" aria-label="Less">' + h.ic('minus') + '</button>' +
+        '<div class="stepper"><button type="button" class="btn" data-action="step" data-target="amount" data-vol="-fine" data-step="-' + volStep('fine') + '" aria-label="Less">−</button>' +
         '<div class="stepper__v"><input class="stepper__input" name="amount" type="number" inputmode="decimal" step="any" min="0" value="' + amount + '" aria-label="Amount" /><button type="button" class="unit-btn" data-action="unit-toggle" data-unit="volume" data-target="amount" aria-label="Switch between ml and oz">' + h.volUnit() + '</button></div>' +
-        '<button type="button" class="btn" data-action="step" data-target="amount" data-vol="fine" data-step="' + volStep('fine') + '" aria-label="More">' + h.ic('plus') + '</button></div>' +
+        '<button type="button" class="btn" data-action="step" data-target="amount" data-vol="fine" data-step="' + volStep('fine') + '" aria-label="More">+</button></div>' +
         '<div class="stepper-extra"><button type="button" class="btn btn--sm" data-action="step" data-target="amount" data-vol="big" data-step="' + volStep('big') + '">+' + volStep('big') + ' ' + h.volUnit() + '</button></div>' +
         '<div class="field"><span class="field__label">What’s in the bottle?</span>' + seg('milk', [['breast', 'Breast milk'], ['formula', 'Formula']], d.milk || (b.feeding === 'breast' ? 'breast' : 'formula')) + '</div>' +
         '<p class="faint">Typical at this age: ' + bottleRange() + ' per feed. Follow baby’s cues — stopping, turning away and relaxed hands mean full.</p>' +
@@ -164,7 +164,7 @@
     html: function (ev) {
       var d = ev ? ev.data : {};
       var what = ev ? (d.wet && d.dirty ? 'both' : d.dirty ? 'dirty' : d.wet ? 'wet' : 'dry') : 'wet';
-      var html = seg('what', [['wet', h.ic('drop', h.tone('drop')) + 'Wet'], ['dirty', h.ic('poo', h.tone('poo')) + 'Dirty'], ['both', 'Both'], ['dry', 'Dry']], what);
+      var html = seg('what', [['wet', '💧 Wet'], ['dirty', '💩 Dirty'], ['both', 'Both'], ['dry', 'Dry']], what);
       html += '<div data-poop' + (what === 'dirty' || what === 'both' ? '' : ' hidden') + ' class="form">' +
         '<div class="field"><span class="field__label">Color</span><div class="swatches">' +
         G.POOP_COLORS.map(function (c) { return '<button type="button" class="swatch" data-action="poop-color" data-color="' + c.id + '" aria-pressed="' + (d.color === c.id) + '"><span class="swatch__dot" style="background:' + c.hex + '"></span>' + esc(c.label) + '</button>'; }).join('') +
@@ -207,14 +207,14 @@
     html: function (ev) {
       var t = S.timers().sleep, html = '';
       if (!ev && t) {
-        html += '<div class="card card--flat live live--sleep"><div class="live__head"><span class="live__icon">' + h.ic('moon', h.tone('moon')) + '</span><div><div class="live__label"><span class="live-dot"></span>Asleep</div><div class="live__sub">since ' + h.fmtTime(t.start) + '</div></div><span class="live__clock" data-elapsed="' + t.start + '">0:00</span></div>' +
-          '<button type="button" class="btn btn--primary btn--lg btn--block" data-action="sleep-stop">' + h.ic('sun') + 'Baby woke up</button></div>';
+        html += '<div class="card card--flat live live--sleep"><div class="live__head"><span class="live__icon">😴</span><div><div class="live__label"><span class="pulse"></span>Asleep</div><div class="live__sub">since ' + h.fmtTime(t.start) + '</div></div><span class="live__clock" data-elapsed="' + t.start + '">0:00</span></div>' +
+          '<button type="button" class="btn btn--primary btn--lg btn--block" data-action="sleep-stop">☀️ Baby woke up</button></div>';
         html += '<p class="faint">Fell asleep earlier than you started the timer? Fix it here:</p>' +
           '<div class="field"><span class="field__label">Fell asleep at</span><input class="input" type="datetime-local" name="liveStart" value="' + h.toLocalInput(t.start) + '" data-action-change="sleep-adjust" /></div>';
         return html;
       }
       if (!ev) {
-        html += '<button type="button" class="btn btn--primary btn--lg btn--block" data-action="sleep-start">' + h.ic('moon') + 'Start sleep timer now</button>' +
+        html += '<button type="button" class="btn btn--primary btn--lg btn--block" data-action="sleep-start">🌙 Start sleep timer now</button>' +
           '<p class="faint" style="text-align:center">— or log a sleep that already happened —</p>';
       }
       var start = ev ? ev.time : Date.now() - HOUR, end = ev ? (ev.end || Date.now()) : Date.now();
@@ -235,16 +235,16 @@
     var p = S.timers().pump, tt = p ? S.pumpTotals(p) : null;
     var side = function (k, label) {
       var on = p && p[k].on;
-      var hint = on ? '<span class="live-dot"></span>Pumping' : p && tt[k] ? 'Tap to resume' : 'Tap to start';
+      var hint = on ? '● Pumping' : p && tt[k] ? 'Tap to resume' : 'Tap to start';
       return '<button type="button" class="side' + (on ? ' side--on' : '') + '" data-action="pump-side" data-side="' + k + '" aria-pressed="' + !!on + '">' +
         '<span class="side__k">' + label + '</span><span class="side__v" data-pump="' + k + '">' + h.clock(tt ? tt[k] : 0) + '</span><span class="side__hint">' + hint + '</span></button>';
     };
     var html = '<div class="sides">' + side('L', 'Left') + side('R', 'Right') + '</div>';
     var both = p && p.L.on && p.R.on;
-    html += '<button type="button" class="btn btn--block" data-action="pump-both">' + (both ? h.ic('pause') + 'Pause both' : h.ic('play') + (p ? 'Run both sides' : 'Start both sides')) + '</button>';
+    html += '<button type="button" class="btn btn--block" data-action="pump-both">' + (both ? '⏸ Pause both' : '▶▶ ' + (p ? 'Run both sides' : 'Start both sides')) + '</button>';
     if (p) {
       html += '<p class="faint" style="text-align:center">Session <strong data-pump="T">' + h.clock(tt.total) + '</strong> · started ' + h.fmtTime(p.start) + (p.done ? ' · <strong>finished</strong>' : '') + '</p>' +
-        '<button type="button" class="btn btn--primary btn--lg btn--block" data-action="pump-finish">' + h.ic('check') + 'Done — enter amounts</button>' +
+        '<button type="button" class="btn btn--primary btn--lg btn--block" data-action="pump-finish">✓ Done — enter amounts</button>' +
         '<button type="button" class="btn btn--link" data-action="pump-discard">Discard this session</button>';
     } else {
       html += '<p class="faint" style="text-align:center">Double pump? Tap <strong>Start both sides</strong>. One side at a time? Tap Left or Right — each side has its own timer.</p>';
@@ -308,8 +308,8 @@
       var t = S.timers().tummy, html = '';
       var goal = G.tummyGoalMin(days()), done = Math.round(S.daySummary(S.startOfDay(Date.now())).tummyMs / MIN);
       if (!ev) {
-        if (t) html += '<div class="card card--flat live"><div class="live__head"><span class="live__icon">' + h.ic('tummy', h.tone('tummy')) + '</span><div><div class="live__label"><span class="live-dot"></span>Tummy time</div><div class="live__sub">since ' + h.fmtTime(t.start) + '</div></div><span class="live__clock" data-elapsed="' + t.start + '">0:00</span></div><button type="button" class="btn btn--primary btn--block" data-action="tummy-stop">' + h.ic('check') + 'Done</button></div>';
-        else html += '<button type="button" class="btn btn--primary btn--lg btn--block" data-action="tummy-start">' + h.ic('play') + 'Start tummy-time timer</button>';
+        if (t) html += '<div class="card card--flat live"><div class="live__head"><span class="live__icon">🤸</span><div><div class="live__label"><span class="pulse"></span>Tummy time</div><div class="live__sub">since ' + h.fmtTime(t.start) + '</div></div><span class="live__clock" data-elapsed="' + t.start + '">0:00</span></div><button type="button" class="btn btn--primary btn--block" data-action="tummy-stop">✓ Done</button></div>';
+        else html += '<button type="button" class="btn btn--primary btn--lg btn--block" data-action="tummy-start">▶ Start tummy-time timer</button>';
         if (goal) html += '<p class="faint">Today: <strong>' + done + ' of ' + goal + ' min</strong>. Short bursts count — a few minutes after each diaper change adds up. Always awake and supervised.</p>';
         html += '<p class="faint" style="text-align:center">— or log minutes —</p>';
       }
@@ -350,7 +350,7 @@
       if (p.id === 'custom' && /^rx:/.test(medId)) medId = 'custom';
       var dose0 = d.dose || (p.rx ? p.rx.dose || '' : '');
       return '<label class="field"><span class="field__label">Medicine</span><select class="input" name="medId">' +
-        (rxs.length ? '<optgroup label="Prescribed">' + rxs.map(function (rx) { return '<option value="rx:' + rx.id + '"' + ('rx:' + rx.id === medId ? ' selected' : '') + '>' + esc(rx.name + (rx.strength ? ' ' + rx.strength : '')) + '</option>'; }).join('') + '</optgroup><optgroup label="Other">' : '') +
+        (rxs.length ? '<optgroup label="Prescribed">' + rxs.map(function (rx) { return '<option value="rx:' + rx.id + '"' + ('rx:' + rx.id === medId ? ' selected' : '') + '>💊 ' + esc(rx.name + (rx.strength ? ' ' + rx.strength : '')) + '</option>'; }).join('') + '</optgroup><optgroup label="Other">' : '') +
         G.MEDICINES.map(function (m) { return '<option value="' + m.id + '"' + (m.id === medId ? ' selected' : '') + '>' + esc(m.label) + '</option>'; }).join('') + (rxs.length ? '</optgroup>' : '') + '</select></label>' +
         '<label class="field" data-custom' + (medId === 'custom' ? '' : ' hidden') + '><span class="field__label">Name</span><input class="input" name="name" maxlength="40" value="' + esc(medId === 'custom' ? d.name || '' : '') + '" placeholder="e.g. Amoxicillin" /></label>' +
         '<label class="field"><span class="field__label">Dose given</span><input class="input" name="dose" maxlength="40" value="' + esc(dose0) + '" placeholder="e.g. 2.5 ml — as on the label / prescription" /></label>' +
@@ -403,9 +403,9 @@
     html: function (ev) {
       var d = ev ? ev.data : {};
       var method = d.method || (days() < 91 ? 'rectal' : 'armpit');
-      return '<div class="stepper"><button type="button" class="btn" data-action="step" data-target="temp" data-step="-0.1" aria-label="Lower">' + h.ic('minus') + '</button>' +
+      return '<div class="stepper"><button type="button" class="btn" data-action="step" data-target="temp" data-step="-0.1" aria-label="Lower">−</button>' +
         '<div class="stepper__v"><input class="stepper__input" name="temp" type="number" inputmode="decimal" step="0.1" value="' + (d.tempC != null ? h.tempToDisplay(d.tempC) : h.tempToDisplay(36.8)) + '" aria-label="Temperature" /><button type="button" class="unit-btn" data-action="unit-toggle" data-unit="temp" data-target="temp" aria-label="Switch between °C and °F">' + h.tempUnit() + '</button></div>' +
-        '<button type="button" class="btn" data-action="step" data-target="temp" data-step="0.1" aria-label="Higher">' + h.ic('plus') + '</button></div>' +
+        '<button type="button" class="btn" data-action="step" data-target="temp" data-step="0.1" aria-label="Higher">+</button></div>' +
         '<div class="field"><span class="field__label">Taken</span>' + seg('method', [['rectal', 'Rectal'], ['armpit', 'Armpit'], ['ear', 'Ear'], ['forehead', 'Forehead']], method) + '</div>' +
         '<div id="temp-feedback"></div>' +
         '<p class="faint">Under 3 months a rectal reading is the most accurate. Armpit readings run lower — if one is 37.5 °C / 99.5 °F or more, confirm rectally. Ear thermometers aren’t reliable under 6 months.</p>' +
@@ -482,7 +482,7 @@
     feed: FEED, diaper: DIAPER, sleep: SLEEP, pump: PUMP, tummy: TUMMY, med: MED, temp: TEMP, growth: GROWTH,
     bath: simple('bath', 'Bath', ''),
     note: simple('note', 'Note', 'e.g. Pediatrician said… / Questions for next visit…'),
-    milestone: simple('milestone', 'Milestone', 'e.g. First real smile')
+    milestone: simple('milestone', 'Milestone', 'e.g. First real smile! 😊')
   };
 
   // Open the sheet for `type` (new) or for an existing event.

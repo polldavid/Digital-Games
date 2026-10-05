@@ -50,11 +50,11 @@
   }
 
   var SOUNDS = {
-    white: { label: 'White noise', icon: 'wave' },
-    pink:  { label: 'Pink noise',  icon: 'wave' },
-    brown: { label: 'Brown noise (deep)', icon: 'wave' },
-    shush: { label: 'Shush',       icon: 'shush' },
-    heart: { label: 'Heartbeat',   icon: 'heart' }
+    white: { label: 'White noise', icon: '🌫️' },
+    pink:  { label: 'Pink noise',  icon: '🌸' },
+    brown: { label: 'Brown noise (deep)', icon: '🌊' },
+    shush: { label: 'Shush',       icon: '🤫' },
+    heart: { label: 'Heartbeat',   icon: '💗' }
   };
 
   function build(kind) {

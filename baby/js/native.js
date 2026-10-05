@@ -126,7 +126,7 @@
           var quiet = st.settings.quietNight && quietAt(r.at);
           list.push({
             id: hashId(r.key + '@' + r.at),
-            title: r.title + (many ? ' · ' + b.name : ''),
+            title: r.icon + ' ' + r.title + (many ? ' · ' + b.name : ''),
             body: then.text || '',
             schedule: { at: new Date(r.at), allowWhileIdle: true },
             channelId: quiet ? 'quiet' : 'reminders',
