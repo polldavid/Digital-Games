@@ -118,7 +118,7 @@
   }
 
   function addBaby(b) {
-    var nb = { id: uid(), name: b.name || 'Baby', birth: b.birth, feeding: b.feeding || 'breast', emoji: b.emoji || '👶' };
+    var nb = { id: uid(), name: b.name || 'Baby', birth: b.birth, feeding: b.feeding || 'breast', emoji: b.emoji || '', color: b.color || '' };
     state.babies.push(nb);
     state.activeBaby = nb.id;
     return nb;
@@ -457,10 +457,10 @@
       if (lf && !lf.live) {
         var iv = feedIntervalH(now, id);
         if (!asleep) {
-          out.push({ key: 'feed:' + lf.id, kind: 'feed', icon: '🍼', title: 'Feed due', text: name + ' last fed ' + G.fmtDur((now - lf.time) / MIN) + ' ago (every ~' + G.fmtHours(iv) + ').', at: lf.time + iv * HOUR });
+          out.push({ key: 'feed:' + lf.id, kind: 'feed', icon: 'bottle', title: 'Feed due', text: name + ' last fed ' + G.fmtDur((now - lf.time) / MIN) + ' ago (every ~' + G.fmtHours(iv) + ').', at: lf.time + iv * HOUR });
         } else if (days < 14) {
           // Newborns shouldn't go more than ~4 hours between feeds until back to birth weight.
-          out.push({ key: 'feedwake:' + lf.id, kind: 'feed', icon: '🍼', title: 'Time to wake for a feed', text: name + ' last fed ' + G.fmtDur((now - lf.time) / MIN) + ' ago. Newborns under 2 weeks shouldn’t go more than about 4 hours between feeds.', at: Math.max(lf.time + iv * HOUR, lf.time + 4 * HOUR) });
+          out.push({ key: 'feedwake:' + lf.id, kind: 'feed', icon: 'bottle', title: 'Time to wake for a feed', text: name + ' last fed ' + G.fmtDur((now - lf.time) / MIN) + ' ago. Newborns under 2 weeks shouldn’t go more than about 4 hours between feeds.', at: Math.max(lf.time + iv * HOUR, lf.time + 4 * HOUR) });
         }
       }
     }
@@ -468,7 +468,7 @@
     // Diaper check.
     if (st.diaperRemind && !asleep) {
       var ld = last('diaper', null, id);
-      if (ld) out.push({ key: 'diaper:' + ld.id, kind: 'diaper', icon: '🧷', title: 'Diaper check', text: 'Last change was ' + G.fmtDur((now - ld.time) / MIN) + ' ago.', at: ld.time + st.diaperIntervalH * HOUR });
+      if (ld) out.push({ key: 'diaper:' + ld.id, kind: 'diaper', icon: 'diaper', title: 'Diaper check', text: 'Last change was ' + G.fmtDur((now - ld.time) / MIN) + ' ago.', at: ld.time + st.diaperIntervalH * HOUR });
     }
 
     // Nap window — when the wake window starts closing.
@@ -476,7 +476,7 @@
       var woke = awakeSince(now, id);
       if (woke) {
         var nap = G.nextNap(days, woke, now);
-        out.push({ key: 'nap:' + woke, kind: 'nap', icon: '😴', title: 'Nap window', text: name + ' has been awake ' + G.fmtDur((now - woke) / MIN) + '. Watch for sleepy cues and start winding down.', at: nap.from + Math.round((nap.to - nap.from) / 2) });
+        out.push({ key: 'nap:' + woke, kind: 'nap', icon: 'moon', title: 'Nap window', text: name + ' has been awake ' + G.fmtDur((now - woke) / MIN) + '. Watch for sleepy cues and start winding down.', at: nap.from + Math.round((nap.to - nap.from) / 2) });
       }
     }
 
@@ -489,7 +489,7 @@
     Object.keys(seen).forEach(function (k) {
       var e = seen[k];
       if (!e.data.remind || !e.data.intervalH) return;
-      out.push({ key: 'med:' + e.id, kind: 'med', icon: '💊', title: (e.data.name || 'Medicine') + ' — next dose allowed', text: 'Last dose ' + G.fmtDur((now - e.time) / MIN) + ' ago. Check the dose before giving.', at: e.time + e.data.intervalH * HOUR });
+      out.push({ key: 'med:' + e.id, kind: 'med', icon: 'pill', title: (e.data.name || 'Medicine') + ' — next dose allowed', text: 'Last dose ' + G.fmtDur((now - e.time) / MIN) + ' ago. Check the dose before giving.', at: e.time + e.data.intervalH * HOUR });
     });
 
     // Daily vitamin D (skipped if already logged today).
@@ -498,7 +498,7 @@
       var given = events({ baby: id, type: 'med', from: start }).some(function (e) { return e.data.medId === 'vitd'; });
       var at = hm(st.vitdTime, now);
       if (given) at = hm(st.vitdTime, now + DAY);
-      out.push({ key: 'vitd:' + dayKey(at), kind: 'vitd', icon: '☀️', title: 'Vitamin D drops', text: 'Daily vitamin D for ' + name + '.', at: at });
+      out.push({ key: 'vitd:' + dayKey(at), kind: 'vitd', icon: 'sun', title: 'Vitamin D drops', text: 'Daily vitamin D for ' + name + '.', at: at });
     }
 
     // Tummy time daily nudge if under goal.
@@ -508,7 +508,7 @@
         var doneMin = daySummary(startOfDay(now), now, id).tummyMs / MIN;
         var tat = hm(st.tummyTime, now);
         if (doneMin >= goal) tat = hm(st.tummyTime, now + DAY);
-        out.push({ key: 'tummy:' + dayKey(tat), kind: 'tummy', icon: '🤸', title: 'Tummy time', text: Math.round(doneMin) + ' of ' + goal + ' minutes done today.', at: tat });
+        out.push({ key: 'tummy:' + dayKey(tat), kind: 'tummy', icon: 'tummy', title: 'Tummy time', text: Math.round(doneMin) + ' of ' + goal + ' minutes done today.', at: tat });
       }
     }
 
@@ -518,15 +518,15 @@
       if (a.done || !a.at || a.at < now - 6 * HOUR) return;
       var title = (a.title || 'Doctor’s visit') + (a.place ? ' · ' + a.place : '');
       var eve = new Date(a.at - DAY); eve.setHours(19, 0, 0, 0);
-      if (eve.getTime() < a.at - 3 * HOUR) out.push({ key: 'appt:' + a.id + ':eve', kind: 'appt', icon: '🩺', title: 'Tomorrow: ' + title, text: 'At ' + new Date(a.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '. Bring the vaccine card and your questions.', at: eve.getTime(), apptId: a.id });
-      out.push({ key: 'appt:' + a.id + ':soon', kind: 'appt', icon: '🩺', title: 'In 2 hours: ' + title, text: name + '’s appointment is at ' + new Date(a.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.', at: a.at - 2 * HOUR, apptId: a.id });
+      if (eve.getTime() < a.at - 3 * HOUR) out.push({ key: 'appt:' + a.id + ':eve', kind: 'appt', icon: 'stethoscope', title: 'Tomorrow: ' + title, text: 'At ' + new Date(a.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '. Bring the vaccine card and your questions.', at: eve.getTime(), apptId: a.id });
+      out.push({ key: 'appt:' + a.id + ':soon', kind: 'appt', icon: 'stethoscope', title: 'In 2 hours: ' + title, text: name + '’s appointment is at ' + new Date(a.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.', at: a.at - 2 * HOUR, apptId: a.id });
     });
     // Prescription courses with reminders on: each next dose until the course ends.
     hl.rx.forEach(function (rx) {
       if (!rx.remind) return;
       var rs = rxStatus(rx, now, id);
       if (!rs.nextAt) return;
-      out.push({ key: 'rx:' + rx.id + ':' + (rs.lastDose ? rs.lastDose.id : 'first'), kind: 'rx', icon: '💊', title: rx.name + ' — dose due', text: (rx.dose ? rx.dose + ' · ' : '') + 'dose ' + (rs.doses + 1) + (rs.expected ? ' of ' + rs.expected : '') + '.', at: rs.nextAt, rxId: rx.id });
+      out.push({ key: 'rx:' + rx.id + ':' + (rs.lastDose ? rs.lastDose.id : 'first'), kind: 'rx', icon: 'pill', title: rx.name + ' — dose due', text: (rx.dose ? rx.dose + ' · ' : '') + 'dose ' + (rs.doses + 1) + (rs.expected ? ' of ' + rs.expected : '') + '.', at: rs.nextAt, rxId: rx.id });
     });
     // Vaccines: one nudge at 9 am on the due date (only for ones not given and not long overdue).
     if (hl.vaccines.schedule && b.birth) {
@@ -537,7 +537,7 @@
       });
       Object.keys(dueDays).forEach(function (k) {
         var list = dueDays[k], d9 = new Date(list[0].due); d9.setHours(9, 0, 0, 0);
-        out.push({ key: 'vax:' + k, kind: 'vax', icon: '💉', title: 'Vaccines due', text: list.map(function (v) { return v.name; }).join(', ') + '.', at: d9.getTime() });
+        out.push({ key: 'vax:' + k, kind: 'vax', icon: 'syringe', title: 'Vaccines due', text: list.map(function (v) { return v.name; }).join(', ') + '.', at: d9.getTime() });
       });
     }
 
@@ -559,7 +559,7 @@
       } else {
         at2 = r.at; key = 'custom:' + r.id;
       }
-      out.push({ key: key, kind: 'custom', icon: r.icon || '🔔', title: r.label || 'Reminder', text: r.note || '', at: at2, customId: r.id });
+      out.push({ key: key, kind: 'custom', icon: r.icon || 'bell', title: r.label || 'Reminder', text: r.note || '', at: at2, customId: r.id });
     });
 
     // Apply snoozes.

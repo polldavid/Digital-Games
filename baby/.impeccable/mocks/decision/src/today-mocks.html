@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Baby Log — Today, four directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=Public+Sans:wght@400;500;600;700;800&family=Spectral:ital,wght@0,400;0,600;1,400;1,500&family=Barlow+Semi+Condensed:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,700&display=block" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #d9dad6; }
+  body { font-family: system-ui, sans-serif; padding: 36px 40px 40px; }
+  .stage { display: flex; gap: 40px; justify-content: center; }
+  .shot { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .shot__cap { font: 600 13px/1 system-ui, sans-serif; color: #55574f; letter-spacing: .01em; }
+  .phone { width: 390px; height: 844px; border-radius: 46px; overflow: hidden; position: relative; box-shadow: 0 0 0 10px #111, 0 30px 60px -20px rgba(0,0,0,.45); display: flex; flex-direction: column; }
+  .sb { height: 46px; flex: none; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 30px 6px 34px; font: 600 15px/1 system-ui, sans-serif; }
+  .sb__r { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+  .scroll { flex: 1; overflow: hidden; position: relative; }
+  .tabs { flex: none; display: flex; justify-content: space-around; padding: 8px 10px 26px; }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 60px; }
+  .tab svg { width: 24px; height: 24px; }
+  svg.i { width: 24px; height: 24px; display: block; fill: currentColor; }
+  [data-d]:not(.on) { display: none !important; }
+
+  /* =====================================================================
+     A · ISOTYPE — one symbol, one thing. Count by repetition.
+     ===================================================================== */
+  .iso { font-family: 'Jost', sans-serif; --ground:#F3F3F0; --ink:#1B1B19; --mute:#5C5C57; --rule:#D8D8D2;
+         --feed:#C8402A; --wet:#2A5BA8; --dirty:#9B6A1E; --sleep:#2F3260; --ok:#3F7F44; --tile:#E7E7E2; --field:#2F3260; --fieldInk:#F3F3F0;
+         background: var(--ground); color: var(--ink); }
+  .iso.night { --ground:#130D0B; --ink:#F1CF98; --mute:#A98B66; --rule:#33241C; --feed:#E6773C; --wet:#C79A5E; --dirty:#9C6A3A; --sleep:#E2B26C; --ok:#C9A15A; --tile:#21160F; --field:#2B1610; --fieldInk:#F4C27C; }
+  .iso .sb { color: var(--ink); }
+  .iso .top { display: flex; align-items: center; justify-content: space-between; padding: 6px 20px 14px; }
+  .iso .who { display: flex; align-items: baseline; gap: 10px; }
+  .iso .who b { font-size: 26px; font-weight: 700; letter-spacing: -.01em; }
+  .iso .who span { font-size: 15px; color: var(--mute); font-weight: 500; }
+  .iso .bell { width: 44px; height: 44px; display: grid; place-items: center; color: var(--ink); position: relative; }
+  .iso .bell i { position: absolute; top: 8px; right: 7px; width: 9px; height: 9px; border-radius: 50%; background: var(--feed); }
+  .iso .field { background: var(--field); color: var(--fieldInk); padding: 18px 20px 20px; }
+  .iso .field__row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .iso .field__k { font-size: 16px; font-weight: 500; opacity: .85; }
+  .iso .field__big { font-size: 58px; font-weight: 600; line-height: .95; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .iso .field__sub { font-size: 16px; font-weight: 500; margin-top: 6px; }
+  .iso .field__btn { background: var(--fieldInk); color: var(--field); font: 600 17px/1 'Jost'; border-radius: 4px; padding: 15px 18px; white-space: nowrap; }
+  .iso .next { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--rule); }
+  .iso .next svg { width: 30px; height: 30px; color: var(--feed); }
+  .iso .next b { font-size: 21px; font-weight: 600; }
+  .iso .next span { color: var(--mute); font-size: 15px; display: block; margin-top: 1px; }
+  .iso .next em { margin-left: auto; font-style: normal; font-size: 15px; font-weight: 600; color: var(--feed); }
+  .iso .quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 14px 20px 6px; }
+  .iso .q { background: var(--tile); border-radius: 4px; height: 66px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 500; }
+  .iso .q svg { width: 30px; height: 30px; }
+  .iso h2 { font-size: 19px; font-weight: 600; padding: 18px 20px 8px; display: flex; justify-content: space-between; align-items: baseline; }
+  .iso h2 small { font-size: 14px; font-weight: 500; color: var(--mute); }
+  .iso .count { display: grid; grid-template-columns: 74px 1fr; align-items: center; padding: 8px 20px; border-top: 1px solid var(--rule); }
+  .iso .count__k { font-size: 15px; font-weight: 500; line-height: 1.15; }
+  .iso .count__k b { display: block; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .iso .row { display: flex; flex-wrap: wrap; gap: 2px 1px; }
+  .iso .row svg { width: 19px; height: 22px; }
+  .iso .row .off { opacity: .22; }
+  .iso .tabs { border-top: 1px solid var(--rule); background: var(--ground); color: var(--mute); font-size: 12px; font-weight: 500; }
+  .iso .tab.on { color: var(--ink); }
+  .iso .tab.on::after { content: ''; width: 18px; height: 3px; background: var(--ink); margin-top: 1px; }
+
+  /* =====================================================================
+     B · DISCHARGE LOG — the newborn feeding & diaper sheet from the ward
+     ===================================================================== */
+  .log { font-family: 'Public Sans', sans-serif; --ground:#FFFFFF; --ink:#16282B; --form:#0E6C73; --tint:#E6F2F2; --rule:#BFD9DA; --mark:#FFE36E; --mute:#5B7173; --feed:#0E6C73; --sleep:#9CC9CB; --dirty:#B5651D;
+         background: var(--ground); color: var(--ink); }
+  .log.night { --ground:#0B1617; --ink:#EED7A6; --form:#D9A55A; --tint:#132325; --rule:#26393B; --mark:#5A3E16; --mute:#9A8C6C; --feed:#E3A453; --sleep:#4F4430; --dirty:#C2763A; }
+  .log .sb { color: var(--ink); }
+  .log .top { display: flex; align-items: center; justify-content: space-between; padding: 4px 18px 10px; border-bottom: 2px solid var(--form); }
+  .log .who b { font-size: 22px; font-weight: 800; letter-spacing: -.01em; }
+  .log .who span { display: block; font-size: 14px; color: var(--mute); }
+  .log .bell { width: 44px; height: 44px; display: grid; place-items: center; color: var(--form); }
+  .log .box { margin: 14px 18px 0; border: 1.5px solid var(--form); }
+  .log .box__row { display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 12px 14px; }
+  .log .box__row + .box__row { border-top: 1px solid var(--rule); }
+  .log .lbl { font-size: 13px; color: var(--mute); font-weight: 600; }
+  .log .val { font-size: 30px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.05; }
+  .log .val small { font-size: 16px; font-weight: 600; color: var(--mute); letter-spacing: 0; }
+  .log .hl { background: linear-gradient(transparent 55%, var(--mark) 55%); padding: 0 2px; }
+  .log .btn { border: 1.5px solid var(--form); color: var(--form); font-weight: 700; font-size: 16px; padding: 12px 14px; border-radius: 3px; }
+  .log .btn--fill { background: var(--form); color: var(--ground); }
+  .log .strip { margin: 16px 18px 0; }
+  .log .strip__head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .log .strip__head b { font-size: 17px; font-weight: 700; }
+  .log .strip__head span { font-size: 13px; color: var(--mute); }
+  .log .grid { display: grid; grid-template-columns: 54px repeat(24, 1fr); border: 1px solid var(--rule); font-variant-numeric: tabular-nums; }
+  .log .grid > div { height: 26px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); font-size: 11px; display: grid; place-items: center; position: relative; }
+  .log .grid > div:nth-child(25n) { border-right: 0; }
+  .log .grid .rh { font-size: 12px; font-weight: 700; justify-content: start; padding-left: 6px; place-items: center start; background: var(--tint); }
+  .log .grid .hh { height: 18px; font-size: 9.5px; color: var(--mute); background: var(--tint); }
+  .log .grid .sl { background: var(--sleep); }
+  .log .grid .f::after { content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--feed); }
+  .log .grid .w::after { content: 'W'; font-weight: 800; color: var(--form); }
+  .log .grid .d::after { content: 'D'; font-weight: 800; color: var(--dirty); }
+  .log .grid .now { box-shadow: inset 2px 0 0 #D2452B; }
+  .log .tot { display: grid; grid-template-columns: repeat(4, 1fr); margin: 10px 18px 0; border: 1px solid var(--rule); }
+  .log .tot div { padding: 8px 10px; border-right: 1px solid var(--rule); }
+  .log .tot div:last-child { border-right: 0; }
+  .log .tot b { display: block; font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .log .tot span { font-size: 12px; color: var(--mute); }
+  .log .quick { display: grid; grid-template-columns: repeat(4, 1fr); margin: 14px 18px 0; border-top: 1px solid var(--rule); border-left: 1px solid var(--rule); }
+  .log .q { height: 64px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 13px; font-weight: 600; }
+  .log .q svg { width: 24px; height: 24px; fill: none; stroke: var(--form); stroke-width: 1.6; stroke-linejoin: round; }
+  .log .tabs { border-top: 2px solid var(--form); color: var(--mute); font-size: 11.5px; font-weight: 600; background: var(--ground); }
+  .log .tab svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+  .log .tab.on { color: var(--form); }
+
+  /* =====================================================================
+     C · STAR ATLAS — the day as a sky chart; night-vision red at 3 a.m.
+     ===================================================================== */
+  .sky { font-family: 'Barlow Semi Condensed', sans-serif; --ground:#F6F5F0; --ink:#121521; --chalk:#121521; --faint:#C9CAC6; --red:#C2331F; --amber:#A8650E; --mute:#6A6C70; --tile:#ECEBE5;
+         background: var(--ground); color: var(--ink); }
+  .sky.night { --ground:#070A12; --ink:#ECE8DE; --chalk:#ECE8DE; --faint:#2A2E3A; --red:#E0523F; --amber:#E7A54C; --mute:#8D8A84; --tile:#10141F; }
+  .sky .sb { color: var(--ink); }
+  .sky .serif { font-family: 'Spectral', serif; font-style: italic; }
+  .sky .top { display: flex; align-items: center; justify-content: space-between; padding: 6px 22px 0; }
+  .sky .who { font-family: 'Spectral', serif; font-style: italic; font-size: 26px; }
+  .sky .who span { font-family: 'Barlow Semi Condensed'; font-style: normal; font-size: 15px; color: var(--mute); margin-left: 8px; }
+  .sky .bell { width: 44px; height: 44px; display: grid; place-items: center; }
+  .sky .bell svg { fill: none; stroke: var(--ink); stroke-width: 1.4; }
+  .sky .dial { display: block; margin: 2px auto 0; }
+  .sky .readout { text-align: center; margin-top: -4px; }
+  .sky .readout .k { font-family: 'Spectral', serif; font-style: italic; font-size: 18px; color: var(--red); }
+  .sky .readout .v { font-size: 44px; font-weight: 500; letter-spacing: -.01em; font-variant-numeric: tabular-nums; line-height: 1.05; }
+  .sky .readout .s { font-size: 16px; color: var(--mute); }
+  .sky .legend { display: flex; justify-content: center; gap: 16px; font-size: 14px; color: var(--mute); margin-top: 10px; }
+  .sky .legend i { display: inline-block; vertical-align: middle; margin-right: 5px; }
+  .sky .quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 16px 20px 0; }
+  .sky .q { height: 62px; border: 1px solid var(--faint); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 15px; font-weight: 500; }
+  .sky .q svg { width: 22px; height: 22px; fill: none; stroke: var(--ink); stroke-width: 1.4; stroke-linejoin: round; }
+  .sky .q.live { border-color: var(--red); color: var(--red); }
+  .sky .q.live svg { stroke: var(--red); }
+  .sky .tabs { color: var(--mute); font-size: 13px; border-top: 1px solid var(--faint); background: var(--ground); }
+  .sky .tab svg { fill: none; stroke: currentColor; stroke-width: 1.4; }
+  .sky .tab.on { color: var(--ink); }
+  .sky .tab.on svg { stroke: var(--red); }
+
+  /* =====================================================================
+     D · GUIDE MAP — flat colour islands, capsule controls
+     ===================================================================== */
+  .map { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; --water:#F5F1E4; --land:#8ED462; --ink:#2C2E2A; --yel:#F5E211; --coral:#FF705D; --blue:#2BA0FF; --lilac:#EBC1FF; --mute:#6E6F66; --onLand:#2C2E2A;
+         background: var(--water); color: var(--ink); }
+  .map.night { --water:#0E1612; --land:#28452A; --ink:#E9E3C9; --yel:#7A6E14; --coral:#83392F; --blue:#1D4E73; --lilac:#4F3A5C; --mute:#8E957F; --onLand:#E9E3C9; }
+  .map .sb { color: var(--ink); }
+  .map .top { display: flex; align-items: center; justify-content: space-between; padding: 6px 20px 0; position: relative; z-index: 2; }
+  .map .chip { display: flex; align-items: center; gap: 8px; background: var(--ink); color: var(--water); border-radius: 999px; padding: 8px 16px 8px 8px; font-size: 17px; }
+  .map .chip i { width: 30px; height: 30px; border-radius: 50%; background: var(--yel); display: block; }
+  .map .bell { width: 44px; height: 44px; border-radius: 50%; background: var(--coral); display: grid; place-items: center; color: var(--ink); }
+  .map .island { position: relative; height: 330px; margin-top: -10px; }
+  .map .island svg.blob { position: absolute; inset: -20px -40px 0 -60px; width: calc(100% + 100px); height: 360px; }
+  .map .island__in { position: absolute; left: 30px; top: 70px; right: 30px; color: var(--onLand); }
+  .map .island__k { font-size: 20px; letter-spacing: -.01em; }
+  .map .island__big { font-size: 84px; line-height: .9; letter-spacing: -.06em; font-variant-numeric: tabular-nums; }
+  .map .island__s { font-size: 20px; margin-top: 6px; letter-spacing: -.01em; }
+  .map .pill { display: inline-flex; align-items: center; gap: 10px; background: var(--ink); color: var(--water); border-radius: 999px; padding: 7px 8px 7px 20px; font-size: 18px; margin-top: 18px; }
+  .map .pill i { width: 34px; height: 34px; border-radius: 50%; background: var(--yel); display: block; }
+  .map .caps { display: flex; flex-wrap: wrap; gap: 8px; padding: 6px 20px 0; }
+  .map .cap { display: inline-flex; align-items: center; gap: 10px; border-radius: 999px; padding: 6px 6px 6px 16px; font-size: 18px; color: #2C2E2A; }
+  .map.night .cap { color: #E9E3C9; }
+  .map .cap i { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,.55); display: block; }
+  .map.night .cap i { background: rgba(255,255,255,.18); }
+  .map .cap.live { flex-direction: row-reverse; padding: 6px 16px 6px 6px; }
+  .map .cap.live i { background: #2C2E2A; }
+  .map.night .cap.live i { background: #E9E3C9; }
+  .map .stat { display: flex; gap: 10px; padding: 16px 20px 0; }
+  .map .stat div { flex: 1; }
+  .map .stat b { display: block; font-size: 34px; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .map .stat span { font-size: 14px; color: var(--mute); }
+  .map .tabs { color: var(--mute); font-size: 13px; background: var(--water); }
+  .map .tab.on { color: var(--ink); }
+  .map .tab.on svg { background: var(--land); border-radius: 999px; padding: 2px; width: 40px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="bottle" viewBox="0 0 20 24"><path d="M8 1h4v2h-.6v1.8c2.4.8 3.6 2.6 3.6 5V21a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9.8c0-2.4 1.2-4.2 3.6-5V3H8z"/></symbol>
+    <symbol id="drop" viewBox="0 0 20 24"><path d="M10 1.5c3.6 4.8 7 8.9 7 13a7 7 0 0 1-14 0c0-4.1 3.4-8.2 7-13z"/></symbol>
+    <symbol id="diaper" viewBox="0 0 20 24"><path d="M1 6h18v4c-2.2.5-3.7 2.6-4.3 5.6C14.2 18.2 12.3 20 10 20s-4.2-1.8-4.7-4.4C4.7 12.6 3.2 10.5 1 10z"/></symbol>
+    <symbol id="moon" viewBox="0 0 20 24"><path d="M12.5 3A9 9 0 1 0 19 18.2 7.5 7.5 0 0 1 12.5 3z"/></symbol>
+    <symbol id="pump" viewBox="0 0 24 24"><path d="M5 3h14l-3 6v1h1.5a1 1 0 0 1 1 1V21H6.5V11a1 1 0 0 1 1-1H9V9z"/></symbol>
+    <symbol id="pill" viewBox="0 0 24 24"><rect x="2.5" y="8.5" width="19" height="7" rx="3.5" transform="rotate(-38 12 12)"/></symbol>
+    <symbol id="temp" viewBox="0 0 24 24"><path d="M10 3.5a2 2 0 0 1 4 0v10.2a4.6 4.6 0 1 1-4 0z"/></symbol>
+    <symbol id="tummy" viewBox="0 0 24 24"><circle cx="6" cy="12.5" r="3.4"/><path d="M10 10.5h8.5a3.2 3.2 0 0 1 0 6.4H10z"/></symbol>
+    <symbol id="more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="12" r="2.2"/></symbol>
+    <symbol id="bell" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 1 6 6v4.5l2 2.8H4l2-2.8V9a6 6 0 0 1 6-6zM9.8 18.5h4.4a2.2 2.2 0 0 1-4.4 0z"/></symbol>
+    <symbol id="t-today" viewBox="0 0 24 24"><path d="M4 5.5h16V20H4z M7.5 3v4 M16.5 3v4 M4 9.5h16"/><rect x="7" y="12" width="4" height="4"/></symbol>
+    <symbol id="t-hist" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="3"/><rect x="4" y="10.5" width="12" height="3"/><rect x="4" y="16" width="14" height="3"/></symbol>
+    <symbol id="t-health" viewBox="0 0 24 24"><path d="M9 3.5h6v5.5h5.5v6H15v5.5H9V15H3.5V9H9z"/></symbol>
+    <symbol id="t-ans" viewBox="0 0 24 24"><path d="M4 4.5h16v11.5H11l-5 4v-4H4z"/></symbol>
+    <symbol id="t-set" viewBox="0 0 24 24"><rect x="3.5" y="6" width="17" height="2.4"/><rect x="3.5" y="15.6" width="17" height="2.4"/><circle cx="8.5" cy="7.2" r="2.6"/><circle cx="15.5" cy="16.8" r="2.6"/></symbol>
+  </defs>
+</svg>
+
+<div class="stage" id="stage"></div>
+
+<script>
+var D = {
+  day:   { clock: '2:41', cap: 'Day · 2:41 PM' },
+  night: { clock: '3:12', cap: 'Night · 3:12 AM' }
+};
+function u(id, cls) { return '<svg class="i' + (cls ? ' ' + cls : '') + '"><use href="#' + id + '"/></svg>'; }
+function sb(t) { return '<div class="sb"><span>' + t + '</span><span class="sb__r">●●●● ▮</span></div>'; }
+function tabs() {
+  return '<div class="tabs">' + [['t-today','Today',1],['t-hist','History'],['t-health','Health'],['t-ans','Answers'],['t-set','Settings']]
+    .map(function (t) { return '<div class="tab' + (t[2] ? ' on' : '') + '">' + u(t[0]) + '<span>' + t[1] + '</span></div>'; }).join('') + '</div>';
+}
+var QUICK = [['bottle','Feed'],['diaper','Diaper'],['moon','Sleep'],['pump','Pump'],['pill','Medicine'],['temp','Temp'],['tummy','Tummy'],['more','More']];
+
+/* ---------- A · Isotype ---------- */
+function iso(mode) {
+  var n = mode === 'night';
+  function row(id, color, done, of, title, val, note) {
+    var s = '';
+    for (var i = 0; i < of; i++) s += '<svg style="color:var(' + color + ')"' + (i >= done ? ' class="off"' : '') + '><use href="#' + id + '" fill="currentColor"/></svg>';
+    return '<div class="count"><div class="count__k">' + title + '<b>' + val + '</b></div><div class="row">' + s + '</div></div>';
+  }
+  var field = n
+    ? '<div class="field"><div class="field__row"><div><div class="field__k">Asleep since 1:35 AM</div><div class="field__big">1:37</div></div><div class="field__btn">Woke up</div></div></div>'
+    : '<div class="field"><div class="field__row"><div><div class="field__k">Next feed</div><div class="field__big">3:10</div><div class="field__sub">in 29 min · start on the right</div></div><div class="field__btn">Feed now</div></div></div>';
+  var next = n
+    ? '<div class="next">' + u('bottle') + '<div><b>Next feed 3:40 AM</b><span>Last fed 12:40 AM · start on the right</span></div><em>in 28 min</em></div>'
+    : '<div class="next" style="color:inherit">' + u('moon') + '<div><b>Awake 52 min</b><span>Nap window opens around 3:20 PM</span></div><em style="color:var(--sleep)">soon</em></div>';
+  return '<div class="phone iso ' + mode + '">' + sb(D[mode].clock) +
+    '<div class="scroll"><div class="top"><div class="who"><b>Ava</b><span>3 weeks, 1 day</span></div><div class="bell">' + u('bell') + '<i></i></div></div>' +
+    field + next +
+    '<div class="quick">' + QUICK.map(function (q) { var c = { bottle:'--feed', diaper:'--dirty', moon:'--sleep', pump:'--feed', pill:'--ink', temp:'--feed', tummy:'--ok', more:'--mute' }[q[0]]; return '<div class="q"><svg style="color:var(' + c + ')"><use href="#' + q[0] + '" fill="currentColor"/></svg>' + q[1] + '</div>'; }).join('') + '</div>' +
+    '<h2>Last 24 hours <small>one symbol = one</small></h2>' +
+    row('bottle', '--feed', 8, 12, 'Feeds', '8', '') +
+    row('drop', '--wet', 7, 8, 'Wet', '7', '') +
+    row('diaper', '--dirty', 3, 4, 'Dirty', '3', '') +
+    row('moon', '--sleep', 15, 17, 'Sleep', '15 h', '') +
+    '</div>' + tabs() + '</div>';
+}
+
+/* ---------- B · Discharge log ---------- */
+function log(mode) {
+  var n = mode === 'night';
+  var hours = ['12a','','','3','','','6','','','9','','','12p','','','3','','','6','','','9','',''];
+  var feeds = [0,3,6,9,12,14,17,20,22], wets = [1,4,7,10,13,15,18,21], dirt = [4,13,19];
+  var sleep = [0,1,2,4,5,7,8,9,11,12,15,16,18,19,21,22,23];
+  var nowH = n ? 3 : 14;
+  function line(label, cls, set) {
+    var s = '<div class="rh">' + label + '</div>';
+    for (var h = 0; h < 24; h++) s += '<div class="' + (set.indexOf(h) >= 0 && h <= nowH ? cls : '') + (h === nowH ? ' now' : '') + '"></div>';
+    return s;
+  }
+  var hh = '<div class="rh hh"></div>' + hours.map(function (x) { return '<div class="hh">' + x + '</div>'; }).join('');
+  var box = n
+    ? '<div class="box"><div class="box__row"><div><div class="lbl">Asleep since 1:35 AM</div><div class="val">1:37 <small>so far</small></div></div><div class="btn btn--fill">Woke up</div></div>' +
+      '<div class="box__row"><div><div class="lbl">Next feed</div><div class="val"><span class="hl">3:40 AM</span> <small>in 28 min</small></div></div><div class="btn">Right side</div></div></div>'
+    : '<div class="box"><div class="box__row"><div><div class="lbl">Next feed</div><div class="val"><span class="hl">3:10 PM</span> <small>in 29 min</small></div></div><div class="btn btn--fill">Feed now</div></div>' +
+      '<div class="box__row"><div><div class="lbl">Awake</div><div class="val">52 min <small>nap ~3:20</small></div></div><div class="btn">Start sleep</div></div></div>';
+  return '<div class="phone log ' + mode + '">' + sb(D[mode].clock) +
+    '<div class="scroll"><div class="top"><div class="who"><b>Ava</b><span>Day 22 · 3 weeks, 1 day</span></div><div class="bell">' + u('bell') + '</div></div>' + box +
+    '<div class="strip"><div class="strip__head"><b>Today’s sheet</b><span>' + (n ? 'Mon, Oct 6' : 'Sun, Oct 5') + '</span></div>' +
+    '<div class="grid">' + hh + line('Feed', 'f', feeds) + line('Wet', 'w', wets) + line('Dirty', 'd', dirt) + line('Sleep', 'sl', sleep) + '</div></div>' +
+    '<div class="tot"><div><b>8</b><span>feeds · 8–12</span></div><div><b>7</b><span>wet · 6+</span></div><div><b>3</b><span>dirty · 3+</span></div><div><b>15h</b><span>sleep · 14–17</span></div></div>' +
+    '<div class="quick">' + QUICK.map(function (q) { return '<div class="q">' + u(q[0]) + q[1] + '</div>'; }).join('') + '</div>' +
+    '</div>' + tabs() + '</div>';
+}
+
+/* ---------- C · Star atlas ---------- */
+function sky(mode) {
+  var n = mode === 'night';
+  var W = 350, c = W / 2, R = 120;
+  function pt(hour, r) { var a = (hour / 24) * 2 * Math.PI - Math.PI / 2; return [c + r * Math.cos(a), c + r * Math.sin(a)]; }
+  function arc(h1, h2, r) { var p1 = pt(h1, r), p2 = pt(h2, r), big = (h2 - h1) > 12 ? 1 : 0; return 'M' + p1[0] + ' ' + p1[1] + ' A' + r + ' ' + r + ' 0 ' + big + ' 1 ' + p2[0] + ' ' + p2[1]; }
+  var g = '<svg class="dial" width="' + W + '" height="' + W + '" viewBox="0 0 ' + W + ' ' + W + '">';
+  g += '<circle cx="' + c + '" cy="' + c + '" r="' + (R + 22) + '" fill="none" stroke="var(--faint)" stroke-width="1"/>';
+  g += '<circle cx="' + c + '" cy="' + c + '" r="' + (R - 30) + '" fill="none" stroke="var(--faint)" stroke-width="1" stroke-dasharray="1 4"/>';
+  for (var h = 0; h < 24; h++) { var a = pt(h, R + 22), b = pt(h, R + (h % 6 ? 17 : 12)); g += '<line x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '" stroke="var(--chalk)" stroke-width="' + (h % 6 ? 1 : 1.6) + '" opacity="' + (h % 6 ? .45 : .9) + '"/>'; }
+  [['0', 0], ['6', 6], ['12', 12], ['18', 18]].forEach(function (l) { var p = pt(l[1], R + 36); g += '<text x="' + p[0] + '" y="' + (p[1] + 5) + '" text-anchor="middle" font-family="Barlow Semi Condensed" font-size="13" fill="var(--mute)">' + (l[0] === '0' ? '12a' : l[0] === '12' ? '12p' : l[0] === '6' ? '6a' : '6p') + '</text>'; });
+  // sleep arcs (chalk), last 24h
+  [[21.5, 24], [0, 1.6], [2.4, 4.8], [5.6, 7.2], [9, 10.6], [12.4, 13.9]].forEach(function (s) { g += '<path d="' + arc(s[0], s[1], R) + '" fill="none" stroke="var(--chalk)" stroke-width="7" stroke-linecap="round" opacity=".9"/>'; });
+  if (n) g += '<path d="' + arc(1.6, 3.2, R) + '" fill="none" stroke="var(--chalk)" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 5"/>';
+  // feeds as magnitude dots (size = amount)
+  [[0.66, 7], [3.1, 5], [5.4, 6], [8.2, 7.5], [11.0, 5.5], [14.3, 6.5], [17.0, 7], [19.4, 5], [22.1, 6]].forEach(function (f) { if (!n && f[0] > 14.7 && f[0] < 15) return; var p = pt(f[0], R - 30); g += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + f[1] / 1.4 + '" fill="var(--amber)"/>'; });
+  // diapers as small rings
+  [1.2, 4.1, 7.6, 10.2, 13.0, 18.4, 21.0].forEach(function (d) { var p = pt(d, R - 52); g += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.4" fill="none" stroke="var(--chalk)" stroke-width="1.3"/>'; });
+  // now + next feed, ringed in red
+  var nowH = n ? 3.2 : 14.68, nextH = n ? 3.67 : 15.17;
+  var p0 = pt(nowH, R + 22), p1 = pt(nowH, R - 70); g += '<line x1="' + p0[0] + '" y1="' + p0[1] + '" x2="' + p1[0] + '" y2="' + p1[1] + '" stroke="var(--red)" stroke-width="1.6"/>';
+  var nx = pt(nextH, R - 30); g += '<circle cx="' + nx[0] + '" cy="' + nx[1] + '" r="11" fill="none" stroke="var(--red)" stroke-width="1.6"/><circle cx="' + nx[0] + '" cy="' + nx[1] + '" r="3" fill="var(--red)"/>';
+  var lb = pt(nextH, R - 30); g += '<text x="' + (lb[0] + (n ? 16 : -16)) + '" y="' + (lb[1] + (n ? -10 : 18)) + '" text-anchor="' + (n ? 'start' : 'end') + '" font-family="Spectral" font-style="italic" font-size="15" fill="var(--red)">next feed</text>';
+  g += '</svg>';
+  var readout = n
+    ? '<div class="readout"><div class="k">asleep since 1:35</div><div class="v">1:37</div><div class="s">Next feed 3:40 AM · in 28 min · right side</div></div>'
+    : '<div class="readout"><div class="k">next feed</div><div class="v">3:10 PM</div><div class="s">in 29 min · awake 52 min · right side</div></div>';
+  return '<div class="phone sky ' + mode + '">' + sb(D[mode].clock) +
+    '<div class="scroll"><div class="top"><div class="who">Ava<span>3 weeks, 1 day</span></div><div class="bell">' + u('bell') + '</div></div>' + g + readout +
+    '<div class="legend"><span><i style="width:16px;height:5px;border-radius:3px;background:var(--chalk)"></i>sleep 15 h</span><span><i style="width:9px;height:9px;border-radius:50%;background:var(--amber)"></i>8 feeds</span><span><i style="width:9px;height:9px;border-radius:50%;border:1.3px solid var(--chalk)"></i>7 diapers</span></div>' +
+    '<div class="quick">' + QUICK.map(function (q) { return '<div class="q' + (n && q[0] === 'moon' ? ' live' : '') + '">' + u(q[0]) + (n && q[0] === 'moon' ? 'Woke up' : q[1]) + '</div>'; }).join('') + '</div>' +
+    '</div>' + tabs() + '</div>';
+}
+
+/* ---------- D · Guide map ---------- */
+function map(mode) {
+  var n = mode === 'night';
+  var blob = '<svg class="blob" viewBox="0 0 490 360" preserveAspectRatio="none"><path fill="var(--land)" d="M40 70C80 20 190 30 260 40s170-10 200 40 20 120-10 170-60 90-150 92-170 10-230-30S-10 210 10 150 0 120 40 70z"/>' +
+    '<path fill="var(--water)" d="M380 230c18-6 40 2 44 20s-14 34-34 32-28-14-26-28 2-20 16-24z"/></svg>';
+  var island = n
+    ? '<div class="island">' + blob + '<div class="island__in"><div class="island__k">Ava is asleep</div><div class="island__big">1:37</div><div class="island__s">since 1:35 AM · next feed 3:40</div><div class="pill">Woke up<i></i></div></div></div>'
+    : '<div class="island">' + blob + '<div class="island__in"><div class="island__k">Next feed</div><div class="island__big">3:10</div><div class="island__s">in 29 min · start on the right</div><div class="pill">Feed now<i></i></div></div></div>';
+  var caps = [['Feed', '--yel'], ['Diaper', '--coral'], [n ? 'Sleeping' : 'Sleep', '--blue', n], ['Pump', '--lilac'], ['Medicine', '--yel'], ['Temp', '--coral'], ['Tummy', '--blue'], ['More', '--lilac']];
+  return '<div class="phone map ' + mode + '">' + sb(D[mode].clock) +
+    '<div class="scroll"><div class="top"><div class="chip"><i></i>Ava · 3 wks</div><div class="bell">' + u('bell') + '</div></div>' + island +
+    '<div class="caps">' + caps.map(function (c) { return '<div class="cap' + (c[2] ? ' live' : '') + '" style="background:var(' + c[1] + ')"><span>' + c[0] + '</span><i></i></div>'; }).join('') + '</div>' +
+    '<div class="stat"><div><b>8</b><span>feeds · 8–12</span></div><div><b>7</b><span>wet · 6+</span></div><div><b>3</b><span>dirty</span></div><div><b>15h</b><span>sleep</span></div></div>' +
+    '</div>' + tabs() + '</div>';
+}
+
+var F = { iso: iso, log: log, sky: sky, map: map };
+var want = (location.hash || '#iso').slice(1);
+var html = '';
+['day', 'night'].forEach(function (m) { html += '<div class="shot"><div class="shot__cap">' + D[m].cap + '</div>' + F[want](m) + '</div>'; });
+document.getElementById('stage').innerHTML = html;
+document.title = 'Today — ' + want;
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>frame</title>
+<!-- Development-only: shows the app at an exact width (and optional scroll) for headless captures. -->
+<style>html,body{margin:0;background:#888}iframe{display:block;border:0;background:#fff}</style>
+<script>
+  var q = new URLSearchParams(location.search), w = +q.get('w') || 390, h = +q.get('h') || 2200, y = +q.get('scroll') || 0;
+  document.write('<iframe id="f" src="../../index.html" width="' + w + '" height="' + h + '"></iframe>');
+  if (y) document.getElementById('f').addEventListener('load', function () { var f = this; setTimeout(function () { f.contentWindow.scrollTo(0, y); }, 400); });
+</script>

@@ -107,28 +107,52 @@
   function lenFromDisplay(v) { v = parseFloat(v); if (isNaN(v)) return null; return imperial() ? v * IN : v; }
   function len(cm) { return lenToDisplay(cm) + ' ' + lenUnit(); }
 
+  /* ---------- Pictograms ----------
+     Isotype: one drawn symbol means one thing. Symbols live in the sprite in
+     index.html (#i-<name>) and take the colour of the text around them, so a
+     data colour is set once on the element (.c-feed, .c-sleep…).
+     ic('bottle')          → the symbol
+     icon('🍼' | 'bottle') → the symbol for an old emoji or a name (data that
+                             predates the pictograms — custom reminders, backups —
+                             still stores emoji, so they are mapped here). */
+  var EMO = {
+    '🍼': 'bottle', '🤱': 'breast', '🥣': 'bowl', '💧': 'drop', '💩': 'poo', '🧷': 'diaper', '😴': 'moon', '🌙': 'moon',
+    '☀️': 'sun', '☀': 'sun', '🌆': 'sun', '🔆': 'sun', '🧴': 'pump', '🤸': 'tummy', '💊': 'pill', '💉': 'syringe', '🌡️': 'thermometer', '🌡': 'thermometer', '🤒': 'thermometer',
+    '📏': 'ruler', '🛁': 'tub', '🫧': 'tub', '⭐': 'star', '📝': 'note', '🗒️': 'note', '🩺': 'stethoscope', '📷': 'camera', '🪪': 'card', '🆘': 'sos',
+    '📤': 'share', '📄': 'document', '🗂️': 'folder', '🗓️': 'calendar', '📞': 'phone', '🔔': 'bell', '🔕': 'bell-off', '😭': 'cry', '🦷': 'tooth',
+    '🤧': 'drop', '💗': 'heart', '🌫️': 'wave', '🌊': 'wave', '🎶': 'wave', '🤫': 'shush', '⏱️': 'timer', '✅': 'check', '⚠️': 'warning', '⚠': 'warning',
+    '➕': 'plus', '✏️': 'edit', '📋': 'list', '📈': 'list', '🧺': 'basket', '👶': 'baby', '🐣': 'baby', '🧸': 'baby', '🐻': 'baby', '🦁': 'baby',
+    '🐰': 'baby', '🌸': 'baby', '🌈': 'baby', '💛': 'heart', '🤗': 'baby', '🧣': 'baby', '💪': 'tummy', '😊': 'star', '📲': 'share', '🖼️': 'document'
+  };
+  function ic(name, cls) { return '<svg class="ic' + (cls ? ' ' + cls : '') + '" aria-hidden="true" focusable="false"><use href="#i-' + name + '"/></svg>'; }
+  function iconName(x) { if (!x) return ''; x = String(x); return EMO[x] || EMO[x.replace(/️/g, '')] || (/^[a-z][a-z-]*$/.test(x) ? x : 'bell'); }
+  function icon(x, cls) { var n = iconName(x); return n ? ic(n, cls) : ''; }
+  // Each kind of thing has one colour, everywhere it appears.
+  var TONE = { bottle: 'feed', breast: 'feed', bowl: 'feed', pump: 'feed', drop: 'wet', poo: 'dirty', diaper: 'dirty', moon: 'sleep', sun: 'sleep', tummy: 'ok', ruler: 'ok', star: 'ok', thermometer: 'ink', pill: 'ink', syringe: 'ink' };
+  function tone(x) { return 'c-' + (TONE[iconName(x)] || 'ink'); }
+
   /* ---------- Event types ---------- */
   var TYPES = {
-    feed:      { icon: '🍼', label: 'Feed' },
-    diaper:    { icon: '🧷', label: 'Diaper' },
-    sleep:     { icon: '😴', label: 'Sleep' },
-    pump:      { icon: '🧴', label: 'Pump' },
-    tummy:     { icon: '🤸', label: 'Tummy time' },
-    med:       { icon: '💊', label: 'Medicine' },
-    temp:      { icon: '🌡️', label: 'Temperature' },
-    growth:    { icon: '📏', label: 'Growth' },
-    bath:      { icon: '🛁', label: 'Bath' },
-    milestone: { icon: '⭐', label: 'Milestone' },
-    note:      { icon: '📝', label: 'Note' }
+    feed:      { icon: 'bottle', label: 'Feed' },
+    diaper:    { icon: 'diaper', label: 'Diaper' },
+    sleep:     { icon: 'moon', label: 'Sleep' },
+    pump:      { icon: 'pump', label: 'Pump' },
+    tummy:     { icon: 'tummy', label: 'Tummy time' },
+    med:       { icon: 'pill', label: 'Medicine' },
+    temp:      { icon: 'thermometer', label: 'Temperature' },
+    growth:    { icon: 'ruler', label: 'Growth' },
+    bath:      { icon: 'tub', label: 'Bath' },
+    milestone: { icon: 'star', label: 'Milestone' },
+    note:      { icon: 'note', label: 'Note' }
   };
 
   function describe(e, now) {
     var d = e.data || {}, days = S.ageDays(e.time, e.baby);
-    var out = { icon: (TYPES[e.type] || {}).icon || '•', title: (TYPES[e.type] || {}).label || e.type, sub: '', flag: false };
+    var out = { icon: (TYPES[e.type] || {}).icon || 'note', title: (TYPES[e.type] || {}).label || e.type, sub: '', flag: false };
     switch (e.type) {
       case 'feed':
         if (d.kind === 'breast') {
-          out.icon = '🤱'; out.title = 'Breastfeed';
+          out.icon = 'breast'; out.title = 'Breastfeed';
           var parts = [];
           if (d.left) parts.push('L ' + durMs(d.left));
           if (d.right) parts.push('R ' + durMs(d.right));
@@ -136,14 +160,14 @@
         } else if (d.kind === 'bottle') {
           out.title = 'Bottle'; out.sub = vol(d.amountMl || 0) + ' ' + (d.milk === 'formula' ? 'formula' : 'breast milk');
         } else if (d.kind === 'solids') {
-          out.icon = '🥣'; out.title = 'Solids';
+          out.icon = 'bowl'; out.title = 'Solids';
           out.sub = (d.food || 'Food') + (d.newFood ? ' · first try' : '') + (d.reaction ? ' · ' + REACTIONS[d.reaction] : '');
           out.flag = d.reaction === 'reaction';
         }
         break;
       case 'diaper':
         out.title = d.wet && d.dirty ? 'Wet + dirty' : d.dirty ? 'Dirty' : d.wet ? 'Wet' : 'Dry';
-        out.icon = d.dirty ? '💩' : d.wet ? '💧' : '🧷';
+        out.icon = d.dirty ? 'poo' : d.wet ? 'drop' : 'diaper';
         var c = d.color ? G.poopColor(d.color) : null;
         var tx = d.texture ? G.POOP_TEXTURES.filter(function (t) { return t.id === d.texture; })[0] : null;
         out.sub = [c && c.label, tx && tx.label, d.rash && 'rash'].filter(Boolean).join(' · ');
@@ -176,7 +200,7 @@
     return out;
   }
 
-  var REACTIONS = { loved: '😋 loved it', ok: '😐 okay', refused: '🙅 refused', reaction: '⚠️ reaction' };
+  var REACTIONS = { loved: 'loved it', ok: 'okay', refused: 'refused', reaction: 'reaction' };
 
   /* ---------- Toasts ---------- */
   function toast(msg, action) {
@@ -521,8 +545,8 @@
 
   /* ---------- Small HTML builders ---------- */
   function statusPill(level, text) {
-    var icon = level === 'ok' ? '✓' : level === 'urgent' ? '⚠' : level === 'warn' ? '!' : 'i';
-    return '<span class="status status--' + level + '">' + icon + ' ' + esc(text) + '</span>';
+    var name = level === 'ok' ? 'check' : level === 'urgent' || level === 'warn' ? 'warning' : 'info';
+    return '<span class="status status--' + level + '">' + ic(name) + esc(text) + '</span>';
   }
   function note(level, title, text) {
     return '<div class="note note--' + (level || 'info') + '">' + (title ? '<div class="note__t">' + esc(title) + '</div>' : '') + '<div>' + esc(text) + '</div></div>';
@@ -551,7 +575,7 @@
     tempUnit: tempUnit, tempToDisplay: tempToDisplay, tempFromDisplay: tempFromDisplay, temp: temp,
     weightUnit: weightUnit, weightToDisplay: weightToDisplay, weightFromDisplay: weightFromDisplay, weight: weight,
     lenUnit: lenUnit, lenToDisplay: lenToDisplay, lenFromDisplay: lenFromDisplay, len: len,
-    TYPES: TYPES, REACTIONS: REACTIONS, describe: describe,
+    TYPES: TYPES, REACTIONS: REACTIONS, describe: describe, ic: ic, icon: icon, iconName: iconName, tone: tone,
     toast: toast, openSheet: openSheet, renderSheet: renderSheet, closeSheet: closeSheet, tick: tick, initTips: initTips, initSheetGestures: initSheetGestures, since: since,
     fieldError: fieldError, clearFieldErrors: clearFieldErrors, ask: ask, patch: patch, regions: regions, focusKey: focusKey, refocus: refocus, afterHistory: afterHistory, reducedMotion: reducedMotion,
     statusPill: statusPill, note: note, sw: sw, timeField: timeField,

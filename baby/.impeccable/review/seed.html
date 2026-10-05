@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>seed</title>
+<!-- Development-only: writes a realistic 26-hour demo log (synthetic) for review captures. -->
+<script src="../../js/guide.js"></script>
+<script src="../../js/store.js"></script>
+<script>
+  var S = BabyStore, now = Date.now(), H = 36e5, M = 6e4;
+  var q = new URLSearchParams(location.search);
+  S.reset();
+  S.addBaby({ name: 'Ava', birth: new Date(now - 22 * 864e5).toISOString().slice(0, 10), feeding: 'mixed', color: '1' });
+  function add(type, t, data, end) { S.addEvent({ type: type, time: now - t, end: end != null ? now - end : null, data: data }); }
+  [26, 23, 20, 17.2, 14, 11, 8, 5.3, 2.6].forEach(function (h, i) {
+    if (i % 3 === 1) add('feed', h * H, { kind: 'bottle', amountMl: 90, milk: 'formula' });
+    else add('feed', h * H, { kind: 'breast', left: 11 * M, right: 8 * M, startSide: i % 2 ? 'R' : 'L' }, h * H - 19 * M);
+  });
+  [25, 22, 19.5, 16, 12.5, 9.5, 6, 3, 1.2].forEach(function (h, i) { add('diaper', h * H, { wet: true, dirty: i % 3 === 0, color: i % 3 === 0 ? 'yellow' : '' }); });
+  [[24.5, 22.6], [21.5, 20.2], [18.6, 17.4], [16.5, 14.3], [13.3, 11.2], [10.4, 8.2], [7.5, 5.5], [4.6, 2.8]].forEach(function (s) { add('sleep', s[0] * H, {}, s[1] * H); });
+  add('tummy', 4 * H, {}, 4 * H - 6 * M);
+  if (q.get('asleep')) S.startTimer('sleep', null, now - 97 * M);
+  S.save();
+  localStorage.setItem('dg-theme', q.get('theme') || 'light');
+  document.title = 'seeded';
+</script>

@@ -295,49 +295,49 @@
     // Fever — always first if it applies.
     if (ctx.lastTemp && now - ctx.lastTemp.time < 6 * HOUR) {
       var f = feverCheck(ctx.lastTemp.tempC, days);
-      if (f && f.level !== 'ok') out.push({ id: 'fever', score: 100, icon: '🌡️', title: f.title, why: f.text, urgent: f.level === 'urgent' });
+      if (f && f.level !== 'ok') out.push({ id: 'fever', score: 100, icon: 'thermometer', title: f.title, why: f.text, urgent: f.level === 'urgent' });
     }
 
     // Hunger: how far into the usual feeding interval are we?
     var sinceFeed = ago(ctx.lastFeed);
     if (sinceFeed == null) {
-      out.push({ id: 'hunger', score: 60, icon: '🍼', title: 'Hungry?', why: 'No feed logged yet. Look for hunger cues: rooting, lip smacking, hands to mouth. Crying is a late hunger sign.' });
+      out.push({ id: 'hunger', score: 60, icon: 'bottle', title: 'Hungry?', why: 'No feed logged yet. Look for hunger cues: rooting, lip smacking, hands to mouth. Crying is a late hunger sign.' });
     } else {
       var ratio = sinceFeed / (feed.intervalH * 60);
       var s = Math.round(Math.min(95, ratio * 80));
-      out.push({ id: 'hunger', score: s, icon: '🍼', title: 'Hungry?', why: 'Last feed ' + fmtDur(sinceFeed) + ' ago — babies this age usually feed about every ' + fmtHours(feed.intervalH) + '.' + (ratio < 0.4 && days < 120 ? ' Short gaps can still be cluster feeding or a growth spurt.' : '') });
+      out.push({ id: 'hunger', score: s, icon: 'bottle', title: 'Hungry?', why: 'Last feed ' + fmtDur(sinceFeed) + ' ago — babies this age usually feed about every ' + fmtHours(feed.intervalH) + '.' + (ratio < 0.4 && days < 120 ? ' Short gaps can still be cluster feeding or a growth spurt.' : '') });
     }
 
     // Wind: crying soon after a feed.
     var sinceFeedEnd = ago(ctx.lastFeedEnd || ctx.lastFeed);
     if (sinceFeedEnd != null && sinceFeedEnd < 45) {
-      out.push({ id: 'wind', score: 70 - Math.round(sinceFeedEnd), icon: '🫧', title: 'Needs a burp / gas?', why: 'Fed ' + fmtDur(sinceFeedEnd) + ' ago. Try burping upright on your shoulder, “bicycle legs”, or a gentle tummy massage.' });
+      out.push({ id: 'wind', score: 70 - Math.round(sinceFeedEnd), icon: 'baby', title: 'Needs a burp / gas?', why: 'Fed ' + fmtDur(sinceFeedEnd) + ' ago. Try burping upright on your shoulder, “bicycle legs”, or a gentle tummy massage.' });
     }
 
     // Diaper.
     var sinceDiaper = ago(ctx.lastDiaper);
-    if (sinceDiaper == null) out.push({ id: 'diaper', score: 45, icon: '🧷', title: 'Wet or dirty diaper?', why: 'No change logged yet — a quick check is easy to rule out.' });
-    else out.push({ id: 'diaper', score: Math.round(Math.min(85, (sinceDiaper / 180) * 60)), icon: '🧷', title: 'Wet or dirty diaper?', why: 'Last change ' + fmtDur(sinceDiaper) + ' ago.' });
+    if (sinceDiaper == null) out.push({ id: 'diaper', score: 45, icon: 'diaper', title: 'Wet or dirty diaper?', why: 'No change logged yet — a quick check is easy to rule out.' });
+    else out.push({ id: 'diaper', score: Math.round(Math.min(85, (sinceDiaper / 180) * 60)), icon: 'diaper', title: 'Wet or dirty diaper?', why: 'Last change ' + fmtDur(sinceDiaper) + ' ago.' });
 
     // Tiredness against the wake window.
     if (ctx.awakeSinceMs != null) {
       var awake = ctx.awakeSinceMs / MIN;
       var maxW = sleep.wake[1];
       var t = Math.round(Math.min(95, (awake / maxW) * 75));
-      out.push({ id: 'tired', score: t, icon: '😴', title: awake > maxW ? 'Overtired?' : 'Tired?', why: 'Awake for ' + fmtDur(awake) + ' — a typical wake window at this age is ' + sleep.wake[0] + '–' + sleep.wake[1] + ' minutes. Look for yawns, staring off, rubbing eyes, jerky movements.' });
+      out.push({ id: 'tired', score: t, icon: 'moon', title: awake > maxW ? 'Overtired?' : 'Tired?', why: 'Awake for ' + fmtDur(awake) + ' — a typical wake window at this age is ' + sleep.wake[0] + '–' + sleep.wake[1] + ' minutes. Look for yawns, staring off, rubbing eyes, jerky movements.' });
     }
 
     // Evening fussiness / colic (peaks around 6 weeks, eases by 3–4 months).
     var hour = ctx.hour != null ? ctx.hour : new Date(now).getHours();
     if (days >= 14 && days < 120 && (hour >= 17 || hour < 1)) {
-      out.push({ id: 'colic', score: days >= 28 && days < 70 ? 55 : 40, icon: '🌆', title: 'Evening fussiness / colic', why: 'Evening crying peaks around 6 weeks and usually eases by 3–4 months. The 5 S’s and white noise often help.' });
+      out.push({ id: 'colic', score: days >= 28 && days < 70 ? 55 : 40, icon: 'cry', title: 'Evening fussiness / colic', why: 'Evening crying peaks around 6 weeks and usually eases by 3–4 months. The 5 S’s and white noise often help.' });
     }
 
     // Always-possible, lower-ranked reasons.
-    out.push({ id: 'temp', score: 25, icon: '🧣', title: 'Too hot or too cold?', why: 'Feel the back of the neck or chest (hands and feet are often cool). Dress baby in one more layer than you’re wearing.' });
-    out.push({ id: 'stim', score: 22, icon: '🔆', title: 'Overstimulated?', why: 'Too much noise, light or handling. Move somewhere dim and quiet and try white noise.' });
-    out.push({ id: 'comfort', score: 20, icon: '🤗', title: 'Wants to be held', why: 'Sometimes babies just need closeness. Skin-to-skin or a carrier can settle them fast.' });
-    if (days >= 120) out.push({ id: 'teeth', score: days >= 150 ? 30 : 18, icon: '🦷', title: 'Teething?', why: 'Drooling, chewing, red cheeks. A cold (not frozen) teether or a clean finger on the gums can help.' });
+    out.push({ id: 'temp', score: 25, icon: 'thermometer', title: 'Too hot or too cold?', why: 'Feel the back of the neck or chest (hands and feet are often cool). Dress baby in one more layer than you’re wearing.' });
+    out.push({ id: 'stim', score: 22, icon: 'sun', title: 'Overstimulated?', why: 'Too much noise, light or handling. Move somewhere dim and quiet and try white noise.' });
+    out.push({ id: 'comfort', score: 20, icon: 'heart', title: 'Wants to be held', why: 'Sometimes babies just need closeness. Skin-to-skin or a carrier can settle them fast.' });
+    if (days >= 120) out.push({ id: 'teeth', score: days >= 150 ? 30 : 18, icon: 'tooth', title: 'Teething?', why: 'Drooling, chewing, red cheeks. A cold (not frozen) teether or a clean finger on the gums can help.' });
 
     out.sort(function (a, b) { return (b.urgent ? 1000 : 0) + b.score - ((a.urgent ? 1000 : 0) + a.score); });
     return out;
@@ -385,15 +385,15 @@
      Each one points at the tool in the app that answers it for
      *your* baby, plus a short evidence-based summary. */
   var QUESTIONS = [
-    { id: 'cry',     icon: '😭', q: 'Why is my baby crying?',                 tool: 'cry' },
-    { id: 'sleep',   icon: '🌙', q: 'How can I help my baby sleep better?',   tool: 'sleep' },
-    { id: 'enough',  icon: '🍼', q: 'Is my baby eating enough?',              tool: 'enough' },
-    { id: 'howmuch', icon: '⏱️', q: 'How often and how much should my baby eat?', tool: 'howmuch' },
-    { id: 'poop',    icon: '💩', q: 'Is my baby’s poop normal?',              tool: 'poop' },
-    { id: 'fever',   icon: '🌡️', q: 'Does my baby have a fever? When do I call the doctor?', tool: 'fever' },
-    { id: 'miles',   icon: '⭐', q: 'When will my baby roll over, sit up, crawl and walk?', tool: 'milestones' },
-    { id: 'spit',    icon: '🤧', q: 'Why does my baby spit up, get hiccups, or sound stuffy?', tool: 'spit' },
-    { id: 'teeth',   icon: '🦷', q: 'Is my baby teething? How can I help?',    tool: 'teeth' }
+    { id: 'cry',     icon: 'cry', q: 'Why is my baby crying?',                 tool: 'cry' },
+    { id: 'sleep',   icon: 'moon', q: 'How can I help my baby sleep better?',   tool: 'sleep' },
+    { id: 'enough',  icon: 'bottle', q: 'Is my baby eating enough?',              tool: 'enough' },
+    { id: 'howmuch', icon: 'timer', q: 'How often and how much should my baby eat?', tool: 'howmuch' },
+    { id: 'poop',    icon: 'poo', q: 'Is my baby’s poop normal?',              tool: 'poop' },
+    { id: 'fever',   icon: 'thermometer', q: 'Does my baby have a fever? When do I call the doctor?', tool: 'fever' },
+    { id: 'miles',   icon: 'star', q: 'When will my baby roll over, sit up, crawl and walk?', tool: 'milestones' },
+    { id: 'spit',    icon: 'drop', q: 'Why does my baby spit up, get hiccups, or sound stuffy?', tool: 'spit' },
+    { id: 'teeth',   icon: 'tooth', q: 'Is my baby teething? How can I help?',    tool: 'teeth' }
   ];
 
   var api = {

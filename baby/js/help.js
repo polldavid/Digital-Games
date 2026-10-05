@@ -17,17 +17,17 @@
   /* ---------- Sleep sounds ---------- */
   function soundPlayer() {
     var cur = Snd.playing(), ends = Snd.endsAt();
-    return '<div class="card card--flat"><div class="card__title">🎶 Sleep sounds</div>' +
+    return '<div class="card card--flat"><div class="card__title">Sleep sounds</div>' +
       '<p class="faint" style="margin-bottom:10px">Steady noise mimics the womb and masks household sounds. Keep the phone well away from the cot and the volume low (under 50 dB — about a quiet shower).</p>' +
       '<div class="sounds">' + Object.keys(Snd.SOUNDS).map(function (k) {
         var s = Snd.SOUNDS[k];
-        return '<button type="button" class="sound" data-action="sound" data-sound="' + k + '" aria-pressed="' + (cur === k) + '"><span>' + s.icon + '</span><span>' + s.label + '</span></button>';
+        return '<button type="button" class="sound" data-action="sound" data-sound="' + k + '" aria-pressed="' + (cur === k) + '"><span>' + h.icon(s.icon) + '</span><span>' + s.label + '</span></button>';
       }).join('') + '</div>' +
       '<div class="field__row" style="margin-top:12px;align-items:end">' +
       '<label class="field"><span class="field__label">Turn off after</span><select class="input" id="sound-timer">' +
       [[0, 'Keep playing'], [15, '15 minutes'], [30, '30 minutes'], [60, '1 hour'], [120, '2 hours']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === (App.ui.soundMin || 0) ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>' +
       '<label class="field"><span class="field__label">Volume</span><input type="range" min="0.05" max="1" step="0.05" value="' + (App.ui.soundVol || 0.5) + '" id="sound-vol" /></label></div>' +
-      (cur ? '<p class="faint" style="margin-top:8px">Playing ' + esc(Snd.SOUNDS[cur].label.toLowerCase()) + (ends ? ' · stops <span data-until="' + ends + '">' + h.until(ends) + '</span>' : '') + '. Keep this screen open — most phones stop web audio when it is locked for long.</p><button type="button" class="btn btn--block" data-action="sound-stop" style="margin-top:8px">⏹ Stop</button>' : '') +
+      (cur ? '<p class="faint" style="margin-top:8px">Playing ' + esc(Snd.SOUNDS[cur].label.toLowerCase()) + (ends ? ' · stops <span data-until="' + ends + '">' + h.until(ends) + '</span>' : '') + '. Keep this screen open — most phones stop web audio when it is locked for long.</p><button type="button" class="btn btn--block" data-action="sound-stop" style="margin-top:8px">' + h.ic('stop') + 'Stop</button>' : '') +
       '</div>';
   }
 
@@ -51,9 +51,9 @@
       var html = '<p class="lead">Ranked from ' + name() + '’s log right now. Work down the list — most crying has a simple fix.</p>';
       html += '<div class="reasons">' + reasons.slice(0, 7).map(function (r, i) {
         var act = { hunger: ['log', 'feed', 'Log a feed'], diaper: ['log', 'diaper', 'Log a change'], tired: ['sleep-toggle', 'sleep', 'Start sleep timer'], fever: ['log', 'temp', 'Re-check temperature'], wind: null, colic: ['sound', 'shush', 'Play shush'], stim: ['sound', 'white', 'Play white noise'] }[r.id];
-        return '<div class="reason' + (r.urgent ? ' reason--urgent' : i === 0 ? ' reason--top' : '') + '"><span class="reason__icon">' + r.icon + '</span>' +
-          '<span class="reason__t">' + esc(r.title) + (i === 0 && !r.urgent ? '<span class="status status--info">Most likely</span>' : r.urgent ? '<span class="status status--urgent">⚠ Call now</span>' : '') + '</span>' +
-          '<span class="reason__why">' + esc(r.why) + (act ? ' <button type="button" class="btn btn--link btn--sm" data-action="' + act[0] + '" data-type="' + act[1] + '" data-sound="' + act[1] + '">' + act[2] + ' →</button>' : '') + '</span>' +
+        return '<div class="reason' + (r.urgent ? ' reason--urgent' : i === 0 ? ' reason--top' : '') + '"><span class="reason__icon">' + h.icon(r.icon) + '</span>' +
+          '<span class="reason__t">' + esc(r.title) + (i === 0 && !r.urgent ? '<span class="status status--info">Most likely</span>' : r.urgent ? h.statusPill('urgent', 'Call now') : '') + '</span>' +
+          '<span class="reason__why">' + esc(r.why) + (act ? ' <button type="button" class="btn btn--link btn--sm" data-action="' + act[0] + '" data-type="' + act[1] + '" data-sound="' + act[1] + '">' + act[2] + h.ic('chevron') + '</button>' : '') + '</span>' +
           '<div class="reason__meter" aria-hidden="true"><i style="width:' + Math.min(100, r.score) + '%"></i></div></div>';
       }).join('') + '</div>';
       html += '<div class="prose"><h3>Still crying? Try the 5 S’s</h3>' + list([
@@ -165,7 +165,7 @@
       var html = '<p class="lead">A fever is a temperature of <strong>38.0 °C / 100.4 °F or higher</strong>. What to do depends a lot on age — ' + name() + ' is ' + esc(G.ageLabel(d).toLowerCase()) + (d >= 14 ? ' old' : '') + '.</p>';
       if (d < 91) html += h.note('urgent', 'Under 3 months: any fever is an emergency', 'Call your pediatrician right away or go to the emergency department for 38.0 °C / 100.4 °F or higher, even if baby seems fine. Don’t give fever medicine first.');
       if (lt) { var f = G.feverCheck(lt.data.tempC, S.ageDays(lt.time)); html += h.note(f.level, 'Last reading: ' + h.temp(lt.data.tempC) + ' · ' + h.ago(lt.time), f.text); }
-      html += '<div class="card card--flat"><div class="card__title">Quick check</div><div class="stepper"><button type="button" class="btn" data-action="step" data-target="qtemp" data-step="-0.1" aria-label="Lower">−</button><div class="stepper__v"><input class="stepper__input" id="qtemp" name="qtemp" type="number" step="0.1" inputmode="decimal" value="' + h.tempToDisplay(37.0) + '" aria-label="Temperature" /><small>' + h.tempUnit() + '</small></div><button type="button" class="btn" data-action="step" data-target="qtemp" data-step="0.1" aria-label="Higher">+</button></div><div id="qtemp-out" style="margin-top:10px"></div>' +
+      html += '<div class="card card--flat"><div class="card__title">Quick check</div><div class="stepper"><button type="button" class="btn" data-action="step" data-target="qtemp" data-step="-0.1" aria-label="Lower">' + h.ic('minus') + '</button><div class="stepper__v"><input class="stepper__input" id="qtemp" name="qtemp" type="number" step="0.1" inputmode="decimal" value="' + h.tempToDisplay(37.0) + '" aria-label="Temperature" /><small>' + h.tempUnit() + '</small></div><button type="button" class="btn" data-action="step" data-target="qtemp" data-step="0.1" aria-label="Higher">' + h.ic('plus') + '</button></div><div id="qtemp-out" style="margin-top:10px"></div>' +
         '<button type="button" class="btn btn--block" data-action="log" data-type="temp" style="margin-top:10px">Log a temperature</button></div>';
       html += '<div class="prose"><h3>Call your doctor (any age) if baby</h3>' + list(['Is hard to wake, unusually floppy, or inconsolable', 'Has trouble breathing, or a rash that doesn’t fade when you press a glass on it', 'Refuses feeds or has far fewer wet diapers', 'Has a seizure — call emergency services', 'Has a fever over 24 hours (under 2 years) or keeps getting worse']) +
         '<h3>Taking a temperature</h3>' + list(['<strong>Rectal</strong> is the most accurate under 3 months (a little petroleum jelly, ½–1 inch in).', '<strong>Armpit</strong> is fine for screening but reads lower; confirm a high reading rectally.', '<strong>Forehead / ear</strong> thermometers are less reliable in young babies (ear not under 6 months).', 'Don’t bundle up a feverish baby — light layers help them cool down.']) + '</div>';
@@ -230,7 +230,7 @@
     var b = S.baby();
     return '<h1 class="h1">Answers</h1><p class="lead">The questions new parents search for most — answered with ' + esc(b.name) + '’s own log wherever we can.</p>' +
       '<div class="qcards">' + G.QUESTIONS.map(function (q) {
-        return '<button class="qcard" data-action="help" data-topic="' + q.tool + '"><span class="qcard__icon">' + q.icon + '</span><span class="qcard__q">' + esc(q.q) + '</span><span class="qcard__go">›</span></button>';
+        return '<button class="qcard" data-action="help" data-topic="' + q.tool + '"><span class="qcard__icon">' + h.icon(q.icon) + '</span><span class="qcard__q">' + esc(q.q) + '</span><span class="qcard__go">' + h.ic('chevron') + '</span></button>';
       }).join('') + '</div>' +
       '<div class="section-title"><h2>Sleep sounds</h2></div>' + soundPlayer().replace('card card--flat', 'card') +
       '<p class="disclaimer">Baby Log offers general information based on guidance from the AAP, CDC, WHO and NHS. It isn’t medical advice and can’t diagnose anything. If you’re worried about your baby, call your pediatrician — or emergency services in an emergency.</p>';

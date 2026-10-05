@@ -1,0 +1,6 @@
+{
+  "origin": "code-rendered mockup, not image generation",
+  "source": ".impeccable/mocks/decision/src/today-mocks.html#map",
+  "render": "msedge --headless --window-size=920,960 --screenshot",
+  "prompt": "Baby Log Today screen, day (2:41 PM) and night (3:12 AM), direction map; real product content (Ava, 3 weeks 1 day, next feed, sleep timer, last-24h counts, quick log, tab bar)."
+}
