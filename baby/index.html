@@ -15,8 +15,8 @@
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="preload" href="fonts/jost-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="css/styles.css" />
-  <link rel="stylesheet" href="../theme.css" />
+  <link rel="stylesheet" href="css/styles.css?v=13" />
+  <link rel="stylesheet" href="../theme.css?v=13" />
 </head>
 <body>
 <!-- pictos: drawn Isotype symbols (source: icons/pictos.svg) -->
@@ -84,7 +84,7 @@
   <section class="welcome" id="welcome" hidden>
     <div class="welcome__inner">
       <div class="welcome__art" aria-hidden="true">
-        <svg class="ic c-feed"><use href="#i-bottle"/></svg><svg class="ic c-feed"><use href="#i-bottle"/></svg><svg class="ic c-feed"><use href="#i-bottle"/></svg><svg class="ic c-wet"><use href="#i-drop"/></svg><svg class="ic c-wet"><use href="#i-drop"/></svg><svg class="ic c-dirty"><use href="#i-poo"/></svg><svg class="ic c-sleep"><use href="#i-moon"/></svg><svg class="ic c-sleep"><use href="#i-moon"/></svg>
+        <svg class="ic c-feed" width="26" height="30"><use href="#i-bottle"/></svg><svg class="ic c-feed" width="26" height="30"><use href="#i-bottle"/></svg><svg class="ic c-feed" width="26" height="30"><use href="#i-bottle"/></svg><svg class="ic c-wet" width="26" height="30"><use href="#i-drop"/></svg><svg class="ic c-wet" width="26" height="30"><use href="#i-drop"/></svg><svg class="ic c-dirty" width="26" height="30"><use href="#i-poo"/></svg><svg class="ic c-sleep" width="26" height="30"><use href="#i-moon"/></svg><svg class="ic c-sleep" width="26" height="30"><use href="#i-moon"/></svg>
       </div>
       <h1 class="welcome__title">Baby <em>Log</em></h1>
       <p class="welcome__sub">Feeds, diapers and sleep — timed, tracked and gently reminded, with straight answers for 3&nbsp;a.m. questions.</p>
@@ -127,7 +127,7 @@
   <div class="app" id="app" hidden>
     <header class="topbar">
       <button class="babychip" data-action="baby-switch" aria-label="Baby profile" id="babychip"></button>
-      <button class="iconbtn" data-action="go" data-view="settings" data-focus="reminders" aria-label="Reminders" id="bell"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg><span class="iconbtn__badge" id="bell-badge" hidden></span></button>
+      <button class="iconbtn" data-action="go" data-view="settings" data-focus="reminders" aria-label="Reminders" id="bell"><svg class="ic" width="24" height="24" aria-hidden="true"><use href="#i-bell"/></svg><span class="iconbtn__badge" id="bell-badge" hidden></span></button>
     </header>
 
     <div class="banner banner--bad" id="save-warning" hidden role="alert"></div>
@@ -142,11 +142,11 @@
     </main>
 
     <nav class="tabbar" aria-label="Sections">
-      <button class="tab tab--active" data-action="go" data-view="today"><svg class="ic tab__icon" aria-hidden="true"><use href="#i-today"/></svg><span class="tab__label">Today</span></button>
-      <button class="tab" data-action="go" data-view="log"><svg class="ic tab__icon" aria-hidden="true"><use href="#i-list"/></svg><span class="tab__label">History</span></button>
-      <button class="tab" data-action="go" data-view="health"><svg class="ic tab__icon" aria-hidden="true"><use href="#i-cross"/></svg><span class="tab__label">Health</span></button>
-      <button class="tab" data-action="go" data-view="help"><svg class="ic tab__icon" aria-hidden="true"><use href="#i-question"/></svg><span class="tab__label">Answers</span></button>
-      <button class="tab" data-action="go" data-view="settings"><svg class="ic tab__icon" aria-hidden="true"><use href="#i-sliders"/></svg><span class="tab__label">Settings</span></button>
+      <button class="tab tab--active" data-action="go" data-view="today"><svg class="ic tab__icon" width="24" height="24" aria-hidden="true"><use href="#i-today"/></svg><span class="tab__label">Today</span></button>
+      <button class="tab" data-action="go" data-view="log"><svg class="ic tab__icon" width="24" height="24" aria-hidden="true"><use href="#i-list"/></svg><span class="tab__label">History</span></button>
+      <button class="tab" data-action="go" data-view="health"><svg class="ic tab__icon" width="24" height="24" aria-hidden="true"><use href="#i-cross"/></svg><span class="tab__label">Health</span></button>
+      <button class="tab" data-action="go" data-view="help"><svg class="ic tab__icon" width="24" height="24" aria-hidden="true"><use href="#i-question"/></svg><span class="tab__label">Answers</span></button>
+      <button class="tab" data-action="go" data-view="settings"><svg class="ic tab__icon" width="24" height="24" aria-hidden="true"><use href="#i-sliders"/></svg><span class="tab__label">Settings</span></button>
     </nav>
   </div>
 
@@ -157,7 +157,7 @@
       <div class="sheet__grab" aria-hidden="true"></div>
       <div class="sheet__head">
         <h2 class="sheet__title" id="sheet-title"></h2>
-        <button class="iconbtn" data-action="sheet-close" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
+        <button class="iconbtn" data-action="sheet-close" aria-label="Close"><svg class="ic" width="24" height="24" aria-hidden="true"><use href="#i-close"/></svg></button>
       </div>
       <div class="sheet__body" id="sheet-body"></div>
     </div>
@@ -179,18 +179,18 @@
   <div class="tip" id="tip" role="tooltip" hidden></div>
   <input type="file" id="import-file" accept="application/json,.json" hidden />
 
-  <script src="../theme.js"></script>
-  <script src="js/guide.js"></script>
-  <script src="js/store.js"></script>
-  <script src="js/sound.js"></script>
-  <script src="js/rx.js"></script>
-  <script src="js/files.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/forms.js"></script>
-  <script src="js/views.js"></script>
-  <script src="js/help.js"></script>
-  <script src="js/health.js"></script>
-  <script src="js/native.js"></script>
-  <script src="js/app.js"></script>
+  <script src="../theme.js?v=13"></script>
+  <script src="js/guide.js?v=13"></script>
+  <script src="js/store.js?v=13"></script>
+  <script src="js/sound.js?v=13"></script>
+  <script src="js/rx.js?v=13"></script>
+  <script src="js/files.js?v=13"></script>
+  <script src="js/ui.js?v=13"></script>
+  <script src="js/forms.js?v=13"></script>
+  <script src="js/views.js?v=13"></script>
+  <script src="js/help.js?v=13"></script>
+  <script src="js/health.js?v=13"></script>
+  <script src="js/native.js?v=13"></script>
+  <script src="js/app.js?v=13"></script>
 </body>
 </html>

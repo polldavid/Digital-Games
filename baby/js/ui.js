@@ -124,7 +124,9 @@
     '➕': 'plus', '✏️': 'edit', '📋': 'list', '📈': 'list', '🧺': 'basket', '👶': 'baby', '🐣': 'baby', '🧸': 'baby', '🐻': 'baby', '🦁': 'baby',
     '🐰': 'baby', '🌸': 'baby', '🌈': 'baby', '💛': 'heart', '🤗': 'baby', '🧣': 'baby', '💪': 'tummy', '😊': 'star', '📲': 'share', '🖼️': 'document'
   };
-  function ic(name, cls) { return '<svg class="ic' + (cls ? ' ' + cls : '') + '" aria-hidden="true" focusable="false"><use href="#i-' + name + '"/></svg>'; }
+  // width/height are a fallback only (CSS sets the real size): if the stylesheet ever
+  // fails to load, a symbol stays icon-sized instead of filling the screen.
+  function ic(name, cls) { return '<svg class="ic' + (cls ? ' ' + cls : '') + '" width="24" height="24" aria-hidden="true" focusable="false"><use href="#i-' + name + '"/></svg>'; }
   function iconName(x) { if (!x) return ''; x = String(x); return EMO[x] || EMO[x.replace(/️/g, '')] || (/^[a-z][a-z-]*$/.test(x) ? x : 'bell'); }
   function icon(x, cls) { var n = iconName(x); return n ? ic(n, cls) : ''; }
   // Each kind of thing has one colour, everywhere it appears.

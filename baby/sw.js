@@ -3,19 +3,24 @@
    Caches the app so it opens instantly and works offline
    (handy at 3 a.m. with no signal), and brings the app to
    the front when a reminder notification is tapped.
-   Bump VERSION whenever a cached file changes.
+   When any cached file changes, bump V here AND every ?v= in index.html
+   (tests/unit.test.js fails if they differ). The page asks for
+   styles.css?v=13 etc., so a new page can never be paired with an old
+   cached stylesheet or script — not from this cache, nor from the
+   browser's HTTP cache (GitHub Pages caches files for 10 minutes).
    ========================================================= */
-var VERSION = 'babylog-v12';
-var FILES = [
-  './', 'index.html', 'manifest.webmanifest',
-  'css/styles.css', '../theme.css', '../theme.js',
-  'js/guide.js', 'js/store.js', 'js/sound.js', 'js/rx.js', 'js/files.js', 'js/ui.js', 'js/forms.js', 'js/views.js', 'js/help.js', 'js/health.js', 'js/native.js', 'js/app.js',
+var V = '13';
+var VERSION = 'babylog-v' + V;
+var VERSIONED = ['css/styles.css', '../theme.css', '../theme.js',
+  'js/guide.js', 'js/store.js', 'js/sound.js', 'js/rx.js', 'js/files.js', 'js/ui.js', 'js/forms.js', 'js/views.js', 'js/help.js', 'js/health.js', 'js/native.js', 'js/app.js'];
+var FILES = ['./', 'index.html', 'manifest.webmanifest',
   'fonts/jost-latin.woff2', 'fonts/jost-latin-ext.woff2',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'
-];
+].concat(VERSIONED.map(function (f) { return f + '?v=' + V; }));
 
 self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
+  // cache: 'reload' skips the browser's HTTP cache, so an install never stores a stale copy.
+  e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(FILES.map(function (f) { return new Request(f, { cache: 'reload' }); })); }).then(function () { return self.skipWaiting(); }));
 });
 
 self.addEventListener('activate', function (e) {

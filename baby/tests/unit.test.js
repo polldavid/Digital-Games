@@ -168,3 +168,16 @@ console.log('QA-fix unit tests passed');
   S.onSaveError = S.onSaveOk = null;
 }
 console.log('hardening unit tests passed');
+
+// Release guard: index.html must ask for exactly the asset versions the
+// service worker caches, or a fresh page can be paired with stale CSS/JS.
+{ const fs = require('fs');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+  const V = (sw.match(/var V = '(\d+)'/) || [])[1];
+  assert.ok(V, 'sw.js declares var V');
+  const refs = [...html.matchAll(/(?:src|href)="((?:js|css|\.\.)\/[^"]+\.(?:js|css)(?:\?[^"]*)?)"/g)].map(m => m[1]);
+  assert.ok(refs.length >= 15, 'found the page’s scripts and stylesheets');
+  refs.forEach(r => assert.ok(r.endsWith('?v=' + V), r + ' must end with ?v=' + V + ' (bump sw.js V and index.html together)'));
+  console.log('release guard passed (v' + V + ')');
+}
