@@ -407,6 +407,47 @@
     return { min: min, rate: rate, level: min > 30 || (min >= 15 && rate < 1) ? 'slow' : min < 5 && ml >= 30 ? 'fast' : 'ok' };
   }
 
+  /* ---------- Milk storage (CDC "Proper Storage and Preparation of Breast
+     Milk" and "How to Prepare and Store Powdered Infant Formula") ----------
+     Breast milk, fresh: room (up to 25 °C / 77 °F) 4 h; fridge 4 days;
+       freezer best within 6 months, OK up to 12; insulated cooler 1 day.
+     Brought to room temperature or warmed after chilling: use within 2 h.
+     Thawed: fridge 24 h (from thawing), room 1–2 h; never refreeze.
+     Leftover after a feed: within 2 h of the feed ending.
+     Formula, prepared: room 2 h (1 h once a feed starts); fridge 24 h if
+       chilled within 2 h of making it; never frozen; leftover: throw out.
+     m: { kind: 'breast'|'formula', where: 'room'|'fridge'|'freezer'|'cooler',
+          madeAt, since, chilled, thawedAt, leftoverAt, feedStartAt, cap } */
+  var MILK_WHERE = { room: 'Room temp', fridge: 'Fridge', freezer: 'Freezer', cooler: 'Cooler bag' };
+  function milkExpiry(m) {
+    var at, best = null, rule;
+    if (m.kind === 'formula') {
+      if (m.leftoverAt) { at = m.leftoverAt; rule = 'Formula baby has drunk from can’t be kept — throw out what’s left.'; }
+      else if (m.where === 'fridge') { at = m.madeAt + DAY; rule = 'Prepared formula keeps 24 hours in the fridge.'; }
+      else if (m.chilled) { at = m.since + 2 * HOUR; rule = 'Out of the fridge: use within 2 hours (1 hour once the feed starts).'; }
+      else { at = m.madeAt + 2 * HOUR; rule = 'Prepared formula: use within 2 hours at room temperature (1 hour once the feed starts), or put it in the fridge.'; }
+      if (m.feedStartAt && !m.leftoverAt) at = Math.min(at, m.feedStartAt + HOUR);
+    } else if (m.leftoverAt) { at = m.leftoverAt + 2 * HOUR; rule = 'Leftover breast milk: use within 2 hours after the feed ended, then throw it out.'; }
+    else if (m.thawedAt) {
+      if (m.where === 'fridge') { at = m.thawedAt + DAY; rule = 'Thawed breast milk: use within 24 hours in the fridge (counted from thawing). Never refreeze it.'; }
+      else { at = Math.max(m.thawedAt, m.since || 0) + 2 * HOUR; rule = 'Thawed breast milk at room temperature: use within 1–2 hours. Never refreeze it.'; }
+    } else if (m.where === 'freezer') { at = m.madeAt + 365 * DAY; best = m.madeAt + 183 * DAY; rule = 'Frozen breast milk: best within 6 months of pumping, OK up to 12.'; }
+    else if (m.where === 'fridge') { at = m.madeAt + 4 * DAY; rule = 'Fresh breast milk keeps up to 4 days in the fridge (from when it was pumped).'; }
+    else if (m.where === 'cooler') { at = (m.since || m.madeAt) + DAY; rule = 'In an insulated cooler with ice packs: up to 1 day — then fridge or freezer.'; }
+    else if (m.chilled) { at = m.since + 2 * HOUR; rule = 'Chilled breast milk brought to room temperature or warmed: use within 2 hours.'; }
+    else { at = m.madeAt + 4 * HOUR; rule = 'Fresh breast milk: up to 4 hours at room temperature (up to 25 °C / 77 °F). In a hotter room, chill or use it sooner.'; }
+    if (m.cap && m.cap < at) at = m.cap;
+    return { at: at, best: best, rule: rule };
+  }
+  // Where it can go next. Thawed milk is never refrozen; formula is never frozen.
+  function milkMoves(m) {
+    if (m.leftoverAt) return [];
+    if (m.kind === 'formula') return m.where === 'room' && !m.chilled && !m.feedStartAt ? ['fridge'] : m.where === 'fridge' ? ['room'] : [];
+    if (m.thawedAt) return m.where === 'fridge' ? ['room'] : [];
+    if (m.where === 'freezer') return ['thawFridge', 'thawRoom'];
+    return ['room', 'fridge', 'freezer', 'cooler'].filter(function (w) { return w !== m.where; });
+  }
+
   /* ---------- Growth percentiles (WHO Child Growth Standards, 0–24 months) ----------
      L, M, S by completed month for boys (m) and girls (f), from the WHO tables
      as published by CDC/NCHS (WHO-*-for-age-Percentiles.csv). Ages between
@@ -491,7 +532,7 @@
     cryReasons: cryReasons, CRY_RED_FLAGS: CRY_RED_FLAGS,
     QUESTIONS: QUESTIONS,
     VACCINES: VACCINES, vaccinePlan: vaccinePlan,
-    bottlePace: bottlePace,
+    bottlePace: bottlePace, MILK_WHERE: MILK_WHERE, milkExpiry: milkExpiry, milkMoves: milkMoves,
     WHO_GROWTH: WHO_GROWTH, growthLMS: growthLMS, growthZ: growthZ, growthPercentile: growthPercentile, growthAt: growthAt, linesCrossed: linesCrossed, normalCdf: normalCdf,
     fmtDur: fmtDur, fmtHours: fmtHours
   };

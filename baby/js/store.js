@@ -24,6 +24,7 @@
       events: [],
       timers: {},      // babyId -> { sleep:{start}, breast:{side,start,accL,accR}, tummy:{start}, pump:{start} }
       custom: [],      // custom reminders
+      milk: [],        // stored milk: pumped, prepared, leftovers (shared by all babies)
       health: {},      // babyId -> { profile, appointments, rx, vaccines, docs }
       fired: {},       // reminder key -> time fired (so each fires once)
       snoozed: {},     // reminder key -> snooze-until time
@@ -38,6 +39,7 @@
         quietNight: true,                        // 10pm–7am: vibrate only, no chime
         voice: false, voiceLang: 'en-US', voiceAutoSave: true, // voice logging (opt-in: speech goes to the phone's speech service)
         quickLog: [],                            // Today buttons chosen by the parent ([] = age-based default)
+        pumpStore: 'fridge',                     // where pumped milk usually goes ('' = not tracked)
         installTipDismissed: false
       }
     };
@@ -107,6 +109,9 @@
     if (!Array.isArray(out.events)) out.events = [];
     if (!Array.isArray(out.babies)) out.babies = [];
     if (!Array.isArray(out.custom)) out.custom = [];
+    if (!Array.isArray(out.milk)) out.milk = [];
+    // Used or thrown-out milk is kept two weeks, then dropped.
+    out.milk = out.milk.filter(function (m) { return m && (m.status === 'active' || !m.doneAt || m.doneAt > Date.now() - 14 * DAY); });
     if (!out.health || typeof out.health !== 'object') out.health = {};
     if (!out.activeBaby && out.babies[0]) out.activeBaby = out.babies[0].id;
     // A short-lived version stored custom-reminder icons as names ('pill'); show them as emoji again.
@@ -361,10 +366,15 @@
      Times a bottle so a slow nipple (or a tired baby) shows up as minutes
      per ml. Finishing keeps the session until the amount is saved, so
      closing the sheet never loses it. */
-  function bottleStart(now) {
+  function bottleStart(now, from) {
     now = now || Date.now();
     var t = timers();
     t.bottle = { start: now, seg: now, acc: 0, paused: false };
+    var m = from ? milkItem(from) : null;
+    if (m) {
+      t.bottle.milkId = m.id; t.bottle.offeredMl = m.ml; t.bottle.milk = m.kind;
+      m.feedStartAt = now; // formula: 1 hour once a feed starts
+    }
     return t.bottle;
   }
   function bottlePause(now) {
@@ -390,6 +400,64 @@
     return b;
   }
   function bottleTotal(b, now) { return b.acc + (b.paused ? 0 : (now || Date.now()) - b.seg); }
+
+  /* ---------- Milk storage ----------
+     Bottles and bags of milk with a use-by from where they've been kept
+     (rules in guide.js). Moving milk somewhere warmer never extends its
+     time: the earlier use-by stays as a cap. */
+  function milkAdd(m, now) {
+    now = now || Date.now();
+    var it = { id: uid(), kind: m.kind === 'formula' ? 'formula' : 'breast', ml: Math.round(m.ml || 0), where: m.where || 'fridge',
+      madeAt: m.madeAt || now, since: now, status: 'active', label: m.label || '' };
+    if (it.where !== 'room') it.chilled = true;
+    if (m.thawed) { it.thawedAt = now; it.chilled = true; }
+    if (m.leftoverAt) it.leftoverAt = m.leftoverAt;
+    if (m.cap) it.cap = m.cap;
+    if (m.from) it.from = m.from;
+    state.milk.push(it);
+    return it;
+  }
+  function milkItem(id) { return findIn(state.milk, id); }
+  function milkActive() {
+    return state.milk.filter(function (m) { return m.status === 'active'; })
+      .sort(function (a, b) { return G.milkExpiry(a).at - G.milkExpiry(b).at; });
+  }
+  // Returns false when the move isn't allowed (refreezing, freezing formula…).
+  function milkMove(id, to, now) {
+    var m = milkItem(id);
+    now = now || Date.now();
+    if (!m || G.milkMoves(m).indexOf(to) < 0) return false;
+    var before = G.milkExpiry(m).at;
+    if (to === 'thawFridge' || to === 'thawRoom') { m.thawedAt = now; m.where = to === 'thawFridge' ? 'fridge' : 'room'; }
+    else {
+      if (to === 'room') m.cap = Math.min(m.cap || Infinity, before); // warming never adds time
+      else m.chilled = true;
+      m.where = to;
+    }
+    m.since = now;
+    return true;
+  }
+  function milkDone(id, how, now) {
+    var m = milkItem(id);
+    if (!m) return null;
+    m.status = how === 'used' ? 'used' : 'discarded';
+    m.doneAt = now || Date.now();
+    return m;
+  }
+  /* After a bottle feed: the milk it came from is used, and what's left over
+     becomes a leftover (breast milk: 2 hours) — or, for formula, is thrown out.
+     Returns { leftover, ml, kind } for the message. */
+  function milkAfterFeed(ev, fromId) {
+    var d = ev.data, src = fromId ? milkItem(fromId) : null;
+    if (src) milkDone(src.id, 'used', ev.end || ev.time);
+    var left = (d.offeredMl || 0) - (d.amountMl || 0);
+    if (left <= 0) return null;
+    if (d.milk === 'formula') return { kind: 'formula', ml: left, leftover: null };
+    var end = ev.end || ev.time;
+    var it = milkAdd({ kind: 'breast', ml: left, where: 'room', madeAt: src ? src.madeAt : ev.time, leftoverAt: end, cap: src ? G.milkExpiry(src).at : null, from: ev.id }, end);
+    if (src && src.thawedAt) it.thawedAt = src.thawedAt;
+    return { kind: 'breast', ml: left, leftover: it };
+  }
 
   /* ---------- Derived status ---------- */
   function isAsleep(id) { return !!timers(id).sleep; }
@@ -585,6 +653,13 @@
       });
     }
 
+    // Milk use-by: shown with the first baby only (milk is shared, so it isn't repeated per baby).
+    if (state.babies[0] && state.babies[0].id === id) milkActive().forEach(function (m) {
+      var x = G.milkExpiry(m), long = x.at - (m.since || m.madeAt) > DAY;
+      var what = (m.ml ? m.ml + ' ml ' : '') + (m.kind === 'formula' ? 'formula' : 'breast milk') + (m.leftoverAt ? ' (leftover)' : '') + ' · ' + (G.MILK_WHERE[m.where] || m.where).toLowerCase();
+      out.push({ key: 'milk:' + m.id + ':' + x.at, kind: 'milk', icon: '🍼', title: 'Milk to use soon', text: what + ' — use by ' + new Date(x.at).toLocaleString([], { weekday: long ? 'short' : undefined, hour: 'numeric', minute: '2-digit' }) + '.', at: x.at - (long ? 12 * HOUR : 30 * MIN), milkId: m.id });
+    });
+
     // Custom reminders.
     state.custom.filter(function (r) { return r.baby === id && r.on !== false; }).forEach(function (r) {
       var at2, key;
@@ -684,6 +759,7 @@
     timers: timers, startTimer: startTimer, stopTimer: stopTimer,
     breastSwitch: breastSwitch, breastPause: breastPause, breastTotals: breastTotals,
     pumpSide: pumpSide, pumpBoth: pumpBoth, pumpFinish: pumpFinish, pumpTotals: pumpTotals,
+    milkAdd: milkAdd, milkItem: milkItem, milkActive: milkActive, milkMove: milkMove, milkDone: milkDone, milkAfterFeed: milkAfterFeed,
     bottleStart: bottleStart, bottlePause: bottlePause, bottleFinish: bottleFinish, bottleResume: bottleResume, bottleTotal: bottleTotal,
     isAsleep: isAsleep, awakeSince: awakeSince, lastFeedAnchor: lastFeedAnchor, feedIntervalH: feedIntervalH,
     daySummary: daySummary, last24: last24, medStatus: medStatus, medKeyOf: medKeyOf,

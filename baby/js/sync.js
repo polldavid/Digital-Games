@@ -42,6 +42,7 @@
     st.babies.forEach(function (b) { out['b:' + b.id] = b; });
     st.events.forEach(function (e) { out['e:' + e.id] = e; });
     st.custom.forEach(function (r) { out['c:' + r.id] = r; });
+    (st.milk || []).forEach(function (m) { out['m:' + m.id] = m; });
     Object.keys(st.timers || {}).forEach(function (bid) {
       var T = st.timers[bid] || {};
       Object.keys(T).forEach(function (k) { if (T[k]) out['t:' + bid + ':' + k] = T[k]; });
@@ -93,6 +94,7 @@
     if (kind === 'b') return upsert(st.babies, p[1], d);
     if (kind === 'e') return upsert(st.events, p[1], d);
     if (kind === 'c') return upsert(st.custom, p[1], d);
+    if (kind === 'm') return upsert(st.milk = st.milk || [], p[1], d);
     if (kind === 't') {
       var T = st.timers[p[1]] = st.timers[p[1]] || {};
       if (d) T[p[2]] = d; else delete T[p[2]];

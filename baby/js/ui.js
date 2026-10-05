@@ -22,7 +22,10 @@
     installPrompt: null,
     ui: { view: 'today', historyType: 'all', historyDays: 7, trendDays: 7, sheet: null, alerts: [] },
     commit: null,   // set by app.js: save + re-render
-    render: null
+    render: null,
+    // Buttons defined by other modules (milk.js…): data-action name -> fn(node). app.js runs them.
+    extraActions: {},
+    addActions: function (o) { for (var k in o) App.extraActions[k] = o[k]; }
   };
 
   /* ---------- DOM ---------- */

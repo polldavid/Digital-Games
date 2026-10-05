@@ -184,5 +184,14 @@ function step(t) { console.log('  • ' + t); }
   assert.strictEqual(ids(D.S), ids(A.S));
   step('1,200 entries: push ' + (t1 - t0) + ' ms, fresh join ' + (t2 - t1) + ' ms');
 
+  // Milk on hand is shared: pumped on one phone, fed from the other.
+  var milk = A.S.milkAdd({ kind: 'breast', ml: 120, where: 'fridge', madeAt: now });
+  await A.c.cycle(); await B.c.cycle();
+  assert.strictEqual(B.S.milkItem(milk.id).ml, 120);
+  B.S.milkMove(milk.id, 'freezer', now + 1000);
+  await B.c.cycle(); await A.c.cycle();
+  assert.strictEqual(A.S.milkItem(milk.id).where, 'freezer');
+  step('milk storage syncs both ways');
+
   console.log('sync tests passed');
 })().catch(function (e) { console.error(e); process.exit(1); });

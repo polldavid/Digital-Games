@@ -14,6 +14,7 @@ dependencies, no server. It installs to the home screen and works offline.
 | 🧷 **Diapers** | Wet / dirty / both, poop colour and texture with instant "normal or call the doctor" feedback, rash |
 | 😴 **Sleep** | One-tap sleep timer, or log past sleeps; wake windows and the next nap window |
 | 🧴 **Pumping** | Tap-to-start timer with independent Left and Right sides (run both at once for a double pump, or one at a time), then enter each side's amount; milk-storage times |
+| 🧊 **Milk on hand** | Pumped breast milk, made-up formula and leftovers with a live **use-by** from where they've been kept (CDC): room 4 h · fridge 4 days · freezer 6–12 months · cooler bag 1 day · thawed 24 h in the fridge / 1–2 h out, never refrozen · warmed 2 h · leftover breast milk 2 h after the feed; formula 2 h (1 h once a feed starts), 24 h in the fridge, never frozen, leftovers thrown out. Pumping sends milk straight to the fridge/freezer; *Feed this now* starts the bottle timer with the amount filled in; an unfinished bottle becomes a leftover; reminders before it expires; shared with a partner |
 | 🤸 **Tummy time** | Timer and a daily goal that grows with age |
 | 💊 **Medicine** | Spacing between doses, max per 24h, "next dose allowed at…", age warnings. **Never suggests doses.** |
 | 🌡️ **Temperature** | Age-aware fever check (under 3 months, 38 °C / 100.4 °F = call now) |
@@ -173,6 +174,7 @@ baby/
     ├── views.js   # Today, History, Trends
     ├── help.js    # Answers topics + sleep-sounds player
     ├── health.js  # Health tab: visits, prescriptions + scanning, vaccines, records
+    ├── milk.js    # milk on hand: use-by countdowns, move/thaw/feed/throw out
     ├── native.js  # web ↔ app-store differences: notifications, files, share, durable storage
     ├── share.js   # partner-sync screens: set up, invite (QR), join, combine, status
     ├── mic.js     # voice logging: listening, the confirm card and countdown
@@ -193,6 +195,8 @@ node baby/tests/unit.test.js        # pure logic: guide.js, store.js, rx.js — 
 npm i --no-save playwright && npx playwright install chromium   # one-time
 node baby/tests/e2e.smoke.js        # main flows in Chromium at iPhone size (HEADED=1 to watch)
 node baby/tests/voice.test.js       # voice phrases → entries
+node baby/tests/e2e.bottle.js       # bottle timer and pace
+node baby/tests/e2e.milk.js         # milk storage: pump → fridge → freeze → thaw → feed → leftover
 node baby/tests/e2e.voice.js        # voice logging + app shortcuts in Chromium (fake recognizer)
 node baby/tests/sync.test.js        # partner sync with three simulated phones (SYNC_URL=… for a real server)
 SYNC_URL=http://127.0.0.1:8787 node baby/tests/e2e.sync.js   # two browsers, against `wrangler dev` (see server/)

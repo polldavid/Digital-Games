@@ -97,8 +97,8 @@
         '<div class="stepper__v"><input class="stepper__input" name="amount" type="number" inputmode="decimal" step="any" min="0" value="' + amount + '" aria-label="Amount" /><button type="button" class="unit-btn" data-action="unit-toggle" data-unit="volume" data-target="amount" aria-label="Switch between ml and oz">' + h.volUnit() + '</button></div>' +
         '<button type="button" class="btn" data-action="step" data-target="amount" data-vol="fine" data-step="' + volStep('fine') + '" aria-label="More">+</button></div>' +
         '<div class="stepper-extra"><button type="button" class="btn btn--sm" data-action="step" data-target="amount" data-vol="big" data-step="' + volStep('big') + '">+' + volStep('big') + ' ' + h.volUnit() + '</button></div>' +
-        '<div class="field"><span class="field__label">What’s in the bottle?</span>' + seg('milk', [['breast', 'Breast milk'], ['formula', 'Formula']], d.milk || (b.feeding === 'breast' ? 'breast' : 'formula')) + '</div>' +
-        '<div class="field__row"><label class="field"><span class="field__label">Offered (' + h.volUnit() + ', optional)</span><input class="input" type="number" inputmode="decimal" step="any" min="0" name="offered" value="' + (d.offeredMl ? h.volToDisplay(d.offeredMl) : '') + '" /></label>' +
+        '<div class="field"><span class="field__label">What’s in the bottle?</span>' + seg('milk', [['breast', 'Breast milk'], ['formula', 'Formula']], d.milk || (!ev && bt && bt.milk) || (b.feeding === 'breast' ? 'breast' : 'formula')) + '</div>' +
+        '<div class="field__row"><label class="field"><span class="field__label">Offered (' + h.volUnit() + ', optional)</span><input class="input" type="number" inputmode="decimal" step="any" min="0" name="offered" value="' + (d.offeredMl ? h.volToDisplay(d.offeredMl) : !ev && bt && bt.offeredMl ? h.volToDisplay(bt.offeredMl) : '') + '" /></label>' +
         '<label class="field"><span class="field__label">Took (min, optional)</span><input class="input" type="number" inputmode="decimal" step="any" min="0" max="180" name="bottleMin" value="' + bMin + '" /></label></div>' +
         '<label class="field"><span class="field__label">Nipple / flow size (optional)</span><input class="input" name="nipple" maxlength="20" list="nipples" value="' + esc(ev ? d.nipple || '' : lastNipple()) + '" placeholder="e.g. SS, S, M, Level 1" autocomplete="off" /></label>' +
         '<datalist id="nipples">' + nipplesUsed().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
@@ -316,6 +316,8 @@
     html: function (ev, preset) {
       var d = ev ? ev.data : {}, u = h.volUnit(), p = S.timers().pump;
       var tip = '<p class="faint">Freshly pumped milk keeps about 4 hours at room temperature, 4 days in the fridge, and 6–12 months in the freezer (CDC).</p>';
+      // New sessions: where the milk goes, so Milk on Today can count down its use-by.
+      if (!ev) tip = '<div class="field"><span class="field__label">Where’s the milk going?</span>' + seg('store', [['fridge', 'Fridge'], ['freezer', 'Freezer'], ['room', 'Feeding soon'], ['', 'Not tracking']], S.get().settings.pumpStore != null ? S.get().settings.pumpStore : 'fridge') + '</div>' + tip;
       // Step 2 of a timed session: amounts for each side.
       if (!ev && preset && preset.timer && p) {
         var tt = S.pumpTotals(p);
@@ -606,12 +608,22 @@
     if (ev) return S.updateEvent(id, { time: r.time, end: r.end !== undefined ? r.end : ev.end, data: r.data });
     var saved = S.addEvent({ type: type, time: r.time, end: r.end || null, data: r.data });
     if (type === 'pump' && val(form, 'fromTimer')) S.stopTimer('pump'); // the timed session is now logged
-    if (type === 'feed' && r.data.kind === 'bottle' && val(form, 'fromBottleTimer')) S.stopTimer('bottle');
+    api.lastMilk = null;
+    if (type === 'feed' && r.data.kind === 'bottle') {
+      var fromT = val(form, 'fromBottleTimer') ? S.stopTimer('bottle') : null;
+      api.lastMilk = S.milkAfterFeed(saved, fromT && fromT.milkId);
+      if (api.lastMilk) api.lastMilk.fromId = fromT && fromT.milkId;
+    }
+    if (type === 'pump') {
+      var where = radio(form, 'store');
+      S.get().settings.pumpStore = where;
+      if (where && r.data.amountMl) api.lastMilk = { stored: S.milkAdd({ kind: 'breast', ml: r.data.amountMl, where: where, madeAt: r.time }) };
+    }
     h.$all('input[name="alsoFor"]:checked', form).forEach(function (c) {
       api.lastCopies.push(S.addEvent({ baby: c.value, type: type, time: r.time, end: r.end || null, data: JSON.parse(JSON.stringify(r.data)) }));
     });
     return saved;
   }
 
-  var api = window.BabyForms = { volStep: volStep, open: open, save: save, FORMS: FORMS, nextSide: nextSide, breastLive: breastLive, pumpLive: pumpLive, lastCopies: [] };
+  var api = window.BabyForms = { volStep: volStep, open: open, save: save, FORMS: FORMS, nextSide: nextSide, breastLive: breastLive, pumpLive: pumpLive, lastCopies: [], lastMilk: null };
 })();

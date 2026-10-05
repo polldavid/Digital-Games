@@ -233,3 +233,75 @@ console.log('hardening unit tests passed');
   assert.strictEqual(G.bottlePace(60, 20 * 1000), null, 'under a minute: no verdict');
   console.log('bottle timer tests passed');
 }
+
+// Milk storage (CDC)
+{
+  const p = require.resolve('../js/store.js'); delete require.cache[p];
+  const S = require(p), G = require('../js/guide.js');
+  const H = 3600e3, D = 24 * H, t0 = 1.8e12;
+  S.reset(); S.addBaby({ name: 'M', birth: '2026-10-01' });
+  const exp = (m) => G.milkExpiry(m).at - (m.leftoverAt || m.madeAt);
+
+  // Fresh breast milk by place
+  let a = S.milkAdd({ kind: 'breast', ml: 120, where: 'room', madeAt: t0 }, t0);
+  assert.strictEqual(exp(a), 4 * H, 'room 4 h');
+  S.milkMove(a.id, 'fridge', t0 + H);
+  assert.strictEqual(exp(a), 4 * D, 'fridge 4 days from pumping');
+  S.milkMove(a.id, 'freezer', t0 + 2 * H);
+  assert.strictEqual(exp(a), 365 * D, 'freezer up to 12 months');
+  assert.strictEqual(G.milkExpiry(a).best - t0, 183 * D, 'best within 6 months');
+  assert.deepStrictEqual(G.milkMoves(a), ['thawFridge', 'thawRoom']);
+  // Thaw in the fridge: 24 h, never refreeze
+  const t1 = t0 + 30 * D;
+  S.milkMove(a.id, 'thawFridge', t1);
+  assert.strictEqual(G.milkExpiry(a).at, t1 + D, 'thawed: 24 h in fridge');
+  assert.strictEqual(S.milkMove(a.id, 'freezer', t1 + H), false, 'never refreeze');
+  // Warm it: 2 h, and never later than the fridge limit
+  S.milkMove(a.id, 'room', t1 + 23 * H);
+  assert.strictEqual(G.milkExpiry(a).at, t1 + D, 'warming can’t extend past the thawed limit');
+  // Fridge milk taken out: 2 h from taking out
+  let b = S.milkAdd({ kind: 'breast', ml: 60, where: 'fridge', madeAt: t0 }, t0);
+  S.milkMove(b.id, 'room', t0 + D);
+  assert.strictEqual(G.milkExpiry(b).at, t0 + D + 2 * H, 'chilled then warmed: 2 h');
+  // Cooler: 1 day
+  let c = S.milkAdd({ kind: 'breast', ml: 60, where: 'cooler', madeAt: t0 }, t0);
+  assert.strictEqual(G.milkExpiry(c).at, t0 + D);
+
+  // Formula: 2 h at room, 24 h in fridge only if chilled within 2 h, 1 h once a feed starts, never frozen
+  let f = S.milkAdd({ kind: 'formula', ml: 90, where: 'room', madeAt: t0 }, t0);
+  assert.strictEqual(exp(f), 2 * H);
+  assert.deepStrictEqual(G.milkMoves(f), ['fridge']);
+  assert.strictEqual(S.milkMove(f.id, 'freezer', t0), false, 'formula is never frozen');
+  S.milkMove(f.id, 'fridge', t0 + H);
+  assert.strictEqual(exp(f), D, 'formula fridge 24 h');
+  let f2 = S.milkAdd({ kind: 'formula', ml: 90, where: 'room', madeAt: t0 }, t0);
+  S.bottleStart(t0 + 30 * 60e3, f2.id);
+  assert.strictEqual(G.milkExpiry(f2).at, t0 + 90 * 60e3, '1 h once the feed starts');
+  assert.strictEqual(S.timers().bottle.offeredMl, 90);
+
+  // After a feed: leftovers
+  S.bottleFinish(t0 + 50 * 60e3);
+  const fe = S.addEvent({ type: 'feed', time: t0 + 30 * 60e3, end: t0 + 50 * 60e3, data: { kind: 'bottle', amountMl: 60, offeredMl: 90, milk: 'formula' } });
+  let r = S.milkAfterFeed(fe, f2.id);
+  assert.deepStrictEqual([r.kind, r.ml, r.leftover], ['formula', 30, null], 'formula leftover: throw out');
+  assert.strictEqual(S.milkItem(f2.id).status, 'used');
+  let bm = S.milkAdd({ kind: 'breast', ml: 100, where: 'fridge', madeAt: t0 }, t0);
+  const be = S.addEvent({ type: 'feed', time: t0 + D, end: t0 + D + 20 * 60e3, data: { kind: 'bottle', amountMl: 70, offeredMl: 100, milk: 'breast' } });
+  r = S.milkAfterFeed(be, bm.id);
+  assert.strictEqual(r.ml, 30);
+  assert.strictEqual(G.milkExpiry(r.leftover).at, t0 + D + 20 * 60e3 + 2 * H, 'breast milk leftover: 2 h after the feed');
+  assert.deepStrictEqual(G.milkMoves(r.leftover), [], 'leftovers stay put');
+  // A leftover from milk about to expire keeps the earlier limit
+  let old = S.milkAdd({ kind: 'breast', ml: 50, where: 'fridge', madeAt: t0 }, t0);
+  const oe = S.addEvent({ type: 'feed', time: t0 + 4 * D - 30 * 60e3, end: t0 + 4 * D - 20 * 60e3, data: { kind: 'bottle', amountMl: 20, offeredMl: 50, milk: 'breast' } });
+  r = S.milkAfterFeed(oe, old.id);
+  assert.strictEqual(G.milkExpiry(r.leftover).at, t0 + 4 * D, 'capped by the source’s use-by');
+  // Reminders: one per active item, with the first baby
+  const rem = S.reminders(t0 + 3 * D, S.get().babies[0].id).filter((x) => x.kind === 'milk');
+  assert.ok(rem.length >= 1 && rem.every((x) => x.milkId));
+  // Old used/thrown-out milk is dropped after two weeks
+  S.milkDone(c.id, 'discarded', Date.now() - 20 * D);
+  S.set(S.get());
+  assert.strictEqual(S.milkItem(c.id), null);
+  console.log('milk storage tests passed');
+}

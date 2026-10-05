@@ -19,7 +19,7 @@
   // save, which a tap shouldn't wait for. Native reminders follow the change.
   // Run a button's action from code (voice logging): data = { side: 'L' } etc.
   App.act = function (name, data) {
-    var fn = ACTIONS[name];
+    var fn = ACTIONS[name] || App.extraActions[name];
     if (fn) fn({ getAttribute: function (k) { return data && data[k.replace(/^data-/, '')] != null ? String(data[k.replace(/^data-/, '')]) : null; }, disabled: false });
   };
   function commit() { syncAlerts(); render(); if (App.ui.sheet) h.renderSheet(); S.saveSoon(); N.syncReminders(); }
@@ -122,8 +122,8 @@
     $('#bell').setAttribute('aria-label', n ? 'Reminders — ' + n + ' due' : 'Reminders');
     if (!a) { el.hidden = true; el.innerHTML = ''; el._src = ''; return; }
     var b = S.baby(a.baby), many = S.get().babies.length > 1;
-    var act = { feed: ['Log feed', 'log', 'feed'], diaper: ['Log change', 'log', 'diaper'], nap: ['Start sleep', 'sleep-start', ''], med: ['Log dose', 'log', 'med'], vitd: ['Log it', 'log-vitd', ''], tummy: ['Start', 'tummy-start', ''], rx: ['Give dose', 'rx-dose', ''], appt: ['Open', 'appt-edit', ''], vax: ['Checklist', 'vax-open', ''] }[a.kind];
-    var actId = a.rxId || a.apptId || '';
+    var act = { feed: ['Log feed', 'log', 'feed'], diaper: ['Log change', 'log', 'diaper'], nap: ['Start sleep', 'sleep-start', ''], med: ['Log dose', 'log', 'med'], vitd: ['Log it', 'log-vitd', ''], tummy: ['Start', 'tummy-start', ''], milk: ['Open', 'milk-open', ''], rx: ['Give dose', 'rx-dose', ''], appt: ['Open', 'appt-edit', ''], vax: ['Checklist', 'vax-open', ''] }[a.kind];
+    var actId = a.rxId || a.apptId || a.milkId || '';
     var html = '<span class="banner__icon" aria-hidden="true">' + esc(a.icon) + '</span><div class="banner__text"><div class="banner__title">' + esc(a.title) + (many && b ? ' · ' + esc(b.name) : '') + '</div><div class="banner__sub">' + esc(a.text) + '</div></div>' +
       '<div class="banner__actions">' + (act ? '<button class="btn btn--sm btn--primary" data-action="alert-act" data-key="' + esc(a.key) + '" data-do="' + act[1] + '" data-type="' + act[2] + '" data-id="' + esc(actId) + '">' + act[0] + '</button>' : '') +
       '<button class="btn btn--sm" data-action="snooze" data-key="' + esc(a.key) + '">Snooze 15m</button>' +
@@ -548,6 +548,7 @@
       var d = n.getAttribute('data-do');
       if (d === 'log') F.open(n.getAttribute('data-type'));
       else if (ACTIONS[d]) ACTIONS[d](n);
+      else if (App.extraActions[d]) App.extraActions[d](n);
       renderBanner();
     },
 
@@ -722,7 +723,7 @@
   function onClick(e) {
     var n = e.target.closest('[data-action]');
     if (!n || n.disabled) return;
-    var fn = ACTIONS[n.getAttribute('data-action')];
+    var fn = ACTIONS[n.getAttribute('data-action')] || App.extraActions[n.getAttribute('data-action')];
     if (fn) { e.preventDefault(); fn(n); }
   }
 
@@ -785,10 +786,22 @@
       var ev = F.save(f);
       if (!ev) return;
       h.closeSheet(); commit();
-      var d = h.describe(ev), copies = F.lastCopies.slice();
+      var d = h.describe(ev), copies = F.lastCopies.slice(), mk = F.lastMilk;
+      var milkMsg = !mk || editing ? '' : mk.stored ? ' · ' + G.MILK_WHERE[mk.stored.where].toLowerCase() + ', use by ' + h.fmtTime(G.milkExpiry(mk.stored).at) + (G.milkExpiry(mk.stored).at - Date.now() > DAY ? ' ' + h.fmtDate(G.milkExpiry(mk.stored).at) : '')
+        : mk.kind === 'formula' ? ' · throw out the ' + h.vol(mk.ml) + ' of formula left' : mk.leftover ? ' · ' + h.vol(mk.ml) + ' left over: use by ' + h.fmtTime(G.milkExpiry(mk.leftover).at) : '';
       var also = copies.length ? ' (also ' + copies.map(function (c) { return S.baby(c.baby).name; }).join(', ') + ')' : '';
       // One toast: a second one would replace this one and take its Undo with it.
-      h.toast((editing ? 'Updated · ' : 'Saved · ') + d.title + also + (d.flag && !editing ? ' · ⚠️ worth a look in History' : ''), editing ? null : { label: 'Undo', fn: function () { S.removeEvent(ev.id); copies.forEach(function (c) { S.removeEvent(c.id); }); commit(); } });
+      h.toast((editing ? 'Updated · ' : 'Saved · ') + d.title + also + milkMsg + (d.flag && !editing ? ' · ⚠️ worth a look in History' : ''), editing ? null : { label: 'Undo', fn: function () {
+        S.removeEvent(ev.id); copies.forEach(function (c) { S.removeEvent(c.id); });
+        // Put the milk back the way it was.
+        if (mk) {
+          var made = mk.stored || mk.leftover;
+          if (made) S.get().milk = S.get().milk.filter(function (m) { return m.id !== made.id; });
+          var src = mk.fromId && S.milkItem(mk.fromId);
+          if (src) { src.status = 'active'; delete src.doneAt; }
+        }
+        commit();
+      } });
     } else if (f.id === 'welcome-form' || f.id === 'baby-form') {
       e.preventDefault();
       var fd = new FormData(f), name = String(fd.get('name') || '').trim(), birth = String(fd.get('birth') || '');

@@ -113,6 +113,7 @@
       tummy:     ['tummy', '🤸', t.tummy ? 'Stop tummy' : 'Tummy', !!t.tummy, 'tummy-toggle'],
       solids:    ['solids', '🥣', 'Solids', false, 'log-solids'],
       pump:      ['pump', '🧴', t.pump ? 'Pumping…' : 'Pump', !!t.pump, 'log'],
+      milk:      ['milk', '🧊', 'Milk', false, S.milkActive().length ? 'milk-list' : 'milk-add'],
       med:       ['med', '💊', 'Medicine', false, 'log'],
       temp:      ['temp', '🌡️', 'Temp', false, 'log'],
       scan:      ['scan', '📷', 'Scan Rx', false, 'rx-scan'],
@@ -125,7 +126,7 @@
       cry:       ['cry', '😭', 'Crying?', false, 'help']
     };
   }
-  var ITEM_ORDER = ['feed', 'diaper', 'sleep', 'tummy', 'solids', 'pump', 'med', 'temp', 'scan', 'visit', 'growth', 'bath', 'milestone', 'note', 'sounds', 'cry'];
+  var ITEM_ORDER = ['feed', 'diaper', 'sleep', 'tummy', 'solids', 'pump', 'milk', 'med', 'temp', 'scan', 'visit', 'growth', 'bath', 'milestone', 'note', 'sounds', 'cry'];
   function defaultQuick(days) {
     return ['feed', 'diaper', 'sleep', G.tummyGoalMin(days) && days < 150 ? 'tummy' : 'solids', 'pump', 'med', 'temp'];
   }
@@ -243,6 +244,7 @@
     return '<h1 class="sr-only">Today</h1>' + liveCards(now) +
       quickActions(days) +
       tiles(now, days) +
+      (window.BabyMilk ? window.BabyMilk.todayCard(now) : '') +
       '<button class="cry-cta" data-action="help" data-topic="cry"><span class="cry-cta__icon">😭</span><span class="cry-cta__t">Crying? See the likely reasons</span><span class="cry-cta__go">›</span></button>' +
       installTip() +
       '<div class="section-title"><h2>Last 24 hours</h2> <button class="btn--link" data-action="help" data-topic="enough">What’s normal?</button></div>' +
