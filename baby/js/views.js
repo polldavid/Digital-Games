@@ -346,27 +346,67 @@
       '<div class="daymap">' + rows.join('') + '<div class="daymap__axis"><span></span><div class="daymap__ticks"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div></div></div></div>';
   }
 
+  /* Growth: the baby's measurements over the WHO 3rd–97th percentile band (with
+     the 15th, 50th and 85th lines), by age, like the paper chart at check-ups.
+     Without a sex set, or past 2 years, it falls back to the measurement over time. */
+  var GROWTH_KINDS = [['wfa', 'Weight', 'weightKg'], ['lfa', 'Length', 'lengthCm'], ['hcfa', 'Head', 'headCm']];
   function growthCard() {
-    var g = S.events({ type: 'growth' }), b = S.baby();
+    var g = S.events({ type: 'growth' }), b = S.baby(), now = Date.now();
     if (!g.length && !b.birthWeightKg) return '';
-    var pts = g.filter(function (e) { return e.data.weightKg; }).map(function (e) { return { t: e.time, w: e.data.weightKg }; });
-    if (b.birthWeightKg && b.birth) { var p = b.birth.split('-'); pts.unshift({ t: new Date(+p[0], +p[1] - 1, +p[2], 12).getTime(), w: b.birthWeightKg, birth: true }); }
-    var svg = '';
-    if (pts.length >= 2) {
-      var W = 320, H = 120, pad = 10;
-      var t0 = pts[0].t, t1 = pts[pts.length - 1].t || t0 + 1, wmin = Math.min.apply(null, pts.map(function (p) { return p.w; })), wmax = Math.max.apply(null, pts.map(function (p) { return p.w; }));
-      if (wmax - wmin < 0.2) { wmax += 0.1; wmin -= 0.1; }
-      var X = function (t) { return pad + (t - t0) / ((t1 - t0) || 1) * (W - 2 * pad); }, Y = function (w) { return H - pad - (w - wmin) / (wmax - wmin) * (H - 2 * pad); };
-      var d = pts.map(function (p, i) { return (i ? 'L' : 'M') + X(p.t).toFixed(1) + ' ' + Y(p.w).toFixed(1); }).join(' ');
-      svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="Weight over time" style="display:block;margin:6px 0 4px">' +
-        '<line x1="0" x2="' + W + '" y1="' + (H - pad) + '" y2="' + (H - pad) + '" stroke="var(--grid)" />' +
-        '<path d="' + d + '" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />' +
-        pts.map(function (p) { return '<circle cx="' + X(p.t).toFixed(1) + '" cy="' + Y(p.w).toFixed(1) + '" r="4.5" fill="var(--series-1)" stroke="var(--bg-1)" stroke-width="2" tabindex="0" data-tip="' + esc((p.birth ? 'Birth' : h.fmtDate(p.t)) + ': ' + h.weight(p.w)) + '" />'; }).join('') + '</svg>';
+    var kind = App.ui.growthKind || 'wfa', K = GROWTH_KINDS.filter(function (k) { return k[0] === kind; })[0];
+    var fmtV = function (v) { return kind === 'wfa' ? h.weight(v) : h.len(v); };
+    var bp = (b.birth || '').split('-'), birthT = bp.length === 3 ? new Date(+bp[0], +bp[1] - 1, +bp[2], 12).getTime() : null;
+    var pts = g.filter(function (e) { return e.data[K[2]]; }).map(function (e) { return { t: e.time, v: e.data[K[2]] }; });
+    if (kind === 'wfa' && b.birthWeightKg && birthT) pts.unshift({ t: birthT, v: b.birthWeightKg, birth: true });
+    var ageNow = S.ageDays(now), who = !!b.sex && ageNow <= 760;
+    var chips = '<div class="chips" role="toolbar" aria-label="Measurement">' + GROWTH_KINDS.map(function (k) { return '<button class="chip" data-action="growth-kind" data-kind="' + k[0] + '" aria-pressed="' + (k[0] === kind) + '">' + k[1] + '</button>'; }).join('') + '</div>';
+    var W = 320, H = 170, pl = 8, pr = 34, pt = 8, pb = 18, svg = '', sub;
+    var tip = function (p, pc) { return esc((p.birth ? 'Birth' : h.fmtDate(p.t)) + ': ' + fmtV(p.v) + (pc ? ' · ' + pc.label + ' percentile' : '')); };
+    var dot = function (x, y, label) { return '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="4.5" fill="var(--series-1)" stroke="var(--bg-1)" stroke-width="2" tabindex="0" data-tip="' + label + '" />'; };
+    if (who) {
+      var lastAge = pts.length ? G.ageInDays(b.birth, pts[pts.length - 1].t) : 0;
+      var dMax = Math.min(730, Math.max(91, Math.ceil(Math.max(ageNow, lastAge) * 1.25 / 30.4375) * 30.4375));
+      var curve = function (pc) { var out = []; for (var i = 0; i <= 40; i++) { var d = dMax * i / 40; out.push([d, G.growthAt(kind, b.sex, d, pc)]); } return out; };
+      var c3 = curve(3), c97 = curve(97), c15 = curve(15), c50 = curve(50), c85 = curve(85);
+      var ages = pts.map(function (p) { return Math.max(0, G.ageInDays(b.birth, p.t)); });
+      var pcs = pts.map(function (p, i) { return G.growthPercentile(kind, b.sex, ages[i], p.v); });
+      var vals = function (c) { return c.map(function (q) { return q[1]; }); };
+      var vmin = Math.min.apply(null, vals(c3).concat(pts.map(function (p) { return p.v; })));
+      var vmax = Math.max.apply(null, vals(c97).concat(pts.map(function (p) { return p.v; })));
+      var X = function (d) { return pl + d / dMax * (W - pl - pr); }, Y = function (v) { return H - pb - (v - vmin) / (vmax - vmin) * (H - pt - pb); };
+      var path = function (c) { return c.map(function (q, i) { return (i ? 'L' : 'M') + X(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1); }).join(' '); };
+      var band = path(c3) + ' ' + c97.slice().reverse().map(function (q) { return 'L' + X(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1); }).join(' ') + ' Z';
+      var line = function (c, solid) { return '<path d="' + path(c) + '" fill="none" stroke="var(--ok-line)" stroke-width="' + (solid ? 1.6 : 1) + '"' + (solid ? '' : ' stroke-dasharray="3 3"') + ' />'; };
+      var lab = function (txt, c) { return '<text x="' + (W - pr + 4) + '" y="' + (Y(c[c.length - 1][1]) + 3.5).toFixed(1) + '" font-size="9" fill="var(--text-dim)">' + txt + '</text>'; };
+      var step = dMax > 400 ? 3 : dMax > 200 ? 2 : 1, ticks = '';
+      for (var m = 0; m * 30.4375 <= dMax + 1; m += step) ticks += '<text x="' + X(m * 30.4375).toFixed(1) + '" y="' + (H - 4) + '" font-size="9" text-anchor="' + (m ? 'middle' : 'start') + '" fill="var(--text-dim)">' + (m ? m + 'm' : 'birth') + '</text>';
+      var said = pts.length ? pts.map(function (p, i) { return (p.birth ? 'Birth' : h.fmtDate(p.t)) + ' ' + fmtV(p.v) + (pcs[i] ? ', ' + pcs[i].label + ' percentile' : ''); }).join('; ') : 'no measurements yet';
+      svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="' + esc(K[1] + ' on the WHO growth chart: ' + said) + '" style="display:block;margin:6px 0 4px">' +
+        '<path d="' + band + '" fill="var(--ok-bg)" stroke="var(--ok-line)" stroke-width="1" />' +
+        line(c15) + line(c85) + line(c50, true) + lab('97th', c97) + lab('50th', c50) + lab('3rd', c3) + ticks +
+        (pts.length > 1 ? '<path d="' + pts.map(function (p, i) { return (i ? 'L' : 'M') + X(ages[i]).toFixed(1) + ' ' + Y(p.v).toFixed(1); }).join(' ') + '" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round" />' : '') +
+        pts.map(function (p, i) { return dot(X(ages[i]), Y(p.v), tip(p, pcs[i])); }).join('') + '</svg>';
+      var lp = pcs[pcs.length - 1];
+      sub = (lp ? 'Latest: <b>' + lp.label + ' percentile</b> (' + fmtV(pts[pts.length - 1].v) + '). ' : 'No ' + K[1].toLowerCase() + ' logged yet. ') +
+        'Green band: 3rd–97th percentile on the WHO chart for ' + (b.sex === 'f' ? 'girls' : 'boys') + '; the solid line is the 50th. Steady tracking along any line is what matters.';
+    } else {
+      if (pts.length >= 2) {
+        var t0 = pts[0].t, t1 = pts[pts.length - 1].t || t0 + 1;
+        var wmin = Math.min.apply(null, pts.map(function (p) { return p.v; })), wmax = Math.max.apply(null, pts.map(function (p) { return p.v; }));
+        if (wmax - wmin < 0.2) { wmax += 0.1; wmin -= 0.1; }
+        var X2 = function (t) { return 10 + (t - t0) / ((t1 - t0) || 1) * (W - 20); }, Y2 = function (w) { return 110 - (w - wmin) / (wmax - wmin) * 100; };
+        svg = '<svg viewBox="0 0 ' + W + ' 120" width="100%" role="img" aria-label="' + esc(K[1]) + ' over time" style="display:block;margin:6px 0 4px">' +
+          '<line x1="0" x2="' + W + '" y1="110" y2="110" stroke="var(--grid)" />' +
+          '<path d="' + pts.map(function (p, i) { return (i ? 'L' : 'M') + X2(p.t).toFixed(1) + ' ' + Y2(p.v).toFixed(1); }).join(' ') + '" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />' +
+          pts.map(function (p) { return dot(X2(p.t), Y2(p.v), tip(p, null)); }).join('') + '</svg>';
+      }
+      sub = !b.sex ? 'Set ' + esc(b.name) + '’s sex in Settings → Babies to compare with the WHO growth charts your pediatrician uses.' : 'WHO percentiles cover birth to 2 years.';
     }
     var rowsH = g.slice().reverse().slice(0, 8).map(function (e) {
-      return '<tr><td>' + h.fmtDate(e.time) + '</td><td class="num">' + (e.data.weightKg ? h.weight(e.data.weightKg) : '—') + '</td><td class="num">' + (e.data.lengthCm ? h.len(e.data.lengthCm) : '—') + '</td><td class="num">' + (e.data.headCm ? h.len(e.data.headCm) : '—') + '</td></tr>';
+      var cell = function (k, x) { if (!x) return '—'; var pc = h.growthPct(k, x, e.time); return (k === 'wfa' ? h.weight(x) : h.len(x)) + (pc ? '<br><span class="faint">' + pc.label + '</span>' : ''); };
+      return '<tr><td>' + h.fmtDate(e.time) + '</td><td class="num">' + cell('wfa', e.data.weightKg) + '</td><td class="num">' + cell('lfa', e.data.lengthCm) + '</td><td class="num">' + cell('hcfa', e.data.headCm) + '</td></tr>';
     }).join('');
-    return '<div class="card chart"><div class="chart__title">Growth</div><div class="chart__sub">Weight' + (b.birthWeightKg ? ' since birth (' + h.weight(b.birthWeightKg) + ')' : '') + '. Your pediatrician plots this on WHO growth charts at check-ups.</div>' + svg +
+    return '<div class="card chart"><div class="chart__title">Growth</div>' + chips + '<div class="chart__sub">' + sub + '</div>' + svg +
       (rowsH ? '<div class="tbl-wrap" tabindex="0" role="region" aria-label="Table (scrolls sideways)"><table class="tbl"><thead><tr><th>Date</th><th class="num">Weight</th><th class="num">Length</th><th class="num">Head</th></tr></thead><tbody>' + rowsH + '</tbody></table></div>' : '') +
       '<button class="btn btn--sm" data-action="log" data-type="growth" style="margin-top:10px">＋ Add measurement</button></div>';
   }

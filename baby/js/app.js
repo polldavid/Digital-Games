@@ -262,6 +262,7 @@
           '<label class="field"><span class="field__label">Name</span><input class="input" name="name" required maxlength="30" value="' + esc(b ? b.name : '') + '" /></label>' +
           '<label class="field"><span class="field__label">Date of birth</span><input class="input" type="date" name="birth" required max="' + h.todayISO() + '" value="' + esc(b ? b.birth : '') + '" /></label>' +
           '<div class="field"><span class="field__label">Feeding</span><div class="seg">' + [['breast', 'Breast'], ['formula', 'Formula'], ['mixed', 'Both']].map(function (o) { return '<label><input type="radio" name="feeding" value="' + o[0] + '"' + ((b ? b.feeding : 'breast') === o[0] ? ' checked' : '') + ' /><span>' + o[1] + '</span></label>'; }).join('') + '</div></div>' +
+          '<div class="field"><span class="field__label">Sex <span class="faint">(picks the WHO growth chart)</span></span><div class="seg">' + [['f', 'Girl'], ['m', 'Boy'], ['', 'Not set']].map(function (o) { return '<label><input type="radio" name="sex" value="' + o[0] + '"' + ((b && b.sex || '') === o[0] ? ' checked' : '') + ' /><span>' + o[1] + '</span></label>'; }).join('') + '</div></div>' +
           '<label class="field"><span class="field__label">Birth weight (' + h.weightUnit() + ', optional)</span><input class="input" type="number" step="any" min="0" inputmode="decimal" name="bw" value="' + (b && b.birthWeightKg ? h.weightToDisplay(b.birthWeightKg) : '') + '" /></label>' +
           '<div class="field"><span class="field__label" id="icon-label">Icon</span><div class="chips" role="radiogroup" aria-labelledby="icon-label">' + EMOJIS.map(function (e) { return '<label class="chip chip--pick"><input class="chip__input" type="radio" name="emoji" value="' + e + '"' + ((b ? b.emoji : '👶') === e ? ' checked' : '') + ' />' + e + '</label>'; }).join('') + '</div></div>' +
           '<div class="btn-row sheet-save">' + (b ? '<button type="button" class="btn btn--danger" data-action="baby-delete" data-id="' + b.id + '">Delete</button>' : '') + '<button class="btn btn--primary btn--lg" type="submit">' + (b ? 'Save' : 'Add baby') + '</button></div></form>';
@@ -536,6 +537,7 @@
 
     'hist-filter': function (n) { App.ui.historyType = n.getAttribute('data-type'); render(); },
     'hist-more': function () { App.ui.historyDays += 7; render(); },
+    'growth-kind': function (n) { App.ui.growthKind = n.getAttribute('data-kind'); render(); },
     'trend-range': function (n) { App.ui.trendDays = +n.getAttribute('data-days'); render(); },
 
     'baby-switch': function () { if (S.get().babies.length > 1) switcherSheet(); else babySheet(S.get().activeBaby); },
@@ -778,6 +780,7 @@
       if (birth > h.todayISO()) { h.fieldError(f, 'birth', 'The birth date can’t be in the future.'); return; }
       var data = { name: name, birth: birth, feeding: String(fd.get('feeding') || 'breast') };
       if (fd.get('emoji')) data.emoji = String(fd.get('emoji'));
+      if (fd.has('sex')) data.sex = String(fd.get('sex') || '');
       var bw = h.weightFromDisplay(fd.get('bw'));
       if (bw) data.birthWeightKg = bw;
       var id = f.getAttribute('data-id');

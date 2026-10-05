@@ -428,6 +428,42 @@
   };
 
   /* ======================= GROWTH ======================= */
+  // WHO percentiles for what's typed in, compared with the last measurement.
+  // Calm by default: one number is never a diagnosis, the trend is what matters.
+  var GROWTH_KINDS = [['wfa', 'Weight', 'weight', 'weightKg'], ['lfa', 'Length', 'length', 'lengthCm'], ['hcfa', 'Head', 'head', 'headCm']];
+  function percentiles(form, b) {
+    var t = h.fromLocalInput(val(form, 'time')) || Date.now(), id = form.getAttribute('data-id');
+    if (!b.sex) return weightDrop(form, b, t, id);
+    var parts = [], outside = [], crossed = [];
+    GROWTH_KINDS.forEach(function (k) {
+      var x = k[0] === 'wfa' ? h.weightFromDisplay(val(form, k[2])) : h.lenFromDisplay(val(form, k[2]));
+      var p = h.growthPct(k[0], x, t, b.id);
+      if (!p) return;
+      parts.push(k[1] + ' ' + p.label);
+      if (p.level !== 'ok') outside.push(k[1].toLowerCase() + ' (' + p.label + ')');
+      // Weight dips in the first two weeks are normal, so only compare from then on.
+      var prev = S.events({ type: 'growth', baby: b.id }).filter(function (e) { return e.id !== id && e.time < t && e.data[k[3]] && G.ageInDays(b.birth, e.time) >= 14; }).pop();
+      var pp = prev && h.growthPct(k[0], prev.data[k[3]], prev.time, b.id);
+      if (pp && p.pct < pp.pct && G.linesCrossed(pp.pct, p.pct) >= 2) crossed.push(k[1].toLowerCase() + ' went from the ' + pp.label + ' to the ' + p.label + ' since ' + h.fmtDate(prev.time));
+    });
+    var drop = weightDrop(form, b, t, id);
+    if (drop) return drop;
+    if (!parts.length) return '';
+    var chart = 'WHO growth standard for ' + (b.sex === 'f' ? 'girls' : 'boys') + '.';
+    if (crossed.length) return h.note('warn', 'Crossed two percentile lines', cap(crossed.join('; ')) + '. Worth mentioning to your pediatrician — they look at the trend over several visits. ' + chart);
+    if (outside.length) return h.note('warn', parts.join(' · '), 'Outside the 3rd–97th range: ' + outside.join(', ') + '. Plenty of healthy babies sit here (size runs in families), so show your pediatrician rather than worry. ' + chart);
+    return h.note('ok', parts.join(' · '), 'Percentile = how many babies of the same age and sex measure less (50th is the middle). Anywhere from the 3rd to the 97th is typical; steady tracking matters more than the number. ' + chart);
+  }
+  // Past the newborn dip, babies should keep gaining: a lower weight than last time is worth a call.
+  function weightDrop(form, b, t, id) {
+    var w = h.weightFromDisplay(val(form, 'weight'));
+    if (!w || G.ageInDays(b.birth, t) < 14) return '';
+    var prev = S.events({ type: 'growth', baby: b.id }).filter(function (e) { return e.id !== id && e.time < t && e.data.weightKg; }).pop();
+    if (!prev || w >= prev.data.weightKg - 0.03) return '';
+    return h.note('warn', 'Lower than last time', h.weight(prev.data.weightKg) + ' on ' + h.fmtDate(prev.time) + ', ' + h.weight(w) + ' now. Babies this age should keep gaining, so call your pediatrician — and double-check the scale (same scale, no clothes or diaper) if it’s a surprise.');
+  }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
   var GROWTH = {
     title: function (ev) { return ev ? 'Edit measurement' : 'Growth'; },
     html: function (ev) {
@@ -437,6 +473,7 @@
         '<label class="field"><span class="field__label">Head (' + h.lenUnit() + ')</span><input class="input" type="number" inputmode="decimal" step="any" min="0" name="head" value="' + (d.headCm ? h.lenToDisplay(d.headCm) : '') + '" /></label></div>' +
         '<div id="growth-feedback"></div>';
       if (!b.birthWeightKg) html += '<p class="faint">Tip: add the birth weight to ' + esc(b.name) + '’s profile (Settings) to see weight regained since birth.</p>';
+      if (!b.sex) html += '<p class="faint">Set ' + esc(b.name) + '’s sex in Settings → Babies to see WHO growth percentiles.</p>';
       return html + h.timeField('time', ev ? ev.time : Date.now()) + noteField(d.note) + footer(ev);
     },
     parse: function (form) {
@@ -453,11 +490,12 @@
           if (pct < -10) out = h.note('urgent', Math.abs(Math.round(pct)) + '% below birth weight', 'Losing more than 10% of birth weight is more than expected — contact your pediatrician or lactation consultant.');
           else if (pct < 0 && dd > 14) out = h.note('warn', 'Still under birth weight', 'Most babies are back to birth weight by 10–14 days. Mention this at your next check — sooner if feeds or wet diapers have dropped.');
           else if (pct < 0) out = h.note('ok', Math.abs(Math.round(pct * 10) / 10) + '% below birth weight', 'Babies normally lose up to 7–10% in the first days and regain it by 10–14 days.');
-          else out = h.note('ok', (Math.round(pct * 10) / 10) + '% above birth weight', 'Gaining since birth — great.');
+          else if (dd <= 30) out = h.note('ok', (Math.round(pct * 10) / 10) + '% above birth weight', 'Gaining since birth — great.');
         }
+        out += percentiles(form, b);
         form.querySelector('#growth-feedback').innerHTML = out;
       };
-      form.addEventListener('input', sync); sync();
+      form.addEventListener('input', sync); form.addEventListener('change', sync); sync();
     }
   };
 

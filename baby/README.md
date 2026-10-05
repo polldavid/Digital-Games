@@ -17,7 +17,7 @@ dependencies, no server. It installs to the home screen and works offline.
 | 🤸 **Tummy time** | Timer and a daily goal that grows with age |
 | 💊 **Medicine** | Spacing between doses, max per 24h, "next dose allowed at…", age warnings. **Never suggests doses.** |
 | 🌡️ **Temperature** | Age-aware fever check (under 3 months, 38 °C / 100.4 °F = call now) |
-| 📏 **Growth** | Weight, length, head; % change from birth weight |
+| 📏 **Growth** | Weight, length, head with **WHO percentiles** (0–2 years, by sex) as you type; % change from birth weight; flags weight loss, readings outside the 3rd–97th, and drops across two percentile lines |
 | 🛁 ⭐ 📝 | Baths, milestones (CDC checklist), notes |
 
 ## Health records
@@ -115,17 +115,30 @@ disclaimer.
 - **Twins and siblings:** multiple babies, quick switching, and "also log
   for…" on feeds, diapers, sleep, tummy time, baths and notes; reminders cover
   every baby.
-- **Share & sync by hand:** a text summary of the last 24h for a partner or
+- **Partner sync (opt-in):** Settings → *Share with a partner* shows a QR
+  code / link. Every phone that joins sees the same log within seconds —
+  entries, edits, deletes, running timers, custom reminders and health
+  records — and entries show who logged them. End-to-end encrypted: the key
+  lives only in the link's `#fragment`, so the sync server
+  ([`server/`](server/README.md), a Cloudflare Worker + D1) stores ciphertext
+  under hashed names. No account. A phone that already tracked the baby is
+  merged in ("Combine the logs"). Settings, alerts and photos stay per phone.
+- **Share by hand:** a text summary of the last 24h for a partner or
   sitter; JSON backup/import (merges, never overwrites) to move logs between
   phones; CSV export for the pediatrician.
+- **Growth charts:** Trends → Growth plots weight, length and head on the WHO
+  3rd–97th percentile band (15th/50th/85th lines), using the WHO Child Growth
+  Standards LMS tables (via CDC/NCHS) — set the baby's sex in Settings.
 - **Units:** ml/oz, °C/°F, kg·cm/lb·in — chosen at setup (the default follows
   the phone's time zone, so a US-English phone in Manila still gets ml and °C),
   changeable in Settings, or by tapping the unit on the bottle and
   temperature screens.
 - **Private:** no account, no analytics; everything lives in `localStorage` on
-  the device. The only network request is the text reader (Tesseract.js, pinned
-  with a subresource-integrity hash) fetched the first time a prescription is
-  scanned — the photo itself never leaves the phone.
+  the device. Network requests: the text reader (Tesseract.js) the first time a
+  prescription is scanned — the photo itself never leaves the phone — and, only
+  if sharing is turned on, encrypted records to the sync server plus the QR-code
+  library when showing an invite (both CDN scripts pinned with
+  subresource-integrity hashes).
 
 ## Files
 
@@ -136,11 +149,13 @@ baby/
 ├── sw.js                  # offline cache + notification taps
 ├── icons/                 # app icons (SVG + PNG, maskable)
 ├── css/styles.css
+├── server/              # partner-sync Worker (Cloudflare Workers + D1) — see server/README.md
 └── js/
     ├── guide.js   # age norms, thresholds, milestones, vaccine schedules, cry ranking — pure, no DOM
     ├── rx.js      # prescription text → draft medicines (shorthand, brands) — pure, no DOM
     ├── files.js   # photo storage (IndexedDB) and compression
     ├── store.js   # state, persistence, queries, timers, reminder engine — no DOM
+    ├── sync.js    # partner sync: record diffing, encryption, push/pull client — no DOM
     ├── sound.js   # white/pink/brown noise, shush, heartbeat, chime (Web Audio)
     ├── ui.js      # helpers: formatting, units, sheet, confirm dialog, field errors, toasts, tooltips
     ├── forms.js   # one logging form per entry type (add + edit)
@@ -148,6 +163,7 @@ baby/
     ├── help.js    # Answers topics + sleep-sounds player
     ├── health.js  # Health tab: visits, prescriptions + scanning, vaccines, records
     ├── native.js  # web ↔ app-store differences: notifications, files, share, durable storage
+    ├── share.js   # partner-sync screens: set up, invite (QR), join, combine, status
     └── app.js     # boot, actions, notifications, settings, import/export
 ```
 
@@ -164,6 +180,8 @@ update.
 node baby/tests/unit.test.js        # pure logic: guide.js, store.js, rx.js — no install needed
 npm i --no-save playwright && npx playwright install chromium   # one-time
 node baby/tests/e2e.smoke.js        # main flows in Chromium at iPhone size (HEADED=1 to watch)
+node baby/tests/sync.test.js        # partner sync with three simulated phones (SYNC_URL=… for a real server)
+SYNC_URL=http://127.0.0.1:8787 node baby/tests/e2e.sync.js   # two browsers, against `wrangler dev` (see server/)
 ```
 
 ## App stores (later)

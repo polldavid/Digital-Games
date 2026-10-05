@@ -106,6 +106,12 @@
   function lenToDisplay(cm) { return imperial() ? Math.round((cm / IN) * 10) / 10 : Math.round(cm * 10) / 10; }
   function lenFromDisplay(v) { v = parseFloat(v); if (isNaN(v)) return null; return imperial() ? v * IN : v; }
   function len(cm) { return lenToDisplay(cm) + ' ' + lenUnit(); }
+  // WHO percentile for a measurement taken at time t (null without sex, or past 2 years).
+  function growthPct(kind, x, t, babyId) {
+    var b = S.baby(babyId);
+    if (!b || !b.sex || !x) return null;
+    return G.growthPercentile(kind, b.sex, G.ageInDays(b.birth, t), x);
+  }
 
   /* ---------- Event types ---------- */
   var TYPES = {
@@ -169,7 +175,8 @@
         out.flag = !!(f && f.level !== 'ok');
         break;
       case 'growth':
-        out.sub = [d.weightKg && weight(d.weightKg), d.lengthCm && len(d.lengthCm), d.headCm && 'head ' + len(d.headCm)].filter(Boolean).join(' · ');
+        var pc = function (kind, x) { var p = growthPct(kind, x, e.time, e.baby); if (p && p.level !== 'ok') out.flag = true; return p ? ' (' + p.label + ')' : ''; };
+        out.sub = [d.weightKg && weight(d.weightKg) + pc('wfa', d.weightKg), d.lengthCm && len(d.lengthCm) + pc('lfa', d.lengthCm), d.headCm && 'head ' + len(d.headCm) + pc('hcfa', d.headCm)].filter(Boolean).join(' · ');
         break;
     }
     if (d.note) out.sub = out.sub ? out.sub + ' · ' + d.note : d.note;
@@ -551,7 +558,7 @@
     toLocalInput: toLocalInput, fromLocalInput: fromLocalInput, todayISO: todayISO,
     volUnit: volUnit, volToDisplay: volToDisplay, volFromDisplay: volFromDisplay, vol: vol,
     tempUnit: tempUnit, tempToDisplay: tempToDisplay, tempFromDisplay: tempFromDisplay, temp: temp,
-    weightUnit: weightUnit, weightToDisplay: weightToDisplay, weightFromDisplay: weightFromDisplay, weight: weight,
+    weightUnit: weightUnit, weightToDisplay: weightToDisplay, weightFromDisplay: weightFromDisplay, weight: weight, growthPct: growthPct,
     lenUnit: lenUnit, lenToDisplay: lenToDisplay, lenFromDisplay: lenFromDisplay, len: len,
     TYPES: TYPES, REACTIONS: REACTIONS, describe: describe,
     toast: toast, openSheet: openSheet, renderSheet: renderSheet, closeSheet: closeSheet, tick: tick, initTips: initTips, initSheetGestures: initSheetGestures, since: since,

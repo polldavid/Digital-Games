@@ -181,3 +181,28 @@ console.log('hardening unit tests passed');
   refs.forEach(r => assert.ok(r.endsWith('?v=' + V), r + ' must end with ?v=' + V + ' (bump sw.js V and index.html together)'));
   console.log('release guard passed (v' + V + ')');
 }
+
+// WHO growth percentiles: the table's own medians and centiles come back out.
+{
+  const G = require('../js/guide.js');
+  const M = 365.25 / 12;
+  assert.strictEqual(G.growthPercentile('wfa', 'm', 0, 3.3464).label, '50th');
+  assert.strictEqual(G.growthPercentile('wfa', 'f', 6 * M, 7.297).label, '50th');
+  assert.ok(Math.abs(G.growthPercentile('wfa', 'm', 0, 2.459312).pct - 2.3) < 0.05, 'boys birth 2.3rd centile');
+  assert.ok(Math.abs(G.growthPercentile('lfa', 'f', 12 * M, 75.7518).pct - 75) < 0.1, 'girls 12m length 75th');
+  assert.ok(Math.abs(G.growthAt('hcfa', 'm', 24 * M, 50) - 48.2515) < 0.01, 'boys 24m head median');
+  // Between months: interpolated, so it lands between the two medians.
+  const mid = G.growthAt('wfa', 'm', 1.5 * M, 50);
+  assert.ok(mid > 4.4709 && mid < 5.5675);
+  assert.strictEqual(G.growthPercentile('wfa', 'm', 0, 1.5).level, 'check');
+  assert.strictEqual(G.growthPercentile('wfa', 'm', 0, 1.5).label, 'below 1st');
+  assert.strictEqual(G.growthPercentile('wfa', 'm', 800, 12), null, 'past 2 years: none');
+  assert.strictEqual(G.growthPercentile('wfa', '', 30, 4), null, 'no sex: none');
+  assert.strictEqual(G.linesCrossed(60, 20), 2);
+  assert.strictEqual(G.linesCrossed(55, 30), 1, 'only the 50th');
+  assert.strictEqual(G.linesCrossed(45, 30), 0);
+  assert.strictEqual(G.growthPercentile('wfa', 'm', 0, 3.0).label, '23rd');
+  const at = (pc) => G.growthPercentile('lfa', 'm', 0, G.growthAt('lfa', 'm', 0, pc)).label;
+  assert.deepStrictEqual([1, 2, 11, 12, 13, 21, 22, 50].map(at), ['1st', '2nd', '11th', '12th', '13th', '21st', '22nd', '50th']);
+  console.log('growth percentile tests passed');
+}
