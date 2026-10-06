@@ -2,6 +2,9 @@
 node_modules/
 package.json
 package-lock.json
+# …except the Baby Log Android shell's own manifest
+!baby/native/package.json
+!baby/native/package-lock.json
 
 # OS / editor
 .DS_Store

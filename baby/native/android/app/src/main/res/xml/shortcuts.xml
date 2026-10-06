@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the app icon. Each opens babylog://do/<what>, which app.js runs like ?do= on the web. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="sleep" android:enabled="true" android:icon="@drawable/sc_sleep"
+        android:shortcutShortLabel="@string/sc_sleep" android:shortcutLongLabel="@string/sc_sleep_long">
+        <intent android:action="android.intent.action.VIEW" android:data="babylog://do/sleep"
+            android:targetPackage="io.github.polldavid.babylog" android:targetClass="io.github.polldavid.babylog.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="diaper" android:enabled="true" android:icon="@drawable/sc_diaper"
+        android:shortcutShortLabel="@string/sc_diaper" android:shortcutLongLabel="@string/sc_diaper_long">
+        <intent android:action="android.intent.action.VIEW" android:data="babylog://do/diaper"
+            android:targetPackage="io.github.polldavid.babylog" android:targetClass="io.github.polldavid.babylog.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="feed" android:enabled="true" android:icon="@drawable/sc_feed"
+        android:shortcutShortLabel="@string/sc_feed" android:shortcutLongLabel="@string/sc_feed_long">
+        <intent android:action="android.intent.action.VIEW" android:data="babylog://do/feed"
+            android:targetPackage="io.github.polldavid.babylog" android:targetClass="io.github.polldavid.babylog.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="voice" android:enabled="true" android:icon="@drawable/sc_voice"
+        android:shortcutShortLabel="@string/sc_voice" android:shortcutLongLabel="@string/sc_voice_long">
+        <intent android:action="android.intent.action.VIEW" android:data="babylog://do/voice"
+            android:targetPackage="io.github.polldavid.babylog" android:targetClass="io.github.polldavid.babylog.MainActivity" />
+    </shortcut>
+</shortcuts>

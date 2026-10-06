@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Baby Log</string>
+    <string name="title_activity_main">Baby Log</string>
+    <string name="package_name">io.github.polldavid.babylog</string>
+    <string name="custom_url_scheme">io.github.polldavid.babylog</string>
+    <string name="sc_sleep">Sleep</string>
+    <string name="sc_sleep_long">Sleep — start or stop</string>
+    <string name="sc_diaper">Diaper</string>
+    <string name="sc_diaper_long">Log a diaper</string>
+    <string name="sc_feed">Feed</string>
+    <string name="sc_feed_long">Log a feed</string>
+    <string name="sc_voice">Voice</string>
+    <string name="sc_voice_long">Log by voice</string>
+</resources>

@@ -99,9 +99,64 @@
   // the next "feed due", starting the sleep timer holds diaper reminders.
   var syncTimer = null, channelsMade = false;
   function syncReminders() {
+    syncTimers();
     if (!LN()) return;
     clearTimeout(syncTimer);
     syncTimer = setTimeout(scheduleNow, 800);
+  }
+
+  /* ---------- Running timers on the lock screen (Android app) ----------
+     One ongoing notification per running timer, counting up by itself. Its
+     buttons open babylog://timer?baby=…&do=<action> — the same actions as the
+     buttons on Today. */
+  function syncTimers() {
+    var TN = plugin('TimerNotification');
+    if (!TN) return;
+    var st = S.get(), now = Date.now(), many = st.babies.length > 1, list = [];
+    st.babies.forEach(function (b) {
+      var T = st.timers[b.id] || {}, who = many ? ' · ' + b.name : '';
+      var url = function (d, side) { return 'babylog://timer?baby=' + encodeURIComponent(b.id) + '&do=' + d + (side ? '&side=' + side : ''); };
+      var add = function (kind, title, text, elapsed, running, actions) { list.push({ key: b.id + ':' + kind, title: title + who, text: text, base: now - elapsed, running: running, actions: actions }); };
+      if (T.sleep) add('sleep', '😴 Asleep', 'Since ' + h.fmtTime(T.sleep.start), now - T.sleep.start, true, [{ title: '☀️ Woke up', url: url('sleep-stop') }]);
+      if (T.breast) {
+        var bt = S.breastTotals(T.breast, now), other = T.breast.side === 'L' ? 'R' : 'L';
+        add('breast', T.breast.paused ? '🤱 Feed paused' : '🤱 Feeding · ' + (T.breast.side === 'L' ? 'left' : 'right'), 'Started ' + h.fmtTime(T.breast.start) + (T.breast.paused ? ' · ' + h.clock(bt.total) + ' so far' : ''), bt.total, !T.breast.paused,
+          [{ title: '⇄ Switch to ' + (other === 'L' ? 'left' : 'right'), url: url('breast-side', other) }, { title: T.breast.paused ? '▶ Resume' : '⏸ Pause', url: url('breast-pause') }, { title: '✓ Done', url: url('breast-finish') }]);
+      }
+      if (T.bottle) {
+        var bo = T.bottle, tot = S.bottleTotal(bo, now);
+        add('bottle', bo.done ? '🍼 Bottle finished — how much?' : bo.paused ? '🍼 Bottle paused' : '🍼 Bottle feeding', 'Started ' + h.fmtTime(bo.start) + (bo.done || bo.paused ? ' · ' + h.clock(tot) : ''), tot, !bo.done && !bo.paused,
+          bo.done ? [{ title: 'Enter amount', url: url('bottle-finish') }] : [{ title: bo.paused ? '▶ Resume' : '⏸ Pause', url: url('bottle-pause') }, { title: '✓ Finished', url: url('bottle-finish') }]);
+      }
+      if (T.pump) {
+        var pt = S.pumpTotals(T.pump, now);
+        add('pump', T.pump.done ? '🧴 Pumping finished' : pt.running ? '🧴 Pumping' : '🧴 Pumping paused', 'Started ' + h.fmtTime(T.pump.start), pt.total, !T.pump.done, [{ title: '✓ Done', url: url('pump-finish') }]);
+      }
+      if (T.tummy) add('tummy', '🤸 Tummy time', 'Since ' + h.fmtTime(T.tummy.start), now - T.tummy.start, true, [{ title: '■ Stop', url: url('tummy-stop') }]);
+    });
+    var sig = JSON.stringify(list.map(function (x) { return [x.key, x.title, x.text, Math.round(x.base / 1000), x.running]; }));
+    // The first running timer is a natural moment to ask for notifications (Android 13+).
+    if (list.length && !askedPerm && LN()) {
+      askedPerm = true;
+      LN().checkPermissions().then(function (p) { if (p && /prompt/.test(p.display)) return LN().requestPermissions().then(function () { lastTimers = ''; syncTimers(); }); }).catch(function () {});
+    }
+    if (sig === lastTimers) return; // nothing changed: don't re-post
+    lastTimers = sig;
+    TN.sync({ timers: list }).catch(function () {});
+  }
+  var lastTimers = '', askedPerm = false;
+
+  /* ---------- babylog:// links (shortcuts, timer buttons) ---------- */
+  function openUrl(u) {
+    var m;
+    if (!u) return;
+    if ((m = /^babylog:\/\/do\/(\w+)/.exec(u))) { App.runShortcut(m[1]); return; }
+    if (/^babylog:\/\/timer/.test(u)) {
+      var q = {};
+      (u.split('?')[1] || '').split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) q[p[0]] = decodeURIComponent(p[1] || ''); });
+      if (q.baby && S.baby(q.baby) && q.baby !== S.get().activeBaby) S.get().activeBaby = q.baby;
+      if (q['do']) { h.closeSheet(); App.ui.view = 'today'; App.act(q['do'], { side: q.side }); App.commit(); }
+    }
   }
   function hashId(str) {
     var x = 0;
@@ -154,6 +209,9 @@
     if (AppPlugin && AppPlugin.addListener) {
       AppPlugin.addListener('backButton', function (e) { if (e && e.canGoBack) history.back(); else if (AppPlugin.exitApp) AppPlugin.exitApp(); });
       AppPlugin.addListener('appStateChange', function (s) { if (!s.isActive) S.flush(); });
+      AppPlugin.addListener('appUrlOpen', function (e) { openUrl(e && e.url); });
+      // Started from a shortcut or a notification button while closed.
+      if (AppPlugin.getLaunchUrl) AppPlugin.getLaunchUrl().then(function (r) { if (r && r.url) setTimeout(function () { openUrl(r.url); }, 300); }).catch(function () {});
     }
   }
 

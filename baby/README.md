@@ -202,6 +202,13 @@ node baby/tests/sync.test.js        # partner sync with three simulated phones (
 SYNC_URL=http://127.0.0.1:8787 node baby/tests/e2e.sync.js   # two browsers, against `wrangler dev` (see server/)
 ```
 
+## Android app
+
+`native/` wraps this same web app as an Android app (Capacitor): reminders that
+fire with the app closed, running timers on the lock screen, offline voice and
+app-icon shortcuts. See [native/README.md](native/README.md). The web version
+keeps working as before; both share a log through partner sync.
+
 ## App stores (later)
 
 The web version is built to be wrapped without a rewrite:

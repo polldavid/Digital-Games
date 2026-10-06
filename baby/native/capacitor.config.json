@@ -1,0 +1,9 @@
+{
+  "appId": "io.github.polldavid.babylog",
+  "appName": "Baby Log",
+  "webDir": "www",
+  "android": { "backgroundColor": "#0e1424" },
+  "plugins": {
+    "LocalNotifications": { "smallIcon": "ic_stat_babylog", "iconColor": "#8fa4ff" }
+  }
+}

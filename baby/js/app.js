@@ -964,7 +964,8 @@
     window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); App.installPrompt = e; if (App.ui.view === 'today') softRender(); });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) { checkReminders(); softRender(); refreshPermission(); } });
 
-    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    // The Android app ships its own files, so it needs no offline cache.
+    if ('serviceWorker' in navigator && location.protocol !== 'file:' && !App.platform.native) {
       navigator.serviceWorker.register('sw.js').then(function (r) { swReg = r; }).catch(function () {});
       navigator.serviceWorker.addEventListener && navigator.serviceWorker.addEventListener('message', function (e) { if (e.data && e.data.type === 'focus') { checkReminders(); softRender(); } });
     }
@@ -981,21 +982,22 @@
     setTimeout(checkReminders, 1500);
     if (window.BabyShare) BabyShare.init();
     if (window.BabyMic) BabyMic.init();
-    runShortcut();
+    var sm = /[?&]do=(\w+)/.exec(location.search);
+    if (sm) { try { history.replaceState(history.state, '', location.pathname + location.hash); } catch (e) {} runShortcut(sm[1]); }
   }
 
-  // Home-screen shortcuts (long-press the app icon): ./?do=sleep|diaper|feed|voice
-  function runShortcut() {
-    var m = /[?&]do=(\w+)/.exec(location.search);
-    if (!m) return;
-    try { history.replaceState(history.state, '', location.pathname + location.hash); } catch (e) {}
-    if (!S.baby()) return;
+  // Home-screen shortcuts (long-press the app icon): ./?do=sleep|diaper|feed|voice on the web,
+  // babylog://do/<what> in the Android app.
+  function runShortcut(what) {
+    if (!S.baby() || !what) return;
+    h.closeSheet();
     App.ui.view = 'today'; render();
-    if (m[1] === 'sleep') ACTIONS['sleep-toggle']();
-    else if (m[1] === 'diaper' || m[1] === 'feed') F.open(m[1]);
-    else if (m[1] === 'voice' && window.BabyMic) { if (S.get().settings.voice && BabyMic.supported()) BabyMic.listen(); else { showView('settings'); h.toast('Turn on voice logging first (Settings → Today screen).'); } }
+    if (what === 'sleep') ACTIONS['sleep-toggle']();
+    else if (what === 'diaper' || what === 'feed') F.open(what);
+    else if (what === 'voice' && window.BabyMic) { if (S.get().settings.voice && BabyMic.supported()) BabyMic.listen(); else { showView('settings'); h.toast('Turn on voice logging first (Settings → Today screen).'); } }
   }
 
+  App.runShortcut = runShortcut;
   // Exposed for tests / debugging.
   App.handoffText = handoffText;
   App.checkReminders = checkReminders;

@@ -24,7 +24,10 @@
   var rec = null, countdown = null, state = null;
 
   function Recognizer() { return window.SpeechRecognition || window.webkitSpeechRecognition || null; }
-  function supported() { return !!Recognizer(); }
+  // In the Android app the phone's own speech engine is used through a plugin
+  // (it works offline when the phone has the language downloaded).
+  function nativeSpeech() { var C = window.Capacitor; return App.platform.native && C && C.Plugins && C.Plugins.SpeechRecognition || null; }
+  function supported() { return !!(nativeSpeech() || Recognizer()); }
   function settings() { return S.get().settings; }
 
   /* ---------- Settings ---------- */
@@ -72,7 +75,29 @@
     };
   }
 
+  function listenNative(P) {
+    stopAll();
+    state = { phase: 'listening', heard: '' };
+    open();
+    P.requestPermissions().then(function (p) {
+      if (p && p.speechRecognition && p.speechRecognition !== 'granted') throw { error: 'not-allowed' };
+      return P.start({ language: settings().voiceLang || 'en-US', maxResults: 3, partialResults: false, popup: false });
+    }).then(function (r) {
+      if (!state || state.phase !== 'listening') return;
+      var alts = (r && r.matches) || [];
+      if (!alts.length) { fail('Didn’t catch that.'); return; }
+      state.heard = alts[0];
+      understood(alts);
+    }).catch(function (e) {
+      var m = String((e && (e.error || e.message)) || e || '');
+      fail(/not-allowed|permission|denied/i.test(m) ? 'Baby Log needs the microphone. Allow it in Settings → Apps → Baby Log → Permissions, then try again.' :
+        /no match|no speech|didn/i.test(m) ? 'Didn’t hear anything — tap Try again and speak a little louder.' : 'Voice didn’t work this time (' + (m || 'unknown') + ').');
+    });
+  }
+
   function listen() {
+    var P = nativeSpeech();
+    if (P) return listenNative(P);
     var R = Recognizer();
     if (!R) { h.toast('Voice logging isn’t available in this browser.'); return; }
     stopAll();
@@ -195,7 +220,11 @@
     h.renderSheet();
   }
   function stopCountdown() { if (countdown) clearInterval(countdown.id); countdown = null; }
-  function stopAll() { stopCountdown(); if (rec) { try { rec.abort(); } catch (e) {} rec = null; } }
+  function stopAll() {
+    stopCountdown();
+    if (rec) { try { rec.abort(); } catch (e) {} rec = null; }
+    var P = nativeSpeech(); if (P && state && state.phase === 'listening') P.stop().catch(function () {});
+  }
   function finishSheet() { stopAll(); state = null; }
 
   function switchBaby(id) {
