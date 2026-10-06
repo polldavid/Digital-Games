@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — share.js
+   Alaga — share.js
    The partner-sync screens: set up sharing, invite a phone
    (QR code + link), join with a code, match up babies when
    both phones already had one, and the status in Settings.
@@ -46,6 +46,7 @@
         row('This phone', esc(m.device || 'Unnamed') + ' — shown next to what you log.', '<button class="btn btn--sm" data-action="share-rename">Rename</button>') +
         row('Add a phone', 'Show the QR code or send the link to your partner, a grandparent or a sitter.', '<button class="btn btn--sm btn--primary" data-action="share-invite">Invite</button>') +
         row('Stop sharing on this phone', 'The log stays here; other phones keep theirs.', '<button class="btn btn--sm btn--danger" data-action="share-leave">Stop</button>') +
+        row('Delete the shared copy', 'Erases the encrypted copy on the sync server. Every phone stops syncing but keeps its own log.', '<button class="btn btn--sm btn--danger" data-action="share-destroy">Delete</button>') +
         '<p class="faint" style="margin-top:10px">Shared: babies, entries, running timers, reminders you created and health records. Each phone keeps its own settings and alerts. Photos stay on the phone that took them.</p>';
     }
     return html + '</div>';
@@ -89,7 +90,7 @@
       html: '<p>On your partner’s phone, scan this with the camera — or send them the link.</p>' +
         '<div class="qr" id="share-qr" aria-label="QR code with the sharing link"><span class="faint">Making the QR code…</span></div>' +
         '<div class="btn-row"><button class="btn btn--primary btn--lg" data-action="share-send">Send link</button><button class="btn btn--lg" data-action="share-copy">Copy code</button></div>' +
-        '<p class="faint" style="margin-top:12px">Using Baby Log from the Home Screen or the app? Opening the link may start Safari or Chrome instead — then tap <b>Settings → Join</b> in the app and paste the code.</p>' +
+        '<p class="faint" style="margin-top:12px">Using Alaga from the Home Screen or the app? Opening the link may start Safari or Chrome instead — then tap <b>Settings → Join</b> in the app and paste the code.</p>' +
         '<div class="note note--warn" style="margin-top:12px"><div class="note__t">Treat it like a house key</div>Anyone with this link or code can see and change the log. Only send it to people you trust.</div>',
       mount: function () {
         loadQR().then(function () {
@@ -134,7 +135,7 @@
           S.flush();
           client.join(code, name).then(function (r) {
             if (!r) { var err = (client.meta() || {}).error; client.leave(); btn.disabled = false; btn.textContent = 'Join'; h.toast(err || 'Couldn’t reach the sync server. Check your connection and try again.'); return; }
-            if (!client.sharedBabies().length) { client.leave(); btn.disabled = false; btn.textContent = 'Join'; h.toast('That shared log is empty. Check the code, or ask your partner to open Baby Log once so it uploads.'); return; }
+            if (!client.sharedBabies().length) { client.leave(); btn.disabled = false; btn.textContent = 'Join'; h.toast('That shared log is empty. Check the code, or ask your partner to open Alaga once so it uploads.'); return; }
             afterPull();
           });
         });
@@ -218,11 +219,17 @@
     'share-now': function () { client.cycle().then(function (r) { App.render(); h.toast(r ? 'Up to date ✓' : 'Couldn’t sync — ' + ((client.meta() || {}).error || 'check your connection')); }); },
     'share-send': function () {
       var link = client.link(appUrl());
-      N.shareText('Join our Baby Log so we both see feeds, diapers and sleep: ' + link, 'Baby Log').then(function (how) { if (how === 'copied') h.toast('Link copied ✓'); }).catch(function () { h.toast('Couldn’t open sharing — use Copy code instead.'); });
+      N.shareText('Join our baby’s log on Alaga so we both see feeds, diapers and sleep: ' + link, 'Alaga').then(function (how) { if (how === 'copied') h.toast('Link copied ✓'); }).catch(function () { h.toast('Couldn’t open sharing — use Copy code instead.'); });
     },
     'share-copy': function () {
       var code = client.secret();
       (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(code) : Promise.reject()).then(function () { h.toast('Code copied ✓'); }).catch(function () { prompt('Copy this code:', code); });
+    },
+    'share-destroy': function () {
+      h.ask({ title: 'Delete the shared copy?', text: 'The encrypted copy on the sync server is erased. Every phone keeps its own log but stops syncing; to share again, set up sharing from one phone. This can’t be undone.', ok: 'Delete it', danger: true }, function () {
+        client.destroy().then(function (ok) { App.render(); h.toast(ok ? 'Shared copy deleted — sharing is off' : 'Couldn’t reach the sync server. Try again when online.'); })
+          .catch(function () { h.toast('Couldn’t reach the sync server. Try again when online.'); });
+      });
     },
     'share-leave': function () {
       h.ask({ title: 'Stop sharing on this phone?', text: 'This phone keeps the log as it is now, but stops getting your partner’s entries. Other phones keep sharing. To share again, join with a new invite.', ok: 'Stop sharing', danger: true }, function () {
@@ -240,6 +247,7 @@
   /* ---------- Boot ---------- */
   function init() {
     client.onApplied = refresh;
+    client.onGone = function (msg) { App.render(); h.toast(msg); };
     S.device = function () { return client.on() ? client.device() : ''; };
     client.onStatus = function () { var t = $('#syncchip'); if (t) paintChip(t); };
     S.onSave(function () { if (client.on() && !client.meta().joining) client.soon(); });

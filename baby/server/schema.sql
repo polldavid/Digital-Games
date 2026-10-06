@@ -1,4 +1,4 @@
--- Baby Log sync — D1 schema. Run once:
+-- Alaga sync — D1 schema. Run once:
 --   npx wrangler d1 execute babylog-sync --remote --file=schema.sql
 CREATE TABLE IF NOT EXISTS families (
   id      TEXT PRIMARY KEY,          -- 32 hex chars, derived from the family's secret

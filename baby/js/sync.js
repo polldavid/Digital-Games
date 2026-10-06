@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — sync.js
+   Alaga — sync.js
    Partner sync: two (or more) phones share one log.
 
    No DOM. The log is split into records — one per baby, entry,
@@ -235,6 +235,7 @@
         body: body ? JSON.stringify(body) : undefined
       }).then(function (res) {
         if (res.status === 403) throw new Error('This sharing code no longer works. Set up sharing again.');
+        if (res.status === 410) { var e = new Error('The shared log was deleted from another phone, so sharing is off here. This phone keeps its log.'); e.gone = true; throw e; }
         if (!res.ok) throw new Error('The sync server answered ' + res.status + '.');
         return res.json();
       });
@@ -314,6 +315,7 @@
         return res;
       }, function (e) {
         status({ error: (e && e.message) || 'offline' });
+        if (e && e.gone) { var msg = e.message; self.leave(); if (self.onGone) self.onGone(msg); }
         return null;
       }).then(function (r) {
         busy = null;
@@ -360,6 +362,11 @@
     };
     // Stop sharing on this phone. The log stays here; the partner keeps theirs.
     self.leave = function () { meta = null; keys = null; saveMeta(); self.stop(); };
+    // Erase the shared copy from the server (every phone stops syncing; their own logs stay).
+    self.destroy = function () {
+      if (!loadMeta()) return Promise.resolve(false);
+      return getKeys().then(function () { return call('DELETE', '/v1/family'); }).then(function () { self.leave(); return true; });
+    };
     // Poll while the app is open.
     self.start = function () {
       if (poll || !self.on()) return;

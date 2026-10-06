@@ -1,4 +1,4 @@
-/* Baby Log — browser smoke test (Playwright, Chromium, iPhone-sized).
+/* Alaga — browser smoke test (Playwright, Chromium, iPhone-sized).
    Walks the main flows and fails on any page error.
 
    One-time setup (nothing is committed — node_modules is git-ignored):
@@ -141,7 +141,7 @@ function serve() {
     assert.ok(await page.isVisible('#view-log .chart'));
 
     assert.deepStrictEqual(errors, [], 'page errors');
-    console.log('\nPASS — Baby Log smoke test');
+    console.log('\nPASS — Alaga smoke test');
   } catch (e) {
     console.error('\nFAIL —', e.message);
     if (errors.length) console.error('Page errors:\n  ' + errors.join('\n  '));

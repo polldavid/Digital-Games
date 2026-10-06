@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — store.js
+   Alaga — store.js
    State, persistence, queries and the reminder engine.
    No DOM. Everything is kept in localStorage on this device;
    export/import moves it between phones (e.g. to a partner).

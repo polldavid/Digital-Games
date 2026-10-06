@@ -1,4 +1,4 @@
-# Baby Log — Android app
+# Alaga — Android app
 
 The same web app (`../`) wrapped with [Capacitor](https://capacitorjs.com) so it
 can do what a web page can't:

@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — views.js
+   Alaga — views.js
    Today (dashboard), History (timeline) and Trends (charts).
    ========================================================= */
 (function () {
@@ -182,8 +182,8 @@
   function installTip() {
     var P = App.platform;
     if (P.standalone || S.get().settings.installTipDismissed) return '';
-    if (P.ios) return '<div class="card tipcard"><div class="tipcard__t">📲 Add Baby Log to your Home Screen</div><p class="muted small">In Safari, tap <strong>Share</strong> <span aria-hidden="true">⬆︎</span> then <strong>Add to Home Screen</strong>, and open it from the new icon. On iPhone that’s what lets reminders arrive as notifications — and it stops Safari clearing your logs if you don’t visit for a week.</p><div class="btn-row"><button class="btn btn--sm" data-action="install-dismiss">Got it</button></div></div>';
-    if (App.installPrompt) return '<div class="card tipcard"><div class="tipcard__t">📲 Install Baby Log</div><p class="muted small">Opens like an app, works offline, and sends reminders as notifications.</p><div class="btn-row"><button class="btn btn--sm" data-action="install-dismiss">Not now</button><button class="btn btn--sm btn--primary" data-action="install-prompt">Install</button></div></div>';
+    if (P.ios) return '<div class="card tipcard"><div class="tipcard__t">📲 Add Alaga to your Home Screen</div><p class="muted small">In Safari, tap <strong>Share</strong> <span aria-hidden="true">⬆︎</span> then <strong>Add to Home Screen</strong>, and open it from the new icon. On iPhone that’s what lets reminders arrive as notifications — and it stops Safari clearing your logs if you don’t visit for a week.</p><div class="btn-row"><button class="btn btn--sm" data-action="install-dismiss">Got it</button></div></div>';
+    if (App.installPrompt) return '<div class="card tipcard"><div class="tipcard__t">📲 Install Alaga</div><p class="muted small">Opens like an app, works offline, and sends reminders as notifications.</p><div class="btn-row"><button class="btn btn--sm" data-action="install-dismiss">Not now</button><button class="btn btn--sm btn--primary" data-action="install-prompt">Install</button></div></div>';
     return '';
   }
 

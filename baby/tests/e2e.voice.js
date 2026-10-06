@@ -1,4 +1,4 @@
-/* Baby Log — voice logging in a real browser, with a scripted stand-in
+/* Alaga — voice logging in a real browser, with a scripted stand-in
    for the phone's speech recognizer (so it runs offline, no microphone).
      node baby/tests/e2e.voice.js        # SHOTS=dir to save screenshots */
 const http = require('http');

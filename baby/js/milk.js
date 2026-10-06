@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — milk.js
+   Alaga — milk.js
    Milk on hand: pumped breast milk, prepared formula and
    leftovers, each with a use-by worked out from where it has
    been kept (rules in guide.js, from CDC guidance). Move it

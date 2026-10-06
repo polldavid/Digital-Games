@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0E1424" />
+  <title>Privacy · Alaga: Baby Tracker</title>
+  <script>try{var t=localStorage.getItem('dg-theme')||((window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/styles.css?v=24" />
+  <link rel="stylesheet" href="../theme.css?v=24" />
+  <style>
+    .doc { max-width: 680px; margin: 0 auto; padding: max(24px, env(safe-area-inset-top)) 16px 48px; }
+    .doc h1 { font-size: calc(30 * var(--u)); font-weight: 800; letter-spacing: -0.02em; margin: 8px 0 4px; }
+    .doc h2 { font-size: calc(18 * var(--u)); font-weight: 800; margin: 26px 0 8px; }
+    .doc p, .doc li { line-height: 1.6; color: var(--text); }
+    .doc ul { padding-left: 1.2em; display: grid; gap: 6px; }
+    .doc .lead { color: var(--text-dim); }
+    .doc .card { margin-top: 14px; }
+    .doc a { color: var(--brand); }
+  </style>
+</head>
+<body>
+  <main class="doc">
+    <p><a href="./">← Back to Alaga</a></p>
+    <h1>Privacy</h1>
+    <p class="lead">Alaga is in beta. This page says plainly what happens to the information you put in it. Last updated 7 October 2026.</p>
+
+    <div class="card">
+      <p><strong>The short version:</strong> your baby’s log stays on your phone. There is no account, no sign-up, no ads, and no analytics or tracking. Nothing leaves your phone unless you turn on one of the optional features below.</p>
+    </div>
+
+    <h2>What’s stored, and where</h2>
+    <ul>
+      <li>Everything you log — feeds, diapers, sleep, milk, medicine, temperatures, growth, health records and settings — is saved in your phone’s storage for this app (the browser’s storage for the web version, the app’s own storage for the Android app).</li>
+      <li>Photos you add (prescriptions, documents) are kept on your phone, made smaller first. They are never uploaded.</li>
+      <li>Removing the app, or clearing this site’s data in your browser, deletes it. <em>Settings → Erase everything</em> deletes it too.</li>
+    </ul>
+
+    <h2>Optional features that use the internet</h2>
+    <ul>
+      <li><strong>Sharing with a partner (off until you set it up).</strong> Entries are encrypted on your phone before they’re sent, with a key that exists only in the invite code or link — the sync server can’t read your log. The server stores encrypted records under scrambled names, plus when each was saved. Like any website, it also sees your phone’s internet address while syncing. The server runs on Cloudflare.
+        To remove the server copy: <em>Settings → Share with a partner → Delete the shared copy</em>. “Stop sharing” on one phone does not delete it.</li>
+      <li><strong>Voice logging (off until you turn it on).</strong> Speech is turned into text by your phone’s speech service — Google on Android, Apple on iPhone — the same as voice typing, under their privacy terms. Alaga only receives the words, and they stay on your phone.</li>
+      <li><strong>Reading a prescription photo.</strong> The text reader is downloaded the first time you use it; the photo itself is read on your phone and never uploaded.</li>
+      <li><strong>Invite QR code.</strong> The QR-code maker is downloaded when you show an invite; the code itself is made on your phone.</li>
+    </ul>
+    <p>The app’s own files are served by Cloudflare, which keeps standard short-lived request logs (internet address, time, page requested), as any web host does. Alaga adds no cookies or trackers.</p>
+
+    <h2>What we don’t do</h2>
+    <ul>
+      <li>No accounts, emails or phone numbers collected.</li>
+      <li>No advertising, no selling or sharing of data, no analytics.</li>
+      <li>No one at Alaga can see your log — not even with sharing on.</li>
+    </ul>
+
+    <h2>Health information</h2>
+    <p>Alaga gives general information based on AAP, CDC, WHO and NHS guidance. It is not medical advice and doesn’t replace your pediatrician. It never suggests medicine doses. If you’re worried about your baby, call your pediatrician — or emergency services if it’s urgent.</p>
+
+    <h2>Questions</h2>
+    <p>This is a beta shared with a small group of parents. If you have questions about privacy or want help deleting your data, contact the person who invited you to test.</p>
+  </main>
+  <script src="../theme.js?v=24"></script>
+</body>
+</html>

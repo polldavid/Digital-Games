@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — sound.js
+   Alaga — sound.js
    A white-noise machine generated live with the Web Audio
    API (no audio files): white, pink and brown noise, a
    rhythmic "shush", and a resting heartbeat. Plus a soft

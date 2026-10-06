@@ -25,6 +25,7 @@ function fakeServer() {
     var u = new URL(url), auth = (init.headers.Authorization || '').replace(/^Bearer /, '').split('.');
     var fid = auth[0], th = crypto.createHash('sha256').update(auth[1] || '').digest('hex');
     var fam = fams[fid];
+    if (fam && fam.auth === 'gone') return reply(410, { error: 'deleted' });
     if (fam && fam.auth !== th) return reply(403, { error: 'auth' });
     if (u.pathname === '/v1/pull') {
       if (!fam) return reply(200, { rows: [], more: false });
@@ -40,6 +41,7 @@ function fakeServer() {
       JSON.parse(init.body).rows.forEach(function (r) { rows[fid][r.k] = { k: r.k, s: fam.seq, b: r.b }; });
       return reply(200, { seq: fam.seq });
     }
+    if (u.pathname === '/v1/family' && init.method === 'DELETE') { if (fam) { fam.auth = 'gone'; rows[fid] = {}; } return reply(200, { ok: true }); }
     return reply(404, {});
   };
   fn.dump = function () { return JSON.stringify(rows); };
@@ -192,6 +194,17 @@ function step(t) { console.log('  • ' + t); }
   await B.c.cycle(); await A.c.cycle();
   assert.strictEqual(A.S.milkItem(milk.id).where, 'freezer');
   step('milk storage syncs both ways');
+
+  // Deleting the shared copy: gone from the server, and other phones stop instead of re-uploading.
+  var gone = null; B.c.onGone = function (m) { gone = m; };
+  assert.strictEqual(await A.c.destroy(), true);
+  assert.ok(!A.c.on(), 'A stopped sharing');
+  B.S.addEvent({ type: 'note', time: now, data: { text: 'after delete' } });
+  await B.c.cycle();
+  assert.ok(!B.c.on() && /deleted/.test(gone), 'B was told and stopped');
+  assert.ok(B.S.get().events.length > 0, 'B keeps its own log');
+  if (server) assert.ok(!/"s":/.test(server.dump().slice(server.dump().indexOf(good.family))), 'records erased on the server');
+  step('deleting the shared copy stops every phone (no re-upload)');
 
   console.log('sync tests passed');
 })().catch(function (e) { console.error(e); process.exit(1); });

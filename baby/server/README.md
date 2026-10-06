@@ -1,4 +1,4 @@
-# Baby Log sync server
+# Alaga sync server
 
 A Cloudflare Worker + D1 database that stores **encrypted** partner-sync
 records. It can't read them: names are hashed and contents are encrypted on

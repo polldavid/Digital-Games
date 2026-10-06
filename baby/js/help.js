@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — help.js
+   Alaga — help.js
    "Answers": the questions parents search for most, each
    answered with the baby's own log wherever possible, plus
    the sleep-sounds player.
@@ -81,7 +81,7 @@
       var status = S.isAsleep() ? h.note('ok', name() + ' is asleep', 'Sleeping since ' + h.fmtTime(S.timers().sleep.start) + '.')
         : nap ? h.note(nap.state === 'over' ? 'warn' : 'ok', nap.state === 'early' ? 'Next nap window: ' + h.fmtTime(nap.from) + '–' + h.fmtTime(nap.to) : nap.state === 'window' ? 'In the nap window now' : 'Past the wake window — may be overtired',
           'Awake since ' + h.fmtTime(woke) + '. Start winding down (dim lights, quiet, swaddle or sleep sack) a little before the window opens.')
-        : h.note('info', 'Log a sleep to get nap times', 'Once Baby Log knows when ' + name() + ' last woke up, it predicts the next nap window and can remind you.');
+        : h.note('info', 'Log a sleep to get nap times', 'Once Alaga knows when ' + name() + ' last woke up, it predicts the next nap window and can remind you.');
       html += status;
       html += '<div class="stats">' + '<div class="stat"><div class="stat__v">' + h.hoursStr(s.sleepMs) + '</div><div class="stat__k">Sleep, last 24h</div></div>' +
         '<div class="stat"><div class="stat__v">' + (longest ? h.durMs(longest) : '—') + '</div><div class="stat__k">Longest, 7 days</div></div>' +
@@ -135,7 +135,7 @@
         }).join('') + '</tbody></table></div>';
       html += '<div class="prose"><h3>Hunger cues — feed before the crying</h3>' + list(['<strong>Early:</strong> stirring, mouth opening, turning head, rooting', '<strong>Mid:</strong> stretching, more movement, hand to mouth', '<strong>Late:</strong> crying, agitated — calm baby first, then feed']) +
         '<h3>Full cues</h3>' + list(['Slowing down, pushing the nipple or bottle away', 'Turning away, relaxed open hands, falling asleep']) +
-        '<p>Newborns should be woken to feed if it’s been about 4 hours, until they’re back to birth weight. Baby Log’s feed reminder uses ' + name() + '’s age (change it in Settings).</p></div>';
+        '<p>Newborns should be woken to feed if it’s been about 4 hours, until they’re back to birth weight. Alaga’s feed reminder uses ' + name() + '’s age (change it in Settings).</p></div>';
       return html;
     }
   };
@@ -233,7 +233,7 @@
         return '<button class="qcard" data-action="help" data-topic="' + q.tool + '"><span class="qcard__icon">' + q.icon + '</span><span class="qcard__q">' + esc(q.q) + '</span><span class="qcard__go">›</span></button>';
       }).join('') + '</div>' +
       '<div class="section-title"><h2>Sleep sounds</h2></div>' + soundPlayer().replace('card card--flat', 'card') +
-      '<p class="disclaimer">Baby Log offers general information based on guidance from the AAP, CDC, WHO and NHS. It isn’t medical advice and can’t diagnose anything. If you’re worried about your baby, call your pediatrician — or emergency services in an emergency.</p>';
+      '<p class="disclaimer">Alaga offers general information based on guidance from the AAP, CDC, WHO and NHS. It isn’t medical advice and can’t diagnose anything. If you’re worried about your baby, call your pediatrician — or emergency services in an emergency.</p>';
   }
 
   window.BabyHelp = { open: open, view: view, soundPlayer: soundPlayer, TOPICS: TOPICS };

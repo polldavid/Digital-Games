@@ -1,4 +1,4 @@
-# Baby Log 🍼
+# Alaga 🍼
 
 An all-in-one newborn tracker for the first year — built for one-handed use at
 3 a.m. Plain HTML/CSS/JS like the rest of this repo: no build step, no

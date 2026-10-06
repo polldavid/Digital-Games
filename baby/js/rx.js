@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — rx.js
+   Alaga — rx.js
    Turns the text of a prescription into draft medicine
    entries: name, strength, dose, how often, for how long.
    Pure functions, no DOM — the parent always checks and

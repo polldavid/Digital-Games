@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — health.js
+   Alaga — health.js
    The Health tab: doctor visits on a calendar, prescriptions
    (scanned from a photo, always confirmed by the parent),
    doses given, a vaccine checklist, the health profile,
@@ -502,7 +502,7 @@
     if (P.doctor || P.phone) lines.push('Pediatrician: ' + [P.doctor, P.clinic, P.phone].filter(Boolean).join(' · '));
     if (P.insurance) lines.push('Insurance / PhilHealth: ' + P.insurance);
     if (P.notes) lines.push('Notes: ' + P.notes);
-    lines.push('— from Baby Log');
+    lines.push('— from Alaga');
     return lines.join('\n');
   }
 
@@ -541,7 +541,7 @@
     if (notes.length) { lines.push('', 'Notes:'); notes.forEach(function (e) { lines.push('• ' + e.data.text); }); }
     var next = H.appointments.filter(function (a) { return !a.done && a.at > now - 3 * HOUR; }).sort(function (x, y) { return x.at - y.at; })[0];
     if (next && next.questions) { lines.push('', 'Questions:'); next.questions.split(/\n+/).forEach(function (q) { if (q.trim()) lines.push('• ' + q.trim()); }); }
-    lines.push('', '— from Baby Log');
+    lines.push('', '— from Alaga');
     return lines.join('\n');
   }
 

@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — files.js
+   Alaga — files.js
    Photos (prescriptions, lab results, vaccine cards) live in
    IndexedDB: localStorage only holds a few MB. Images are
    shrunk to ~1600 px JPEG before saving, which keeps

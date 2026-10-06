@@ -9,11 +9,11 @@
    cached stylesheet or script — not from this cache, nor from the
    browser's HTTP cache (GitHub Pages caches files for 10 minutes).
    ========================================================= */
-var V = '22';
+var V = '24';
 var VERSION = 'babylog-v' + V;
 var VERSIONED = ['css/styles.css', '../theme.css', '../theme.js',
   'js/guide.js', 'js/store.js', 'js/sync.js', 'js/sound.js', 'js/rx.js', 'js/voice.js', 'js/files.js', 'js/ui.js', 'js/forms.js', 'js/views.js', 'js/help.js', 'js/health.js', 'js/milk.js', 'js/native.js', 'js/share.js', 'js/mic.js', 'js/app.js'];
-var FILES = ['./', 'index.html', 'manifest.webmanifest',
+var FILES = ['./', 'index.html', 'privacy.html', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'
 ].concat(VERSIONED.map(function (f) { return f + '?v=' + V; }));
 

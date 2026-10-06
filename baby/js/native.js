@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — native.js
+   Alaga — native.js
    One place for everything that differs between the web app
    and the App Store / Play Store builds (Capacitor shell).
    On the web every function falls back to what browsers do;

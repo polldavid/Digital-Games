@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — mic.js
+   Alaga — mic.js
    Voice logging: tap 🎤, say "bottle 120 ml formula", check the
    card, done. The words are turned into an entry by voice.js;
    this file listens and confirms.
@@ -47,7 +47,7 @@
   function enable() {
     h.ask({
       title: 'Turn on voice logging?',
-      text: 'To turn speech into text, your phone sends the recording to its speech service (Google on Android, Apple on iPhone) — like any voice typing. Baby Log only gets the words, and they stay on this phone. You confirm every entry before it’s saved.',
+      text: 'To turn speech into text, your phone sends the recording to its speech service (Google on Android, Apple on iPhone) — like any voice typing. Alaga only gets the words, and they stay on this phone. You confirm every entry before it’s saved.',
       ok: 'Turn on'
     }, function () {
       settings().voice = true;
@@ -90,7 +90,7 @@
       understood(alts);
     }).catch(function (e) {
       var m = String((e && (e.error || e.message)) || e || '');
-      fail(/not-allowed|permission|denied/i.test(m) ? 'Baby Log needs the microphone. Allow it in Settings → Apps → Baby Log → Permissions, then try again.' :
+      fail(/not-allowed|permission|denied/i.test(m) ? 'Alaga needs the microphone. Allow it in Settings → Apps → Alaga → Permissions, then try again.' :
         /no match|no speech|didn/i.test(m) ? 'Didn’t hear anything — tap Try again and speak a little louder.' : 'Voice didn’t work this time (' + (m || 'unknown') + ').');
     });
   }
@@ -123,7 +123,7 @@
     rec.onerror = function (ev) {
       got = true;
       var e = ev && ev.error;
-      fail(e === 'not-allowed' || e === 'service-not-allowed' ? 'Baby Log needs the microphone. Allow it in your browser’s site settings (or the phone’s Settings), then try again.' :
+      fail(e === 'not-allowed' || e === 'service-not-allowed' ? 'Alaga needs the microphone. Allow it in your browser’s site settings (or the phone’s Settings), then try again.' :
         e === 'no-speech' ? 'Didn’t hear anything — tap Try again and speak after the beep… or just say it a little louder.' :
         e === 'network' ? 'Voice needs an internet connection here. You can still log with the buttons.' :
         e === 'aborted' ? null : 'Voice didn’t work this time (' + (e || 'unknown') + ').');

@@ -1,4 +1,4 @@
-/* Baby Log — bottle timer in a real browser.
+/* Alaga — bottle timer in a real browser.
      node baby/tests/e2e.bottle.js        # SHOTS=dir to save screenshots */
 const http = require('http');
 const fs = require('fs');

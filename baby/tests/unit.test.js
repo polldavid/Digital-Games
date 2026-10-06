@@ -1,4 +1,4 @@
-/* Baby Log — unit tests for the pure modules (guide.js, store.js, rx.js).
+/* Alaga — unit tests for the pure modules (guide.js, store.js, rx.js).
    No dependencies:  node baby/tests/unit.test.js
    Exits non-zero on the first failing assertion. */
 const assert = require('assert');
@@ -172,7 +172,7 @@ console.log('hardening unit tests passed');
 // Release guard: index.html must ask for exactly the asset versions the
 // service worker caches, or a fresh page can be paired with stale CSS/JS.
 { const fs = require('fs');
-  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const html = ['index.html', 'privacy.html'].map((f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join(' ');
   const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
   const V = (sw.match(/var V = '(\d+)'/) || [])[1];
   assert.ok(V, 'sw.js declares var V');

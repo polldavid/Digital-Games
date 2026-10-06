@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — forms.js
+   Alaga — forms.js
    The logging sheets: one form per event type, used both to
    add new entries and to edit old ones. Each form has
    html(ev) and parse(form, ev) -> { time, end, data }.
@@ -413,7 +413,7 @@
         '<label class="check-line"><input type="checkbox" name="remind"' + ((ev ? d.remind : p.intervalH > 0 && p.intervalH < 24 && !p.rx) ? ' checked' : '') + ' /> Remind me when the next dose is allowed' + '</label>' +
         '<div id="med-status"></div>' +
         h.timeField('time', ev ? ev.time : preset && preset.time || Date.now(), 'Given at') + noteField(d.note) +
-        '<p class="faint">Baby Log never suggests doses. Dosing for babies is by weight — follow the label or your pediatrician, and use the syringe that came with the medicine.</p>' + footer(ev);
+        '<p class="faint">Alaga never suggests doses. Dosing for babies is by weight — follow the label or your pediatrician, and use the syringe that came with the medicine.</p>' + footer(ev);
     },
     parse: function (form) {
       var sel = val(form, 'medId'), p = medInfo(sel);

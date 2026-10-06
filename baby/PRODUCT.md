@@ -42,7 +42,7 @@ An all-in-one baby tracker for the first year: logging, timers, reminders, healt
 - Interface language: English only today. Localization is not yet decided.
 - Web reminders are unreliable when the app is fully closed; native local notifications in the wrapped apps are the planned fix.
 - **Business model: freemium.** The core tracker is free. Which features are paid is undecided; partner sync is the leading candidate and would need a backend and accounts, which must stay opt-in (see Product Principles).
-- **Open:** whether "Baby Log" is the final store name.
+- **Open:** whether "Alaga" is the final store name.
 
 ## Brand Commitments
 

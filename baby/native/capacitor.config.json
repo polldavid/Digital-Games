@@ -1,6 +1,6 @@
 {
-  "appId": "io.github.polldavid.babylog",
-  "appName": "Baby Log",
+  "appId": "com.alagababy.app",
+  "appName": "Alaga",
   "webDir": "www",
   "android": { "backgroundColor": "#0e1424" },
   "plugins": {

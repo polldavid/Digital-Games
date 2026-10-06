@@ -1,4 +1,4 @@
-/* Baby Log — partner sync in two real browsers (Playwright, Chromium).
+/* Alaga — partner sync in two real browsers (Playwright, Chromium).
    Needs the sync server running locally:
      cd baby/server && npx wrangler d1 execute babylog-sync --local --file=schema.sql && npx wrangler dev --port 8787
    Then, from the repo root:
@@ -112,7 +112,7 @@ async function settings(page) { await page.click('.tab[data-view="settings"]'); 
 
     await settings(B);
     await shot(B, '8-settings-on');
-    assert.match(await B.textContent('#view-settings'), /Baby Log · version \d+/);
+    assert.match(await B.textContent('#view-settings'), /Alaga · version \d+/);
     assert.deepStrictEqual(errors, [], 'no page errors');
     console.log('sync e2e passed');
   } finally {

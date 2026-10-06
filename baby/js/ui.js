@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — ui.js
+   Alaga — ui.js
    Shared UI helpers: DOM, formatting, units, event
    descriptions, the bottom sheet, toasts and tooltips.
    Every other UI module hangs off window.BabyApp.

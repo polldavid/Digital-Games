@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — voice.js
+   Alaga — voice.js
    Turns what a parent said ("bottle 120 ml formula", "wet
    diaper 20 minutes ago", "tulog na si Ava") into a draft entry
    or a timer action. Pure: no DOM, no speech API — mic.js does

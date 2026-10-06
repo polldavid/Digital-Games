@@ -1,6 +1,6 @@
 {
-  "name": "Baby Log — newborn tracker",
-  "short_name": "Baby Log",
+  "name": "Alaga: Baby Tracker & Feeding",
+  "short_name": "Alaga",
   "description": "Track feeds, diapers, sleep, pumping, medicine and growth — with reminders and answers to the questions new parents search most. Private and offline.",
   "id": "./",
   "start_url": "./",

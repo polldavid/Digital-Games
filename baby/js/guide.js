@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — guide.js
+   Alaga — guide.js
    The "knowledge" layer: age-based expectations, thresholds
    and the answers to the questions parents search most.
    Pure data + pure functions (no DOM), so it can be tested

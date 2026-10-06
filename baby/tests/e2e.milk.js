@@ -1,4 +1,4 @@
-/* Baby Log — milk storage in a real browser.
+/* Alaga — milk storage in a real browser.
      node baby/tests/e2e.milk.js        # SHOTS=dir to save screenshots */
 const http = require('http');
 const fs = require('fs');

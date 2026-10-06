@@ -1,4 +1,4 @@
-package io.github.polldavid.babylog;
+package com.alagababy.app;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;

@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — app.js
+   Alaga — app.js
    Boot, navigation, actions, the reminder/notification loop,
    settings, multiple babies, and backup/import/share.
    ========================================================= */
@@ -141,8 +141,8 @@
       if (p === 'unsupported') { h.toast('This browser doesn’t support notifications — in-app alerts and the chime still work.'); return; }
       S.get().settings.notify = p === 'granted';
       commit();
-      h.toast(p === 'granted' ? 'Notifications on 🔔' : App.platform.native ? 'Notifications are off — you can allow them in your phone’s Settings for Baby Log.' : 'Notifications blocked — you can allow them in your browser’s site settings.');
-      if (p === 'granted' && swReg && !N.nativeReminders()) try { swReg.showNotification('🔔 Baby Log', { body: 'Reminders will show up like this.', tag: 'test', icon: 'icons/icon-192.png' }); } catch (e) {}
+      h.toast(p === 'granted' ? 'Notifications on 🔔' : App.platform.native ? 'Notifications are off — you can allow them in your phone’s Settings for Alaga.' : 'Notifications blocked — you can allow them in your browser’s site settings.');
+      if (p === 'granted' && swReg && !N.nativeReminders()) try { swReg.showNotification('🔔 Alaga', { body: 'Reminders will show up like this.', tag: 'test', icon: 'icons/icon-192.png' }); } catch (e) {}
     }).catch(function () { h.toast('Couldn’t ask for notification permission. In-app alerts and the chime still work.'); });
   }
 
@@ -203,7 +203,7 @@
 
     // Reminders
     html += '<div class="section-title" id="set-reminders"><h2>Reminders</h2></div><div class="card">' +
-      row('Phone notifications', perm === 'granted' && s.notify ? (N.nativeReminders() ? 'On — reminders arrive even when Baby Log is closed.' : 'On — alerts show even when you’re in another app.') : perm === 'denied' ? (App.platform.native ? 'Off in your phone’s Settings → Baby Log → Notifications. In-app alerts still work.' : 'Blocked in browser settings. In-app alerts still work.') : perm === 'unsupported' ? (App.platform.ios && !App.platform.standalone ? 'On iPhone, add Baby Log to your Home Screen first (Share → Add to Home Screen), then open it from there.' : 'Not supported here. In-app alerts and the chime still work.') : 'Get alerts while you’re in another app.',
+      row('Phone notifications', perm === 'granted' && s.notify ? (N.nativeReminders() ? 'On — reminders arrive even when Alaga is closed.' : 'On — alerts show even when you’re in another app.') : perm === 'denied' ? (App.platform.native ? 'Off in your phone’s Settings → Alaga → Notifications. In-app alerts still work.' : 'Blocked in browser settings. In-app alerts still work.') : perm === 'unsupported' ? (App.platform.ios && !App.platform.standalone ? 'On iPhone, add Alaga to your Home Screen first (Share → Add to Home Screen), then open it from there.' : 'Not supported here. In-app alerts and the chime still work.') : 'Get alerts while you’re in another app.',
         perm === 'granted' ? h.sw('notify', s.notify, 'Notifications') : perm === 'default' ? '<button class="btn btn--sm btn--primary" data-action="notify-enable">Turn on</button>' : '') +
       row('Chime', 'A soft two-note sound with each reminder. Never plays while a baby is asleep.', h.sw('chime', s.chime, 'Chime')) +
       row('Quiet at night', '10 pm – 7 am: vibrate and banner only, no sound.', h.sw('quietNight', s.quietNight, 'Quiet at night')) +
@@ -218,7 +218,7 @@
       (s.tummyRemind ? row('&nbsp;&nbsp;&nbsp;At', '', '<input class="input" type="time" data-setting="tummyTime" value="' + esc(s.tummyTime) + '" aria-label="Tummy time reminder time" />') : '') +
       '<div class="section-title" style="margin-top:14px"><h2>Your reminders</h2></div>' + customList() +
       '<button class="btn btn--sm" data-action="custom-add" style="margin-top:8px">＋ New reminder</button>' +
-      (N.nativeReminders() ? '' : '<p class="faint" style="margin-top:12px">Reminders fire while Baby Log is open or in the background. Phones may pause web apps that are fully closed, so for night feeds add Baby Log to your Home Screen and leave it open on the nightstand.</p>') + '</div>';
+      (N.nativeReminders() ? '' : '<p class="faint" style="margin-top:12px">Reminders fire while Alaga is open or in the background. Phones may pause web apps that are fully closed, so for night feeds add Alaga to your Home Screen and leave it open on the nightstand.</p>') + '</div>';
 
     // Today screen
     html += '<div class="section-title"><h2>Today screen</h2></div><div class="card">' +
@@ -244,8 +244,8 @@
       '<p class="faint" style="margin-top:10px">Private by design: no account, no tracking. Your logs never leave this device unless you export them or turn on sharing (encrypted on the phone).</p></div>';
 
     var ver = (document.querySelector('script[src*="js/app.js"]') || {}).src || '', vm = /[?&]v=(\d+)/.exec(ver);
-    html += '<p class="faint" style="text-align:center;margin-top:18px">Baby Log · version ' + (vm ? vm[1] : '?') + (App.platform.native ? ' · app' : '') + '</p>';
-    html += '<p class="disclaimer">Baby Log gives general information from AAP, CDC, WHO and NHS guidance — it is not medical advice. Always call your pediatrician if you’re worried.<br><a href="../">← All games &amp; tools</a></p>';
+    html += '<p class="faint" style="text-align:center;margin-top:18px">Alaga · version ' + (vm ? vm[1] : '?') + (App.platform.native ? ' · app' : '') + '</p>';
+    html += '<p class="disclaimer">Alaga gives general information from AAP, CDC, WHO and NHS guidance — it is not medical advice. Always call your pediatrician if you’re worried.<br><a href="privacy.html">Privacy</a>' + (/\/Digital-Games\//.test(location.pathname) ? ' · <a href="../">← All games &amp; tools</a>' : '') + '</p>';
     return html;
   }
 
@@ -352,7 +352,7 @@
     });
     if (lt && now - lt.time < DAY) lines.push('🌡️ Temp: ' + h.temp(lt.data.tempC) + ' at ' + h.fmtTime(lt.time));
     S.events({ type: 'note', from: now - DAY }).forEach(function (e) { lines.push('📝 ' + e.data.text); });
-    lines.push('— sent from Baby Log');
+    lines.push('— sent from Alaga');
     return lines.join('\n');
   }
 
@@ -383,14 +383,14 @@
     var reader = new FileReader();
     reader.onload = function () {
       var text = String(reader.result), photos = null;
-      try { photos = JSON.parse(text).photos || null; } catch (e) { h.toast('That file isn’t a Baby Log backup.'); return; }
+      try { photos = JSON.parse(text).photos || null; } catch (e) { h.toast('That file isn’t an Alaga backup.'); return; }
       try {
         var res = S.importJSON(text, 'merge');
         (photos ? Files.importAll(photos) : Promise.resolve()).then(function () {
           commit();
           h.toast('Imported ' + (res.events === 1 ? '1 new entry' : res.events + ' new entries') + (photos ? ' and ' + h.plural(Object.keys(photos).length, 'photo') : '') + ' ✓');
         });
-      } catch (e) { h.toast('That file isn’t a Baby Log backup.'); }
+      } catch (e) { h.toast('That file isn’t an Alaga backup.'); }
     };
     reader.readAsText(file);
   }
@@ -582,18 +582,18 @@
     'custom-edit': function (n) { customSheet(n.getAttribute('data-id')); },
     'custom-delete': function (n) { var id = n.getAttribute('data-id'); S.get().custom = S.get().custom.filter(function (r) { return r.id !== id; }); h.closeSheet(); commit(); },
 
-    'handoff': function () { share(handoffText(), 'Baby Log summary'); },
+    'handoff': function () { share(handoffText(), 'Alaga summary'); },
     'export-json': function () {
       Files.exportAll(photoIds()).catch(function () { return {}; }).then(function (photos) {
         var data = JSON.parse(S.exportJSON());
         if (Object.keys(photos).length) data.photos = photos;
         var n = Object.keys(photos).length;
-        return download('baby-log-backup-' + h.todayISO() + '.json', JSON.stringify(data), 'application/json').then(function (how) {
+        return download('alaga-backup-' + h.todayISO() + '.json', JSON.stringify(data), 'application/json').then(function (how) {
           if (how) h.toast((how === 'shared' ? 'Backup ready' : 'Backup downloaded') + (n ? ' (with ' + h.plural(n, 'photo') + ')' : ''));
         });
       });
     },
-    'export-csv': function () { download('baby-log-' + (S.baby().name || 'baby').toLowerCase().replace(/\W+/g, '-') + '-' + h.todayISO() + '.csv', S.exportCSV(), 'text/csv'); },
+    'export-csv': function () { download('alaga-' + (S.baby().name || 'baby').toLowerCase().replace(/\W+/g, '-') + '-' + h.todayISO() + '.csv', S.exportCSV(), 'text/csv'); },
     'import-open': function () { $('#import-file').click(); },
     'erase': function () {
       var sharing = window.BabyShare && BabyShare.client.on();
@@ -922,7 +922,7 @@
     if (!on) { el.hidden = true; return; }
     if (!el.hidden) return;
     el.innerHTML = '<span class="banner__icon" aria-hidden="true">⚠️</span><div class="banner__text"><div class="banner__title">Not saved — your phone’s storage is full or blocked</div>' +
-      '<div class="banner__sub">New entries will be lost when Baby Log closes. Free up space, or save a backup now.</div></div>' +
+      '<div class="banner__sub">New entries will be lost when Alaga closes. Free up space, or save a backup now.</div></div>' +
       '<div class="banner__actions"><button class="btn btn--sm btn--primary" data-action="export-json">Save a backup</button><button class="btn btn--sm" data-action="save-retry">Try again</button></div>';
     el.hidden = false;
   }

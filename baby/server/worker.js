@@ -1,5 +1,5 @@
 /* =========================================================
-   Baby Log — sync server (Cloudflare Worker + D1)
+   Alaga — sync server (Cloudflare Worker + D1)
    Stores encrypted records for each family and hands back
    what changed. It can't read anything: record names are
    hashed and contents are encrypted on the phone with a key
@@ -12,6 +12,8 @@
    POST /v1/push   { rows: [{ k, b }] }    -> { seq }
    GET  /v1/pull?after=<seq>&k=<name>      -> { rows: [{ k, s, b }], more }
    DELETE /v1/family                        -> { ok }   (erases the family)
+   A deleted family keeps only its id, marked gone, so phones that still
+   have the code get 410 and stop — instead of re-uploading their copy.
    ========================================================= */
 const MAX_ROWS = 200;          // per push
 const MAX_BLOB = 64 * 1024;    // per record (photos aren't synced)
@@ -44,6 +46,7 @@ export default {
     if (!/^[0-9a-f]{32}$/.test(family || '') || !/^[A-Za-z0-9_-]{40,64}$/.test(token || '')) return json({ error: 'auth' }, 401);
     const tokenHash = await sha256hex(token);
     let fam = await env.DB.prepare('SELECT auth, seq FROM families WHERE id = ?').bind(family).first();
+    if (fam && fam.auth === 'gone') return json({ error: 'deleted' }, 410);
     if (fam && fam.auth !== tokenHash) return json({ error: 'auth' }, 403);
 
     try {
@@ -86,7 +89,7 @@ export default {
       if (url.pathname === '/v1/family' && req.method === 'DELETE') {
         if (fam) await env.DB.batch([
           env.DB.prepare('DELETE FROM records WHERE family = ?').bind(family),
-          env.DB.prepare('DELETE FROM families WHERE id = ?').bind(family),
+          env.DB.prepare("UPDATE families SET auth = 'gone', seq = 0, updated = ? WHERE id = ?").bind(Date.now(), family),
         ]);
         return json({ ok: true });
       }

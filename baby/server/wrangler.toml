@@ -1,4 +1,4 @@
-# Baby Log sync server. See README.md in this folder.
+# Alaga sync server. See README.md in this folder.
 name = "babylog-sync"
 main = "worker.js"
 compatibility_date = "2026-09-01"
