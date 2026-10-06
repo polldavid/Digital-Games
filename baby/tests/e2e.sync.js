@@ -100,7 +100,8 @@ async function settings(page) { await page.click('.tab[data-view="settings"]'); 
     await B.evaluate(() => { BabyStore.startTimer('sleep'); BabyApp.commit(); });
     await A.click('.tab[data-view="today"]');
     await A.waitForFunction(() => BabyStore.isAsleep(), null, { timeout: 20000 });
-    await A.waitForTimeout(500);
+    await A.waitForSelector('.live--sleep .live__sub:has-text("by Partner’s phone")');
+    assert.ok(!(await B.textContent('body')).includes('by Partner’s phone'), 'no byline for your own timer');
     await shot(A, '7-today-partner-sleep');
     step('a sleep timer started on B appears on A by itself (polling)');
 
@@ -111,6 +112,7 @@ async function settings(page) { await page.click('.tab[data-view="settings"]'); 
 
     await settings(B);
     await shot(B, '8-settings-on');
+    assert.match(await B.textContent('#view-settings'), /Baby Log · version \d+/);
     assert.deepStrictEqual(errors, [], 'no page errors');
     console.log('sync e2e passed');
   } finally {

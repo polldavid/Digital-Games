@@ -10,34 +10,37 @@
 
   /* ======================= TODAY ======================= */
 
+  // " · by Sam's phone" when a partner's phone started the timer.
+  function by(t) { var w = window.BabyShare && window.BabyShare.byline(t); return w ? ' · by ' + esc(w) : ''; }
+
   function liveCards(now) {
     var t = S.timers(), out = '';
     if (t.breast) {
       var b = t.breast;
-      out += '<div class="card live" aria-live="off"><div class="live__head"><span class="live__icon">🤱</span><div><div class="live__label">' + (b.paused ? '' : '<span class="pulse" aria-hidden="true"></span>') + (b.paused ? 'Feed paused' : 'Feeding · ' + (b.side === 'L' ? 'left' : 'right')) + '</div><div class="live__sub">started ' + h.fmtTime(b.start) + '</div></div><span class="live__clock" data-breast="T">0:00</span></div>' +
+      out += '<div class="card live" aria-live="off"><div class="live__head"><span class="live__icon">🤱</span><div><div class="live__label">' + (b.paused ? '' : '<span class="pulse" aria-hidden="true"></span>') + (b.paused ? 'Feed paused' : 'Feeding · ' + (b.side === 'L' ? 'left' : 'right')) + '</div><div class="live__sub">started ' + h.fmtTime(b.start) + by(b) + '</div></div><span class="live__clock" data-breast="T">0:00</span></div>' +
         '<div class="btn-row"><button class="btn btn--sm" data-action="breast-side" data-side="' + (b.side === 'L' ? 'R' : 'L') + '">⇄ Switch to ' + (b.side === 'L' ? 'right' : 'left') + '</button>' +
         '<button class="btn btn--sm" data-action="breast-pause">' + (b.paused ? '▶ Resume' : '⏸ Pause') + '</button>' +
         '<button class="btn btn--sm btn--primary" data-action="breast-finish">✓ Done</button></div></div>';
     }
     if (t.bottle) {
       var bo = t.bottle, bs = bo.done ? 'Bottle finished — how much?' : bo.paused ? 'Bottle paused' : 'Bottle feeding';
-      out += '<div class="card live"><div class="live__head"><span class="live__icon">🍼</span><div><div class="live__label">' + (bo.done || bo.paused ? '' : '<span class="pulse"></span>') + bs + '</div><div class="live__sub">started ' + h.fmtTime(bo.start) + '</div></div><span class="live__clock" data-bottle>' + h.clock(S.bottleTotal(bo)) + '</span></div>' +
+      out += '<div class="card live"><div class="live__head"><span class="live__icon">🍼</span><div><div class="live__label">' + (bo.done || bo.paused ? '' : '<span class="pulse"></span>') + bs + '</div><div class="live__sub">started ' + h.fmtTime(bo.start) + by(bo) + '</div></div><span class="live__clock" data-bottle>' + h.clock(S.bottleTotal(bo)) + '</span></div>' +
         (bo.done ? '<button class="btn btn--primary btn--block" data-action="bottle-finish">Enter amount</button>'
           : '<div class="btn-row"><button class="btn btn--sm" data-action="bottle-pause">' + (bo.paused ? '▶ Resume' : '⏸ Pause') + '</button><button class="btn btn--sm btn--primary" data-action="bottle-finish">✓ Finished</button></div>') + '</div>';
     }
     if (t.sleep) {
-      out += '<div class="card live live--sleep"><div class="live__head"><span class="live__icon">😴</span><div><div class="live__label"><span class="pulse"></span>Asleep</div><div class="live__sub">since ' + h.fmtTime(t.sleep.start) + '</div></div><span class="live__clock" data-elapsed="' + t.sleep.start + '">0:00</span></div>' +
+      out += '<div class="card live live--sleep"><div class="live__head"><span class="live__icon">😴</span><div><div class="live__label"><span class="pulse"></span>Asleep</div><div class="live__sub">since ' + h.fmtTime(t.sleep.start) + by(t.sleep) + '</div></div><span class="live__clock" data-elapsed="' + t.sleep.start + '">0:00</span></div>' +
         '<button class="btn btn--primary btn--block" data-action="sleep-stop">☀️ Woke up</button></div>';
     }
     if (t.pump) {
       var p = t.pump, both = p.L.on && p.R.on;
       var state = p.done ? 'Pumping finished' : both ? 'Pumping · both sides' : p.L.on ? 'Pumping · left' : p.R.on ? 'Pumping · right' : 'Pumping paused';
-      out += '<div class="card live"><div class="live__head"><span class="live__icon">🧴</span><div><div class="live__label">' + (p.done ? '' : '<span class="pulse"></span>') + state + '</div><div class="live__sub">L <span data-pump="L">0:00</span> · R <span data-pump="R">0:00</span></div></div><span class="live__clock" data-pump="T">0:00</span></div>' +
+      out += '<div class="card live"><div class="live__head"><span class="live__icon">🧴</span><div><div class="live__label">' + (p.done ? '' : '<span class="pulse"></span>') + state + by(p) + '</div><div class="live__sub">L <span data-pump="L">0:00</span> · R <span data-pump="R">0:00</span></div></div><span class="live__clock" data-pump="T">0:00</span></div>' +
         (p.done ? '<button class="btn btn--primary btn--block" data-action="pump-finish">Enter amounts</button>'
           : '<div class="btn-row"><button class="btn btn--sm" data-action="pump-both">' + (both ? '⏸ Pause' : '▶▶ Both') + '</button><button class="btn btn--sm btn--primary" data-action="pump-finish">✓ Done</button></div>') + '</div>';
     }
     if (t.tummy) {
-      out += '<div class="card live"><div class="live__head"><span class="live__icon">🤸</span><div><div class="live__label"><span class="pulse"></span>Tummy time</div><div class="live__sub">since ' + h.fmtTime(t.tummy.start) + '</div></div><span class="live__clock" data-elapsed="' + t.tummy.start + '">0:00</span></div>' +
+      out += '<div class="card live"><div class="live__head"><span class="live__icon">🤸</span><div><div class="live__label"><span class="pulse"></span>Tummy time</div><div class="live__sub">since ' + h.fmtTime(t.tummy.start) + by(t.tummy) + '</div></div><span class="live__clock" data-elapsed="' + t.tummy.start + '">0:00</span></div>' +
         '<button class="btn btn--primary btn--block" data-action="tummy-stop">✓ Done</button></div>';
     }
     return out;

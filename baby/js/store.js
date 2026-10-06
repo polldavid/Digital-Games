@@ -265,6 +265,9 @@
   }
 
   /* ---------- Timers (survive refresh / lock screen: just timestamps) ---------- */
+  // Which phone started a timer, when sharing ("Asleep · started by Sam's phone").
+  // share.js sets api.device; without sharing it stays empty and nothing is stamped.
+  function stamp() { var d = api.device && api.device(); return d ? { by: d } : {}; }
   function timers(id) {
     id = id || state.activeBaby;
     if (!state.timers[id]) state.timers[id] = {};
@@ -273,7 +276,7 @@
 
   function startTimer(kind, extra, now) {
     var t = timers();
-    t[kind] = Object.assign({ start: now || Date.now() }, extra || {});
+    t[kind] = Object.assign({ start: now || Date.now() }, extra || {}, stamp());
     return t[kind];
   }
 
@@ -289,7 +292,7 @@
     now = now || Date.now();
     var t = timers();
     var b = t.breast;
-    if (!b) { t.breast = { side: side, firstSide: side, start: now, segStart: now, accL: 0, accR: 0, paused: false }; return t.breast; }
+    if (!b) { t.breast = Object.assign({ side: side, firstSide: side, start: now, segStart: now, accL: 0, accR: 0, paused: false }, stamp()); return t.breast; }
     bankBreast(b, now);
     b.side = side; b.paused = false; b.segStart = now;
     return b;
@@ -322,7 +325,7 @@
      at once and a single pump can do one side, then the other.
      Finishing pauses everything but keeps the session until the
      amounts are saved, so closing the sheet never loses it. */
-  function newPump(now) { return { start: now, L: { on: false, acc: 0, seg: 0 }, R: { on: false, acc: 0, seg: 0 } }; }
+  function newPump(now) { return Object.assign({ start: now, L: { on: false, acc: 0, seg: 0 }, R: { on: false, acc: 0, seg: 0 } }, stamp()); }
   function bankSide(sd, now) { if (sd.on) { sd.acc += now - sd.seg; sd.on = false; } }
 
   function pumpSide(side, now) {
@@ -369,7 +372,7 @@
   function bottleStart(now, from) {
     now = now || Date.now();
     var t = timers();
-    t.bottle = { start: now, seg: now, acc: 0, paused: false };
+    t.bottle = Object.assign({ start: now, seg: now, acc: 0, paused: false }, stamp());
     var m = from ? milkItem(from) : null;
     if (m) {
       t.bottle.milkId = m.id; t.bottle.offeredMl = m.ml; t.bottle.milk = m.kind;
@@ -752,7 +755,7 @@
   var api = {
     STORE_KEY: STORE_KEY, uid: uid, defaults: defaults,
     load: load, save: save, saveSoon: saveSoon, flush: flush, onSave: onSave, touch: touch, get: get, set: set, reset: reset, normalize: normalize,
-    onSaveError: null, onSaveOk: null, onSaved: null,
+    onSaveError: null, onSaveOk: null, onSaved: null, device: null,
     baby: baby, addBaby: addBaby, updateBaby: updateBaby, removeBaby: removeBaby, ageDays: ageDays,
     addEvent: addEvent, updateEvent: updateEvent, removeEvent: removeEvent, findEvent: findEvent, events: events, last: last,
     startOfDay: startOfDay, overlap: overlap,

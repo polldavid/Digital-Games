@@ -243,6 +243,8 @@
       row('Erase everything', 'Deletes all babies, logs and photos from this device.', '<button class="btn btn--sm btn--danger" data-action="erase">Erase</button>') +
       '<p class="faint" style="margin-top:10px">Private by design: no account, no tracking. Your logs never leave this device unless you export them or turn on sharing (encrypted on the phone).</p></div>';
 
+    var ver = (document.querySelector('script[src*="js/app.js"]') || {}).src || '', vm = /[?&]v=(\d+)/.exec(ver);
+    html += '<p class="faint" style="text-align:center;margin-top:18px">Baby Log · version ' + (vm ? vm[1] : '?') + (App.platform.native ? ' · app' : '') + '</p>';
     html += '<p class="disclaimer">Baby Log gives general information from AAP, CDC, WHO and NHS guidance — it is not medical advice. Always call your pediatrician if you’re worried.<br><a href="../">← All games &amp; tools</a></p>';
     return html;
   }

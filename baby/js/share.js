@@ -240,6 +240,7 @@
   /* ---------- Boot ---------- */
   function init() {
     client.onApplied = refresh;
+    S.device = function () { return client.on() ? client.device() : ''; };
     client.onStatus = function () { var t = $('#syncchip'); if (t) paintChip(t); };
     S.onSave(function () { if (client.on() && !client.meta().joining) client.soon(); });
     document.addEventListener('visibilitychange', function () { if (!document.hidden && client.on()) client.soon(0); });
