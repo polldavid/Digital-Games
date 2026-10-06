@@ -173,7 +173,7 @@
   // Bottle timer, shown at the top of the Bottle panel (like the breast timer).
   function bottleLive() {
     var b = S.timers().bottle;
-    if (!b) return '<button type="button" class="btn btn--primary btn--block btn--lg" data-action="bottle-start">▶ Start bottle timer</button>' +
+    if (!b) return '<button type="button" class="btn btn--go btn--block btn--lg" data-action="bottle-start">▶ Start bottle timer</button>' +
       '<p class="faint" style="text-align:center">Times the feed, so you can see whether the nipple flow suits baby. Or just enter the amount below.</p>';
     if (!b.done) return '<p class="bottle-clock"><span data-bottle>' + h.clock(S.bottleTotal(b)) + '</span></p>' +
       '<p class="faint" style="text-align:center">Started ' + h.fmtTime(b.start) + (b.paused ? ' · <strong>paused</strong>' : '') + '</p>' +
@@ -293,7 +293,7 @@
     };
     var html = '<div class="sides">' + side('L', 'Left') + side('R', 'Right') + '</div>';
     var both = p && p.L.on && p.R.on;
-    html += '<button type="button" class="btn btn--block" data-action="pump-both">' + (both ? '⏸ Pause both' : '▶▶ ' + (p ? 'Run both sides' : 'Start both sides')) + '</button>';
+    html += '<button type="button" class="btn btn--block' + (p ? '' : ' btn--go') + '" data-action="pump-both">' + (both ? '⏸ Pause both' : '▶▶ ' + (p ? 'Run both sides' : 'Start both sides')) + '</button>';
     if (p) {
       html += '<p class="faint" style="text-align:center">Session <strong data-pump="T">' + h.clock(tt.total) + '</strong> · started ' + h.fmtTime(p.start) + (p.done ? ' · <strong>finished</strong>' : '') + '</p>' +
         '<button type="button" class="btn btn--primary btn--lg btn--block" data-action="pump-finish">✓ Done — enter amounts</button>' +

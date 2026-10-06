@@ -57,7 +57,7 @@
           '<p class="faint">' + esc((m.kind === 'formula' ? 'Prepared ' : m.leftoverAt ? 'From a feed that ended ' : 'Pumped ') + h.fmtDate(m.leftoverAt || m.madeAt) + ' ' + h.fmtTime(m.leftoverAt || m.madeAt)) +
           ' · now in the ' + esc((G.MILK_WHERE[m.where] || m.where).toLowerCase()) + (m.since ? ' since ' + h.fmtTime(m.since) : '') + '.</p>';
         if (!gone) {
-          html += '<button class="btn btn--primary btn--block btn--lg" data-action="milk-feed" data-id="' + m.id + '">🍼 Feed this now</button>';
+          html += '<button class="btn btn--go btn--block btn--lg" data-action="milk-feed" data-id="' + m.id + '">🍼 Feed this now</button>';
           var moves = G.milkMoves(m);
           if (moves.length) html += '<div class="milk-moves">' + moves.map(function (w) { return '<button class="btn btn--block" data-action="milk-move" data-id="' + m.id + '" data-to="' + w + '">' + MOVE[w] + '</button>'; }).join('') + '</div>';
           if (m.thawedAt) html += '<p class="faint">Thawed milk can’t go back in the freezer.</p>';
