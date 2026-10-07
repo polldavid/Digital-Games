@@ -11,6 +11,7 @@
 
    POST /v1/push   { rows: [{ k, b }] }    -> { seq }
    GET  /v1/pull?after=<seq>&k=<name>      -> { rows: [{ k, s, b }], more }
+   GET  /v1/history?since=<ms>             -> { rows: [{ k, s, b, t }] }  earlier versions, 30 days
    DELETE /v1/family                        -> { ok }   (erases the family)
    POST /v1/ping   { v, p, d, w, m, n, s }  -> { ok }   anonymous daily count (no auth)
    GET  /v1/stats  Authorization: Bearer <STATS_KEY>  -> usage totals
@@ -119,10 +120,19 @@ export default {
           fam = await env.DB.prepare('SELECT auth, seq FROM families WHERE id = ?').bind(family).first();
           if (!fam || fam.auth !== tokenHash) return json({ error: 'auth' }, 403);
         }
-        // One transaction: bump the family's counter, then write every row with it.
+        // One transaction: keep the versions about to be overwritten (30 days),
+        // bump the family's counter, then write every row with it.
+        const keep = [];
+        for (let i = 0; i < rows.length; i += 90) {
+          const part = rows.slice(i, i + 90);
+          keep.push(env.DB.prepare('INSERT OR IGNORE INTO records_history (family, k, seq, blob, replaced) SELECT family, k, seq, blob, ? FROM records WHERE family = ? AND k IN (' + part.map(() => '?').join(',') + ')')
+            .bind(now, family, ...part.map((r) => r.k)));
+        }
+        if (Math.random() < 0.02) keep.push(env.DB.prepare('DELETE FROM records_history WHERE replaced < ?').bind(now - 30 * 864e5));
         const up = env.DB.prepare('INSERT INTO records (family, k, seq, blob) VALUES (?1, ?2, (SELECT seq FROM families WHERE id = ?1), ?3) ' +
           'ON CONFLICT (family, k) DO UPDATE SET seq = excluded.seq, blob = excluded.blob');
         await env.DB.batch([
+          ...keep,
           env.DB.prepare('UPDATE families SET seq = seq + 1, updated = ? WHERE id = ?').bind(now, family),
           ...rows.map((r) => up.bind(family, r.k, r.b)),
         ]);
@@ -130,8 +140,16 @@ export default {
         return json({ seq: after.seq });
       }
 
+      if (url.pathname === '/v1/history' && req.method === 'GET') {
+        if (!fam) return json({ rows: [] });
+        const since = Math.max(0, parseInt(url.searchParams.get('since') || '0', 10) || 0);
+        const { results } = await env.DB.prepare('SELECT k, seq, blob, replaced FROM records_history WHERE family = ? AND replaced >= ? ORDER BY replaced DESC LIMIT 5000').bind(family, since).all();
+        return json({ rows: results.map((r) => ({ k: r.k, s: r.seq, b: r.blob, t: r.replaced })) });
+      }
+
       if (url.pathname === '/v1/family' && req.method === 'DELETE') {
         if (fam) await env.DB.batch([
+          env.DB.prepare('DELETE FROM records_history WHERE family = ?').bind(family),
           env.DB.prepare('DELETE FROM records WHERE family = ?').bind(family),
           env.DB.prepare("UPDATE families SET auth = 'gone', seq = 0, updated = ? WHERE id = ?").bind(Date.now(), family),
         ]);

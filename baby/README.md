@@ -124,6 +124,12 @@ disclaimer.
   ([`server/`](server/README.md), a Cloudflare Worker + D1) stores ciphertext
   under hashed names. No account. A phone that already tracked the baby is
   merged in ("Combine the logs"). Settings, alerts and photos stay per phone.
+- **Data safety with sharing:** only one copy of Alaga saves at a time on a
+  phone (a second tab or window makes the first step aside — an older copy can
+  never save over newer entries); deletions nobody made are never synced —
+  more than 3 missing at once are held and the parent asked (restore is the
+  default); the sync server keeps 30 days of earlier versions, so Settings →
+  Share → *Restore deleted entries* can bring back anything deleted on any phone.
 - **Share by hand:** a text summary of the last 24h for a partner or
   sitter; JSON backup/import (merges, never overwrites) to move logs between
   phones; CSV export for the pediatrician.
@@ -198,6 +204,7 @@ node baby/tests/e2e.smoke.js        # main flows in Chromium at iPhone size (HEA
 node baby/tests/voice.test.js       # voice phrases → entries
 node baby/tests/e2e.bottle.js       # bottle timer and pace
 node baby/tests/e2e.milk.js         # milk storage: pump → fridge → freeze → thaw → feed → leftover
+SYNC_URL=http://127.0.0.1:8788 node baby/tests/e2e.copies.js   # two copies open on one phone never lose entries
 node baby/tests/e2e.ping.js         # the anonymous usage count: once a day, nothing when off
 node baby/deploy/build-site.js && node baby/tests/e2e.site.js   # the standalone site, served the Cloudflare way
 node baby/tests/e2e.voice.js        # voice logging + app shortcuts in Chromium (fake recognizer)

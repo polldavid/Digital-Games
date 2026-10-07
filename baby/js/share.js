@@ -46,6 +46,8 @@
         row('This phone', esc(m.device || 'Unnamed') + ' — shown next to what you log.', '<button class="btn btn--sm" data-action="share-rename">Rename</button>') +
         row('Add a phone', 'Show the QR code or send the link to your partner, a grandparent or a sitter.', '<button class="btn btn--sm btn--primary" data-action="share-invite">Invite</button>') +
         row('Stop sharing on this phone', 'The log stays here; other phones keep theirs.', '<button class="btn btn--sm btn--danger" data-action="share-leave">Stop</button>') +
+        (client.held() ? row('⚠️ ' + client.held() + ' entries missing on this phone', 'They’re still in your shared log. Bring them back, or delete them on every phone.', '<button class="btn btn--sm btn--primary" data-action="share-held">Review</button>') : '') +
+        row('Restore deleted entries', 'Entries deleted in the last 30 days, on any phone, can be brought back.', '<button class="btn btn--sm" data-action="share-history">Open</button>') +
         row('Delete the shared copy', 'Erases the encrypted copy on the sync server. Every phone stops syncing but keeps its own log.', '<button class="btn btn--sm btn--danger" data-action="share-destroy">Delete</button>') +
         '<p class="faint" style="margin-top:10px">Shared: babies, entries, running timers, reminders you created and health records. Each phone keeps its own settings and alerts. Photos stay on the phone that took them.</p>';
     }
@@ -225,6 +227,8 @@
       var code = client.secret();
       (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(code) : Promise.reject()).then(function () { h.toast('Code copied ✓'); }).catch(function () { prompt('Copy this code:', code); });
     },
+    'share-held': function () { heldSheet(); },
+    'share-history': function () { historySheet(); },
     'share-destroy': function () {
       h.ask({ title: 'Delete the shared copy?', text: 'The encrypted copy on the sync server is erased. Every phone keeps its own log but stops syncing; to share again, set up sharing from one phone. This can’t be undone.', ok: 'Delete it', danger: true }, function () {
         client.destroy().then(function (ok) { App.render(); h.toast(ok ? 'Shared copy deleted — sharing is off' : 'Couldn’t reach the sync server. Try again when online.'); })
@@ -248,6 +252,8 @@
   function init() {
     client.onApplied = refresh;
     client.onGone = function (msg) { App.render(); h.toast(msg); };
+    client.onHeld = function () { heldSheet(); };
+    if (client.held()) setTimeout(heldSheet, 1500);
     S.device = function () { return client.on() ? client.device() : ''; };
     client.onStatus = function () { var t = $('#syncchip'); if (t) paintChip(t); };
     S.onSave(function () { if (client.on() && !client.meta().joining) client.soon(); });
@@ -284,6 +290,76 @@
     el.setAttribute('aria-label', bad ? 'Not synced — ' + m.error : 'Sharing on — synced');
     el.title = bad ? 'Not synced' : 'Synced';
   }
+
+  /* ---------- Entries missing on this phone ----------
+     Sync held back deletions nobody made (sync.js). The safe choice is first. */
+  function heldSheet() {
+    var n = client.held();
+    if (!n || S.paused) return;
+    h.openSheet({
+      title: 'Some entries are missing here',
+      html: '<p><strong>' + n + ' entries</strong> in your shared log aren’t on this phone any more, but nobody deleted them here. This can happen when another copy of Alaga on this phone saved an older version of the log.</p>' +
+        '<p>They’re safe on the sync server, and still on your other phones.</p>' +
+        '<div class="btn-row sheet-save" style="flex-direction:column"><button class="btn btn--primary btn--lg" data-action="share-held-restore">Bring them back (recommended)</button>' +
+        '<button class="btn btn--danger" data-action="share-held-delete">Delete them on every phone</button></div>'
+    });
+  }
+  App.addActions({
+    'share-held-restore': function () {
+      client.restoreHeld().then(function (r) { h.closeSheet(); App.render(); h.toast(r ? 'Entries brought back ✓' : 'Couldn’t reach the sync server — try again when online.'); });
+    },
+    'share-held-delete': function () {
+      h.ask({ title: 'Delete them on every phone?', text: 'The ' + client.held() + ' entries are removed from every phone that shares this log. You can still bring them back for 30 days from Settings → Restore deleted entries.', ok: 'Delete everywhere', danger: true }, function () {
+        client.deleteHeld().then(function () { h.closeSheet(); App.render(); });
+      });
+    }
+  });
+
+  /* ---------- Restore deleted entries (30 days of history on the server) ---------- */
+  var KIND = { e: 'entry', b: 'baby', m: 'milk', c: 'reminder', ha: 'visit', hr: 'prescription', hd: 'document', hp: 'health profile', hv: 'vaccines' };
+  function historySheet() {
+    var list = null, err = null;
+    var html = function () {
+      if (err) return '<p>' + h.esc(err) + '</p>';
+      if (!list) return '<p class="faint">Looking at the last 30 days…</p>';
+      if (!list.length) return '<p>Nothing deleted in the last 30 days. ✓</p>';
+      return '<p>' + list.length + ' deleted in the last 30 days. Restoring puts an entry back on every phone.</p>' +
+        '<button class="btn btn--primary btn--block" data-action="share-restore-all">Restore all ' + list.length + '</button>' +
+        '<div class="rows" style="margin-top:10px">' + list.slice(0, 200).map(function (r, i) {
+          var d = r.k.charAt(0) === 'e' ? h.describe(r.d) : { icon: '↩️', title: KIND[r.k.split(':')[0]] || 'item', sub: '' };
+          var when = r.k.charAt(0) === 'e' ? h.fmtDate(r.d.time) + ' ' + h.fmtTime(r.d.time) : '';
+          return '<div class="row"><span class="row__icon" aria-hidden="true">' + d.icon + '</span><div class="row__main"><div class="row__t">' + h.esc(d.title) + '</div><div class="row__s">' + h.esc([when, d.sub].filter(Boolean).join(' · ')) + '</div></div>' +
+            '<button class="btn btn--sm" data-action="share-restore-one" data-i="' + i + '">Restore</button></div>';
+        }).join('') + '</div>';
+    };
+    h.openSheet({ title: 'Restore deleted entries', html: html });
+    client.history(30).then(function (rows) {
+      // For each record: its newest earlier version that still had content, if it's gone now.
+      var cur = Sync.records(S.get()), seen = {};
+      list = [];
+      rows.forEach(function (r) {
+        if (seen[r.k]) return;
+        if (!r.d) return;              // an earlier deletion marker: look further back
+        seen[r.k] = 1;
+        if (cur[r.k]) return;           // it's here now
+        if (/^t:/.test(r.k)) return;    // old timers aren't worth restoring
+        list.push(r);
+      });
+      list.sort(function (a, b) { return ((b.d && b.d.time) || 0) - ((a.d && a.d.time) || 0); });
+      historySheet.list = list;
+      h.renderSheet();
+    }).catch(function () { err = 'Couldn’t reach the sync server. Try again when online.'; h.renderSheet(); });
+  }
+  function restore(items) {
+    var st = S.get();
+    items.forEach(function (r) { Sync.put(st, r.k, r.d); });
+    S.touch(); App.commit(); client.soon(0);
+    h.toast(items.length === 1 ? 'Restored ✓' : items.length + ' restored ✓');
+  }
+  App.addActions({
+    'share-restore-all': function () { var l = historySheet.list || []; h.closeSheet(); restore(l); },
+    'share-restore-one': function (n) { var l = historySheet.list || [], i = +n.getAttribute('data-i'); if (l[i]) { restore([l[i]]); l.splice(i, 1); h.renderSheet(); } }
+  });
 
   // Who logged an entry, if it wasn't this phone.
   function byline(e) { return e && e.by && client.on() && e.by !== client.device() ? e.by : ''; }

@@ -49,12 +49,29 @@
   /* ---------- Persistence ---------- */
   var state = defaults();
 
+  /* One log, one writer. Every save stamps a new "generation" next to the log.
+     A copy of the app that finds a generation it didn't write (another tab or
+     window saved since it loaded) must not save over it: its picture of the log
+     is older. It reports a conflict instead (app.js asks it to reload). Without
+     this, an older copy could overwrite newer entries, and sharing would then
+     pass the loss on as deletions. */
+  var GEN_KEY = STORE_KEY + '-gen', myGen = null;
+  function newGen() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function storedGen(storage) { try { return storage && storage.getItem(GEN_KEY); } catch (e) { return null; } }
+  // True when nobody else has saved since this copy loaded or last saved.
+  function isCurrent(storage) {
+    storage = storage || (typeof localStorage !== 'undefined' ? localStorage : null);
+    var g = storedGen(storage);
+    return !g || g === myGen;
+  }
+
   function load(storage) {
     storage = storage || (typeof localStorage !== 'undefined' ? localStorage : null);
     try {
       var raw = storage && storage.getItem(STORE_KEY);
       if (raw) state = normalize(JSON.parse(raw));
     } catch (e) { state = defaults(); }
+    myGen = storedGen(storage);
     return state;
   }
 
@@ -66,10 +83,14 @@
     if (pending) { clearTimeout(pending); pending = null; }
     storage = storage || (typeof localStorage !== 'undefined' ? localStorage : null);
     if (!storage) return false;
+    if (api.paused) return false;
+    if (!isCurrent(storage)) { if (api.onConflict) api.onConflict(); return false; }
     var json;
     try {
       json = JSON.stringify(state);
       storage.setItem(STORE_KEY, json);
+      myGen = newGen();
+      storage.setItem(GEN_KEY, myGen);
     } catch (e) {
       saveFailed = true;
       if (api.onSaveError) api.onSaveError(e);
@@ -112,7 +133,9 @@
     if (!Array.isArray(out.custom)) out.custom = [];
     if (!Array.isArray(out.milk)) out.milk = [];
     // Used or thrown-out milk is kept two weeks, then dropped.
+    var milkBefore = out.milk.length;
     out.milk = out.milk.filter(function (m) { return m && (m.status === 'active' || !m.doneAt || m.doneAt > Date.now() - 14 * DAY); });
+    noteDeletes(milkBefore - out.milk.length);
     if (!out.health || typeof out.health !== 'object') out.health = {};
     if (!out.activeBaby && out.babies[0]) out.activeBaby = out.babies[0].id;
     // A short-lived version stored custom-reminder icons as names ('pill'); show them as emoji again.
@@ -147,6 +170,10 @@
   }
 
   function removeBaby(id) {
+    // Everything of this baby's goes, on every shared phone: tell sync it's on purpose.
+    var H = state.health[id] || {};
+    noteDeletes(1 + state.events.filter(function (e) { return e.baby === id; }).length + state.custom.filter(function (r) { return r.baby === id; }).length +
+      Object.keys(state.timers[id] || {}).length + 2 + ['appointments', 'rx', 'docs'].reduce(function (a, k) { return a + (H[k] || []).length; }, 0));
     state.babies = state.babies.filter(function (b) { return b.id !== id; });
     state.events = state.events.filter(function (e) { return e.baby !== id; });
     state.custom = state.custom.filter(function (r) { return r.baby !== id; });
@@ -177,7 +204,18 @@
     return e;
   }
 
-  function removeEvent(id) { state.events = state.events.filter(function (e) { return e.id !== id; }); }
+  function removeEvent(id) {
+    var n = state.events.length;
+    state.events = state.events.filter(function (e) { return e.id !== id; });
+    noteDeletes(n - state.events.length);
+  }
+
+  /* Deletions the parent chose (an entry, a baby, a visit…). Sync compares a
+     push's deletions with this count: deletions nobody asked for are held back
+     and the parent is asked (sync.js). */
+  var deleteBudget = 0;
+  function noteDeletes(n) { if (n > 0) deleteBudget += n; }
+  function takeDeleteBudget() { var b = deleteBudget; deleteBudget = 0; return b; }
   function findEvent(id) { for (var i = 0; i < state.events.length; i++) if (state.events[i].id === id) return state.events[i]; return null; }
   function sortEvents() { state.events.sort(function (a, b) { return a.time - b.time; }); }
 
@@ -755,7 +793,8 @@
 
   var api = {
     STORE_KEY: STORE_KEY, uid: uid, defaults: defaults,
-    load: load, save: save, saveSoon: saveSoon, flush: flush, onSave: onSave, touch: touch, get: get, set: set, reset: reset, normalize: normalize,
+    load: load, save: save, saveSoon: saveSoon, flush: flush, onSave: onSave, touch: touch,
+    isCurrent: isCurrent, paused: false, onConflict: null, noteDeletes: noteDeletes, takeDeleteBudget: takeDeleteBudget, get: get, set: set, reset: reset, normalize: normalize,
     onSaveError: null, onSaveOk: null, onSaved: null, device: null,
     baby: baby, addBaby: addBaby, updateBaby: updateBaby, removeBaby: removeBaby, ageDays: ageDays,
     addEvent: addEvent, updateEvent: updateEvent, removeEvent: removeEvent, findEvent: findEvent, events: events, last: last,

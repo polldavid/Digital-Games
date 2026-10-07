@@ -161,11 +161,30 @@ console.log('QA-fix unit tests passed');
   const full = { setItem() { const e = new Error('QuotaExceededError'); e.name = 'QuotaExceededError'; throw e; } };
   assert.strictEqual(S.save(full), false, 'save() says when it failed');
   assert.strictEqual(failed, 1, 'failure reported');
-  const mem = { v: null, setItem(k, v) { this.v = v; } };
+  const mem = { m: {}, getItem(k) { return k in this.m ? this.m[k] : null; }, setItem(k, v) { this.m[k] = String(v); } };
   assert.strictEqual(S.save(mem), true);
   assert.strictEqual(ok, 1, 'recovery reported');
-  assert.ok(mem.v && JSON.parse(mem.v).babies.length === 1, 'state written');
+  assert.ok(JSON.parse(mem.getItem(S.STORE_KEY)).babies.length === 1, 'state written');
   S.onSaveError = S.onSaveOk = null;
+
+  // One writer: a copy whose picture of the log is older never saves over a newer one.
+  const shared = { m: {}, getItem(k) { return k in this.m ? this.m[k] : null; }, setItem(k, v) { this.m[k] = String(v); } };
+  const fresh = () => { const p = require.resolve('../js/store.js'); delete require.cache[p]; return require(p); };
+  const tab1 = fresh(); tab1.addBaby({ name: 'M', birth: '2026-10-01' }); assert.ok(tab1.save(shared));
+  const tab2 = fresh(); tab2.load(shared);            // a second copy opens
+  tab1.addEvent({ type: 'diaper', time: 1, data: {} }); assert.ok(tab1.save(shared)); // the first keeps logging
+  let conflicts = 0; tab2.onConflict = () => conflicts++;
+  tab2.get().settings.chime = false;                   // the old copy tries to save
+  assert.strictEqual(tab2.save(shared), false, 'the older copy is refused');
+  assert.strictEqual(conflicts, 1, 'and told so');
+  assert.strictEqual(JSON.parse(shared.getItem(tab1.STORE_KEY)).events.length, 1, 'newer entries survive');
+  assert.ok(tab2.isCurrent(shared) === false && tab1.isCurrent(shared) === true);
+  const tab3 = fresh(); tab3.load(shared); assert.ok(tab3.save(shared), 'a copy loaded fresh can save');
+  // Deliberate deletions are counted for sync.
+  tab3.takeDeleteBudget();
+  const e = tab3.addEvent({ type: 'diaper', time: 2, data: {} }); tab3.removeEvent(e.id); tab3.removeEvent('nope');
+  assert.strictEqual(tab3.takeDeleteBudget(), 1, 'one real deletion');
+  assert.strictEqual(tab3.takeDeleteBudget(), 0, 'taken once');
 }
 console.log('hardening unit tests passed');
 

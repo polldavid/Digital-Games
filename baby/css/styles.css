@@ -137,6 +137,13 @@ strong { font-weight: 700; }
 /* Milk storage: one move per line, so long labels never squash */
 .milk-moves { display: grid; gap: 8px; margin-top: 10px; }
 
+/* Another copy of Alaga is in use: this one steps aside */
+.othercopy { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px 16px; background: var(--bg-0); }
+.othercopy__box { max-width: 420px; text-align: center; display: grid; gap: 12px; }
+.othercopy__icon { font-size: 44px; }
+.othercopy h2 { font-size: calc(22 * var(--u)); font-weight: 800; }
+.othercopy p { color: var(--text-dim); }
+
 /* Voice logging */
 .mic { display: flex; flex-direction: column; gap: 12px; align-items: stretch; text-align: center; }
 .mic__orb { width: 96px; height: 96px; margin: 8px auto 0; border-radius: 50%; display: grid; place-items: center; font-size: 40px; background: var(--accent); color: var(--on-accent); box-shadow: 0 0 0 0 var(--accent); animation: micpulse 1.4s ease-out infinite; }

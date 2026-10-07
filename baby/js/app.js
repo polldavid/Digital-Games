@@ -567,7 +567,8 @@
     'baby-delete': function (n) {
       var b = S.baby(n.getAttribute('data-id'));
       if (!b) return;
-      h.ask({ title: 'Delete ' + b.name + '?', text: 'All of ' + b.name + '’s logs and health records are removed from this device' + (window.BabyShare && BabyShare.client.on() ? ' and every phone you share with' : '') + '. This can’t be undone.', ok: 'Delete', danger: true }, function () {
+      var nLogs = S.events({ baby: b.id }).length, sharing = window.BabyShare && BabyShare.client.on();
+      h.ask({ title: 'Delete ' + b.name + '?', text: 'All of ' + b.name + '’s ' + nLogs + ' entries and health records are removed from this phone' + (sharing ? ' and from every phone you share with. You can bring them back for 30 days from Settings → Restore deleted entries.' : '. This can’t be undone.'), ok: 'Delete', danger: true }, function () {
         S.removeBaby(b.id); h.closeSheet(); commit();
       });
     },
@@ -613,7 +614,7 @@
     'appt-delete': function (n) {
       var H = S.health(), id = n.getAttribute('data-id');
       h.ask({ title: 'Delete this visit?', text: 'Its reminders are removed too.', ok: 'Delete', danger: true }, function () {
-        H.appointments = H.appointments.filter(function (a) { return a.id !== id; });
+        H.appointments = H.appointments.filter(function (a) { return a.id !== id; }); S.noteDeletes(1);
         h.closeSheet(); commit();
       });
     },
@@ -640,7 +641,7 @@
       var H = S.health(), rx = S.findIn(H.rx, n.getAttribute('data-id'));
       if (!rx) return;
       h.ask({ title: 'Delete ' + rx.name + '?', text: 'Doses already logged stay in History.', ok: 'Delete', danger: true }, function () {
-        H.rx = H.rx.filter(function (x) { return x.id !== rx.id; });
+        H.rx = H.rx.filter(function (x) { return x.id !== rx.id; }); S.noteDeletes(1);
         dropPhotoIfUnused(rx.photoId); h.closeSheet(); commit();
       });
     },
@@ -685,7 +686,7 @@
       var H = S.health(), d = S.findIn(H.docs, n.getAttribute('data-id'));
       if (!d) return;
       h.ask({ title: 'Delete ' + (d.title || 'this document') + '?', text: 'The document and its photo are removed from this device.', ok: 'Delete', danger: true }, function () {
-        H.docs = H.docs.filter(function (x) { return x.id !== d.id; });
+        H.docs = H.docs.filter(function (x) { return x.id !== d.id; }); S.noteDeletes(1);
         dropPhotoIfUnused(d.photoId); h.closeSheet(); commit();
       });
     },
@@ -935,10 +936,52 @@
     if (m) m.setAttribute('content', (getComputedStyle(document.documentElement).getPropertyValue('--bg-1') || '#0e1424').trim());
   }
 
+  /* ---------- One copy at a time ----------
+     Two copies of Alaga open on the same phone and address (the installed app
+     and a browser tab, two tabs…) share one saved log. Only the one in use may
+     save or sync; the other steps aside until it reloads with the latest log.
+     Otherwise an older copy could save over newer entries. */
+  var me = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  var channel = null;
+  function stepAside() {
+    if (S.paused) return;
+    S.paused = true;
+    if (window.BabyShare) BabyShare.client.stop();
+    var el = document.createElement('div');
+    el.className = 'othercopy';
+    el.setAttribute('role', 'alertdialog');
+    el.innerHTML = '<div class="othercopy__box"><div class="othercopy__icon" aria-hidden="true">🪟</div><h2>Alaga is open somewhere else</h2>' +
+      '<p>Another tab or window on this phone has the newest log. To keep every entry safe, only one copy saves at a time.</p>' +
+      '<button class="btn btn--primary btn--lg btn--block" type="button" id="othercopy-go">Use Alaga here</button></div>';
+    document.body.appendChild(el);
+    el.querySelector('#othercopy-go').addEventListener('click', function () { location.reload(); });
+    el.querySelector('#othercopy-go').focus();
+  }
+  // This copy is in use: if someone else saved since it loaded, reload first; then tell the others.
+  function claim() {
+    if (S.paused || document.hidden) return;
+    if (!S.isCurrent()) { stepAside(); return; }
+    try { localStorage.setItem('dg-alaga-active', me + ':' + Date.now()); } catch (e) {}
+    if (channel) try { channel.postMessage({ active: me }); } catch (e) {}
+  }
+  function watchOtherCopies() {
+    S.onConflict = stepAside;
+    if ('BroadcastChannel' in window) { channel = new BroadcastChannel('alaga'); channel.onmessage = function (e) { if (e.data && e.data.active && e.data.active !== me) stepAside(); }; }
+    window.addEventListener('storage', function (e) {
+      if (e.key === 'dg-alaga-active' && e.newValue && e.newValue.split(':')[0] !== me) stepAside();
+      else if (e.key === S.STORE_KEY + '-gen' && !S.isCurrent()) stepAside();
+    });
+    document.addEventListener('visibilitychange', claim);
+    window.addEventListener('focus', claim);
+    window.addEventListener('pageshow', claim);
+  }
+
   function boot() {
     S.onSaveError = function () { showSaveWarning(true); };
     S.onSaveOk = function () { showSaveWarning(false); };
     S.load();
+    watchOtherCopies();
+    claim();
     h.initTips();
     h.initSheetGestures();
     document.addEventListener('click', onClick);

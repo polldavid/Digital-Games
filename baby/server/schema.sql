@@ -29,3 +29,15 @@ CREATE TABLE IF NOT EXISTS usage (
   sharing   INTEGER NOT NULL DEFAULT 0, -- …with partner sharing on
   PRIMARY KEY (day, platform, version, country)
 );
+
+-- Earlier versions of records, kept 30 days, so a deletion or a bad overwrite
+-- can be undone (still encrypted: the server can't read them either).
+CREATE TABLE IF NOT EXISTS records_history (
+  family   TEXT NOT NULL,
+  k        TEXT NOT NULL,
+  seq      INTEGER NOT NULL,
+  blob     TEXT NOT NULL,
+  replaced INTEGER NOT NULL,           -- when it was overwritten (ms)
+  PRIMARY KEY (family, k, seq)
+);
+CREATE INDEX IF NOT EXISTS history_by_time ON records_history (family, replaced);

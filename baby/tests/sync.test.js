@@ -18,7 +18,7 @@ function memStorage() {
 
 /* ---------- In-memory copy of server/worker.js ---------- */
 function fakeServer() {
-  var fams = {}, rows = {};
+  var fams = {}, rows = {}, hist = {};
   var crypto = require('crypto');
   function reply(status, body) { return Promise.resolve({ ok: status < 300, status: status, json: function () { return Promise.resolve(body); } }); }
   var fn = function (url, init) {
@@ -38,9 +38,13 @@ function fakeServer() {
     if (u.pathname === '/v1/push') {
       if (!fam) { fam = fams[fid] = { auth: th, seq: 0 }; rows[fid] = {}; }
       fam.seq++;
-      JSON.parse(init.body).rows.forEach(function (r) { rows[fid][r.k] = { k: r.k, s: fam.seq, b: r.b }; });
+      JSON.parse(init.body).rows.forEach(function (r) {
+        if (rows[fid][r.k]) (hist[fid] = hist[fid] || []).push({ k: r.k, s: rows[fid][r.k].s, b: rows[fid][r.k].b, t: Date.now() });
+        rows[fid][r.k] = { k: r.k, s: fam.seq, b: r.b };
+      });
       return reply(200, { seq: fam.seq });
     }
+    if (u.pathname === '/v1/history') return reply(200, { rows: (hist[fid] || []).slice().reverse() });
     if (u.pathname === '/v1/family' && init.method === 'DELETE') { if (fam) { fam.auth = 'gone'; rows[fid] = {}; } return reply(200, { ok: true }); }
     return reply(404, {});
   };
@@ -194,6 +198,48 @@ function step(t) { console.log('  • ' + t); }
   await B.c.cycle(); await A.c.cycle();
   assert.strictEqual(A.S.milkItem(milk.id).where, 'freezer');
   step('milk storage syncs both ways');
+
+  // A phone that loses part of its saved log (an older copy of the app saved over it)
+  // must not delete those entries everywhere: they're held, and restored by default.
+  var before = A.S.get().events.length;
+  var lostIds = A.S.get().events.slice(0, 8).map(function (e) { return e.id; });
+  var heldN = 0; B.c.onHeld = function (n) { heldN = n; };
+  B.S.get().events = B.S.get().events.filter(function (e) { return lostIds.indexOf(e.id) < 0; }); // silent loss, no removeEvent
+  await B.c.cycle(); await A.c.cycle();
+  assert.strictEqual(A.S.get().events.length, before, 'partner keeps every entry');
+  assert.strictEqual(heldN, 8, 'B was asked about 8 missing entries');
+  assert.strictEqual(B.c.held(), 8);
+  await B.c.restoreHeld();
+  assert.strictEqual(B.S.get().events.length, before, 'restored on B from the server');
+  assert.strictEqual(B.c.held(), 0);
+  step('silently missing entries are held, not deleted everywhere, and restore from the server');
+
+  // Deliberate deletions still go through: one entry, or a whole baby.
+  var one = A.S.get().events[0].id;
+  A.S.removeEvent(one); await A.c.cycle(); await B.c.cycle();
+  assert.ok(!B.S.findEvent(one), 'a single deletion syncs');
+  var twin = A.S.addBaby({ name: 'Twin', birth: '2026-10-01' });
+  for (var tw = 0; tw < 6; tw++) A.S.addEvent({ baby: twin.id, type: 'diaper', time: now - tw * 1000, data: {} });
+  await A.c.cycle(); await B.c.cycle();
+  assert.strictEqual(B.S.events({ baby: twin.id }).length, 6);
+  A.S.removeBaby(twin.id); await A.c.cycle(); await B.c.cycle();
+  assert.strictEqual(B.S.events({ baby: twin.id }).length, 0, 'deleting a baby on purpose syncs');
+  assert.ok(!B.S.baby(twin.id) && A.c.held() === 0);
+  step('deliberate deletions (an entry, a whole baby) still sync');
+
+  // Choosing "delete everywhere" for held entries.
+  var gone2 = B.S.get().events.slice(0, 5).map(function (e) { return e.id; });
+  B.S.get().events = B.S.get().events.filter(function (e) { return gone2.indexOf(e.id) < 0; });
+  await B.c.cycle();
+  assert.strictEqual(B.c.held(), 5);
+  await B.c.deleteHeld(); await A.c.cycle();
+  assert.ok(gone2.every(function (id) { return !A.S.findEvent(id); }), 'deleted everywhere when chosen');
+  step('or, when chosen, held entries are deleted everywhere');
+
+  // History: earlier versions are on the server for 30 days.
+  var h = await A.c.history();
+  assert.ok(h.some(function (r) { return r.k === 'e:' + gone2[0] && r.d; }), 'the deleted entry is in history');
+  step('the server keeps earlier versions (history)');
 
   // Deleting the shared copy: gone from the server, and other phones stop instead of re-uploading.
   var gone = null; B.c.onGone = function (m) { gone = m; };

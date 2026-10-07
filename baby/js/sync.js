@@ -32,6 +32,8 @@
   // localStorage['dg-babylog-sync-url'] = 'http://localhost:8787'
   var SERVER = 'https://babylog-sync.polldavid18.workers.dev';
   var PUSH_BATCH = 100, POLL_MS = 10000;
+  // More unexplained deletions than this in one go are held back and the parent asked.
+  var HOLD_OVER = 3;
 
   /* ---------- Records ---------- */
   var LISTS = { ha: 'appointments', hr: 'rx', hd: 'docs' };
@@ -246,6 +248,19 @@
 
     function push() {
       var st = St.get(), ch = changes(st, meta.known);
+      /* A deletion is pushed only when the parent made it (the store counts
+         those), or a few at a time. Many records missing at once that nobody
+         deleted means this phone lost part of its saved log: pushing that would
+         delete them on every phone. They stay on the server; the parent is asked. */
+      var budget = St.takeDeleteBudget ? St.takeDeleteBudget() : 0, allow = meta.allowHeld || [];
+      var gone = ch.filter(function (c) { return !c.j && !/^t:/.test(c.k) && allow.indexOf(c.k) < 0; });
+      if (gone.length - budget > HOLD_OVER) {
+        var keys0 = gone.map(function (c) { return c.k; }).sort(), before = (meta.held || []).join();
+        meta.held = keys0;
+        ch = ch.filter(function (c) { return keys0.indexOf(c.k) < 0; });
+        saveMeta();
+        if (before !== keys0.join() && self.onHeld) self.onHeld(keys0.length);
+      } else if (meta.held || meta.allowHeld) { meta.held = null; meta.allowHeld = null; saveMeta(); }
       if (!ch.length) return Promise.resolve(0);
       // New entries say which phone logged them ("by Sam's phone").
       var stamped = false;
@@ -307,6 +322,9 @@
     // One round: send what changed here, then fetch what changed elsewhere.
     function cycle() {
       if (!loadMeta() || !meta.secret) return Promise.resolve(null);
+      // A copy of the app that isn't the current one (another tab saved since) never syncs.
+      if (St.paused) return Promise.resolve(null);
+      if (St.isCurrent && !St.isCurrent()) { if (St.onConflict) St.onConflict(); return Promise.resolve(null); }
       if (busy) { again = true; return busy; }
       var res = { sent: 0, applied: 0 };
       busy = getKeys().then(function () {
@@ -343,15 +361,39 @@
     self.secret = function () { return loadMeta() ? meta.secret : ''; };
     // Start a new shared log from this phone (everything here is uploaded).
     self.create = function (device) {
+      if (St.takeDeleteBudget) St.takeDeleteBudget();
       meta = { secret: newSecret(), device: device || '', after: 0, afterK: '', known: {}, joining: false, lastOk: 0, error: '' };
       saveMeta();
       return cycle();
     };
     // Join with a partner's code. Pulls only, until finishJoin().
     self.join = function (secret, device) {
+      if (St.takeDeleteBudget) St.takeDeleteBudget();
       meta = { secret: secret, device: device || '', after: 0, afterK: '', known: {}, joining: true, lastOk: 0, error: '' };
       saveMeta();
       return cycle();
+    };
+    // Held deletions: bring the records back from the server (default), or delete them everywhere.
+    self.held = function () { return loadMeta() && meta.held ? meta.held.length : 0; };
+    self.restoreHeld = function () {
+      if (!loadMeta() || !meta.held) return Promise.resolve(null);
+      meta.held.forEach(function (k) { delete meta.known[k]; });
+      meta.held = null; meta.after = 0; meta.afterK = '';
+      saveMeta();
+      return cycle();
+    };
+    self.deleteHeld = function () {
+      if (!loadMeta() || !meta.held) return Promise.resolve(null);
+      meta.allowHeld = meta.held; meta.held = null;
+      saveMeta();
+      return cycle();
+    };
+    // Earlier versions of records (the server keeps 30 days), newest first.
+    self.history = function (days) {
+      if (!loadMeta()) return Promise.resolve([]);
+      return getKeys().then(function () { return call('GET', '/v1/history?since=' + (Date.now() - (days || 30) * 864e5)); }).then(function (res) {
+        return Promise.all((res.rows || []).map(function (r) { return open(keys, r.b).then(function (rec) { rec.replaced = r.t; return rec; }, function () { return null; }); }));
+      }).then(function (list) { return list.filter(Boolean); });
     };
     self.finishJoin = function () { if (loadMeta()) { meta.joining = false; saveMeta(); } return cycle(); };
     // Babies on this phone that aren't in the shared log (yet).
