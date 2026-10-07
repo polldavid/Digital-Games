@@ -1,0 +1,10 @@
+# GitHub Pages (Jekyll) settings for the Digital Games hub.
+# baby/ is the source of Alaga, which is published at https://alaga.pages.dev
+# (see baby/deploy). It is not published here; moved/ serves a "moved" page at the
+# old /baby/ address instead (via permalinks), so old installs can save their log.
+exclude:
+  - baby
+  - node_modules
+  - package.json
+  - package-lock.json
+  - CLAUDE.md

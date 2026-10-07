@@ -17,7 +17,6 @@ No backend, no build step — everything is plain HTML, CSS, and vanilla JavaScr
 | [Do You Really Know Your Friends?](friends/) | `friends/` | 3–8 | ✅ Playable |
 | [Get ChurchED](getchurched/) | `getchurched/` | 2+ teams | ✅ Playable |
 | [Flip 7 Scorer](flip7/) | `flip7/` | 2–12 | ✅ Playable |
-| [Baby Log](baby/) | `baby/` | Parents | ✅ Usable |
 | _More on the way…_ | — | — | 🛠️ Coming soon |
 
 ### Do You Really Know Your Friends?
@@ -49,18 +48,14 @@ doesn't lose the game. It even warns you when a round claims more copies of a
 card than the 94-card deck actually holds.
 See [`flip7/`](flip7/) to score a game.
 
-### Baby Log
+### Alaga (formerly Baby Log)
 
-Not a game — an all-in-one **newborn tracker** for tired parents. One-tap
-logging for feeds (breast timer with L/R switching, bottle, solids), diapers
-(with a poop-colour guide), sleep, pumping, tummy time, medicine, temperature
-and growth. It reminds you when the next feed, nap window or medicine dose is
-due, checks the last 24 hours against age norms (*"is my baby eating
-enough?"*), and has an **Answers** section built around the questions new
-parents search for most — including a *"Why is my baby crying?"* helper that
-ranks likely causes from the baby's own log, and a built-in white-noise
-machine. Supports twins, works offline, installs to the home screen, and keeps
-all data on the device. See [`baby/`](baby/) for details.
+The newborn tracker that started here is now its own app, **Alaga**, published
+at **https://alaga.pages.dev** (not on this site). Its source is still in
+[`baby/`](baby/) — see [`baby/README.md`](baby/README.md) and
+[`baby/deploy/`](baby/deploy/) for how it's built and published. The old
+`/baby/` address shows a "moved" page (`moved/`) that lets old installs save
+their log as a backup file to import into Alaga.
 
 ---
 
@@ -88,7 +83,9 @@ all data on the device. See [`baby/`](baby/) for details.
 │   └── js/
 │       ├── rules.js        # Deck definition + scoring maths (pure functions)
 │       └── app.js          # Board, scoring sheet, history, persistence
-├── baby/                   # Tool: Baby Log (installable PWA)
+├── baby/                   # Source of Alaga (published at alaga.pages.dev, not here)
+├── moved/                  # "Alaga has moved" page served at the old /baby/ address
+├── _config.yml             # keeps baby/ out of GitHub Pages
 │   ├── index.html
 │   ├── manifest.webmanifest / sw.js   # install + offline
 │   ├── css/styles.css

@@ -8,7 +8,7 @@ A static-site hub ("Digital Games") of phone-first web apps, deployed with **Git
 
 - `friends/`, `getchurched/` — pass-and-play party games (`js/game.js` state machine + a word/question bank file)
 - `flip7/` — card-game scorer (`js/rules.js` pure scoring maths, `js/app.js` UI + persistence)
-- `baby/` — **Baby Log**, a newborn tracker PWA, by far the largest app; most work happens here (see below and `baby/README.md`)
+- `baby/` — source of **Alaga** (formerly Baby Log), a newborn tracker PWA, by far the largest app; most work happens here (see below and `baby/README.md`). It is **not** published on GitHub Pages (`_config.yml` excludes it); it's built by `baby/deploy/build-site.js` and deployed to Cloudflare Pages (https://alaga.pages.dev). `moved/` serves a "moved" page + kill-switch service worker at the old `/baby/` address.
 
 There is **no build step, no bundler, no framework, and no runtime npm dependencies**. Everything is plain HTML/CSS and ES5-style vanilla JS (`var`, IIFEs, string-concatenated HTML). Keep it that way. `.gitignore` excludes `package.json` and `node_modules/`, so dev-only packages (Playwright) are installed with `--no-save` and never committed.
 
