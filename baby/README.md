@@ -144,7 +144,7 @@ disclaimer.
   the phone's time zone, so a US-English phone in Manila still gets ml and °C),
   changeable in Settings, or by tapping the unit on the bottle and
   temperature screens.
-- **Private:** no account, no analytics; everything lives in `localStorage` on
+- **Private:** no account, no tracking; one anonymous daily count (`js/ping.js`: used today + first time this week/month/ever, version, platform — no ID, opt-out in Settings, totals at the sync server's `/stats` page); everything lives in `localStorage` on
   the device. Network requests: the text reader (Tesseract.js) the first time a
   prescription is scanned — the photo itself never leaves the phone — and, only
   if sharing is turned on, encrypted records to the sync server plus the QR-code
@@ -178,6 +178,7 @@ baby/
     ├── native.js  # web ↔ app-store differences: notifications, files, share, durable storage
     ├── share.js   # partner-sync screens: set up, invite (QR), join, combine, status
     ├── mic.js     # voice logging: listening, the confirm card and countdown
+    ├── ping.js    # anonymous once-a-day usage count (no ID; opt-out in Settings)
     └── app.js     # boot, actions, notifications, settings, import/export
 ```
 
@@ -197,6 +198,8 @@ node baby/tests/e2e.smoke.js        # main flows in Chromium at iPhone size (HEA
 node baby/tests/voice.test.js       # voice phrases → entries
 node baby/tests/e2e.bottle.js       # bottle timer and pace
 node baby/tests/e2e.milk.js         # milk storage: pump → fridge → freeze → thaw → feed → leftover
+node baby/tests/e2e.ping.js         # the anonymous usage count: once a day, nothing when off
+node baby/deploy/build-site.js && node baby/tests/e2e.site.js   # the standalone site, served the Cloudflare way
 node baby/tests/e2e.voice.js        # voice logging + app shortcuts in Chromium (fake recognizer)
 node baby/tests/sync.test.js        # partner sync with three simulated phones (SYNC_URL=… for a real server)
 SYNC_URL=http://127.0.0.1:8787 node baby/tests/e2e.sync.js   # two browsers, against `wrangler dev` (see server/)

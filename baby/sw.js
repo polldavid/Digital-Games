@@ -9,10 +9,10 @@
    cached stylesheet or script — not from this cache, nor from the
    browser's HTTP cache (GitHub Pages caches files for 10 minutes).
    ========================================================= */
-var V = '24';
+var V = '25';
 var VERSION = 'babylog-v' + V;
 var VERSIONED = ['css/styles.css', '../theme.css', '../theme.js',
-  'js/guide.js', 'js/store.js', 'js/sync.js', 'js/sound.js', 'js/rx.js', 'js/voice.js', 'js/files.js', 'js/ui.js', 'js/forms.js', 'js/views.js', 'js/help.js', 'js/health.js', 'js/milk.js', 'js/native.js', 'js/share.js', 'js/mic.js', 'js/app.js'];
+  'js/guide.js', 'js/store.js', 'js/sync.js', 'js/sound.js', 'js/rx.js', 'js/voice.js', 'js/files.js', 'js/ui.js', 'js/forms.js', 'js/views.js', 'js/help.js', 'js/health.js', 'js/milk.js', 'js/native.js', 'js/share.js', 'js/mic.js', 'js/ping.js', 'js/app.js'];
 var FILES = ['./', 'index.html', 'privacy.html', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'
 ].concat(VERSIONED.map(function (f) { return f + '?v=' + V; }));
@@ -28,16 +28,32 @@ self.addEventListener('activate', function (e) {
   }).then(function () { return self.clients.claim(); }));
 });
 
+// A page cached through a redirect can't answer a navigation as it is (browsers
+// refuse redirected responses there), so it's re-wrapped. "/privacy" also finds
+// the copy cached as "privacy.html".
+function fromCache(req) {
+  var url = typeof req === 'string' ? req : req.url;
+  return caches.match(req).then(function (r) {
+    if (!r && !/\.[a-z]+$|\/$/.test(new URL(url, location.href).pathname)) return caches.match(url + '.html');
+    return r;
+  }).then(function (r) {
+    if (!r || !r.redirected) return r;
+    return r.blob().then(function (body) { return new Response(body, { status: r.status, statusText: r.statusText, headers: r.headers }); });
+  });
+}
+
 // Network first for pages (so updates arrive), cache first for everything else.
 self.addEventListener('fetch', function (e) {
   var req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).then(function (res) {
+      // A redirect (Cloudflare sends privacy.html -> /privacy) is the browser's to follow.
+      if (res.type === 'opaqueredirect') return res;
       // Never let a server error page replace the working copy of the app.
       if (res.ok) { var copy = res.clone(); caches.open(VERSION).then(function (c) { c.put(req, copy); }); }
-      return res.ok ? res : caches.match(req).then(function (r) { return r || res; });
-    }).catch(function () { return caches.match(req).then(function (r) { return r || caches.match('index.html'); }); }));
+      return res.ok ? res : fromCache(req).then(function (r) { return r || res; });
+    }).catch(function () { return fromCache(req).then(function (r) { return r || fromCache('index.html'); }); }));
     return;
   }
   e.respondWith(caches.match(req).then(function (hit) {

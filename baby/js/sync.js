@@ -195,6 +195,13 @@
     return subtle.decrypt({ name: 'AES-GCM', iv: a.slice(0, 12) }, keys.aes, a.slice(12)).then(function (pt) { return JSON.parse(dec.decode(pt)); });
   }
 
+  // The sync server (also receives the anonymous usage count, ping.js).
+  function serverUrl(storage) {
+    storage = storage || (typeof localStorage !== 'undefined' ? localStorage : null);
+    try { var o = storage && storage.getItem('dg-babylog-sync-url'); if (o) return o.replace(/\/+$/, ''); } catch (e) {}
+    return SERVER;
+  }
+
   /* ---------- Client ----------
      meta (saved per phone): { secret, device, after, afterK, known: {key: hash},
      joining, lastOk, error }. While `joining`, the phone only pulls, so the
@@ -207,11 +214,7 @@
     var meta = null, keys = null, keysFor = null, busy = null, again = false, timer = null, poll = null;
     var self = { onApplied: null, onStatus: null };
 
-    function server() {
-      if (opts.server) return opts.server;
-      try { var o = storage && storage.getItem('dg-babylog-sync-url'); if (o) return o.replace(/\/+$/, ''); } catch (e) {}
-      return SERVER;
-    }
+    function server() { return opts.server || serverUrl(storage); }
     function loadMeta() {
       if (meta) return meta;
       try { meta = JSON.parse(storage.getItem(META_KEY) || 'null'); } catch (e) { meta = null; }
@@ -381,7 +384,7 @@
     records: records, changes: changes, put: put, hash: hash, mergeBaby: mergeBaby,
     newSecret: newSecret, validSecret: validSecret, parseSecret: parseSecret,
     deriveKeys: deriveKeys, seal: seal, open: open, nameOf: nameOf,
-    Client: Client
+    Client: Client, serverUrl: serverUrl
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

@@ -40,6 +40,7 @@
         voice: false, voiceLang: 'en-US', voiceAutoSave: true, // voice logging (opt-in: speech goes to the phone's speech service)
         quickLog: [],                            // Today buttons chosen by the parent ([] = age-based default)
         pumpStore: 'fridge',                     // where pumped milk usually goes ('' = not tracked)
+        usageCount: true,                        // anonymous once-a-day count (ping.js); the parent can turn it off
         installTipDismissed: false
       }
     };

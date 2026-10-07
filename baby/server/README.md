@@ -34,3 +34,11 @@ node baby/tests/sync.test.js                                  # in-memory server
 SYNC_URL=http://127.0.0.1:8787 node baby/tests/sync.test.js   # this Worker
 SYNC_URL=http://127.0.0.1:8787 node baby/tests/e2e.sync.js    # two browsers
 ```
+
+## Usage stats
+
+The Worker also keeps the anonymous daily usage count (`../js/ping.js`): daily
+totals only, in the `usage` table. Read them at
+`https://babylog-sync.polldavid18.workers.dev/stats` with the stats key, set once with
+`npx wrangler secret put STATS_KEY`. For local runs, put `STATS_KEY=…` in
+`.dev.vars` (git-ignored).

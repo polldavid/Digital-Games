@@ -240,6 +240,7 @@
       row('Back up / move to another phone', 'Download everything as a file. Import it on the other phone to merge logs.', '<button class="btn btn--sm" data-action="export-json">Export</button>') +
       row('Import a backup', 'Merges entries — nothing is overwritten.', '<button class="btn btn--sm" data-action="import-open">Import</button>') +
       row('Spreadsheet (CSV)', 'For your pediatrician or your own analysis.', '<button class="btn btn--sm" data-action="export-csv">CSV</button>') +
+      row('Anonymous usage count', 'Once a day: “Alaga was used today”, the app version and phone type. No ID, nothing about your baby. It tells us whether Alaga is worth building on. <a href="privacy.html">Details</a>', h.sw('usageCount', s.usageCount, 'Anonymous usage count')) +
       row('Erase everything', 'Deletes all babies, logs and photos from this device.', '<button class="btn btn--sm btn--danger" data-action="erase">Erase</button>') +
       '<p class="faint" style="margin-top:10px">Private by design: no account, no tracking. Your logs never leave this device unless you export them or turn on sharing (encrypted on the phone).</p></div>';
 
@@ -982,6 +983,7 @@
     setTimeout(checkReminders, 1500);
     if (window.BabyShare) BabyShare.init();
     if (window.BabyMic) BabyMic.init();
+    if (window.BabyPing) BabyPing.init();
     var sm = /[?&]do=(\w+)/.exec(location.search);
     if (sm) { try { history.replaceState(history.state, '', location.pathname + location.hash); } catch (e) {} runShortcut(sm[1]); }
   }

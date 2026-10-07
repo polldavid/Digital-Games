@@ -305,3 +305,24 @@ console.log('hardening unit tests passed');
   assert.strictEqual(S.milkItem(c.id), null);
   console.log('milk storage tests passed');
 }
+
+// Anonymous usage count: each phone counts itself once a day, once a week, once a month, once ever.
+{
+  const P = require('../js/ping.js');
+  const at = (s) => new Date(s).getTime();
+  let r = P.due(null, at('2026-10-07T09:00'));
+  assert.deepStrictEqual(r.flags, { d: 1, w: 1, m: 1, n: 1 }, 'first ever: new install, new week, new month');
+  let last = r.next;
+  assert.strictEqual(P.due(last, at('2026-10-07T23:30')), null, 'same day: nothing to send');
+  r = P.due(last, at('2026-10-08T07:00'));
+  assert.deepStrictEqual(r.flags, { d: 1, w: 0, m: 0, n: 0 }, 'next day, same week and month');
+  last = r.next;
+  r = P.due(last, at('2026-10-12T07:00')); // Monday
+  assert.deepStrictEqual(r.flags, { d: 1, w: 1, m: 0, n: 0 }, 'a new ISO week');
+  last = r.next;
+  r = P.due(last, at('2026-11-02T07:00'));
+  assert.deepStrictEqual(r.flags, { d: 1, w: 1, m: 1, n: 0 }, 'a new month');
+  assert.strictEqual(P.weekKey(new Date('2026-01-01T12:00')), '2026-W01');
+  assert.strictEqual(P.weekKey(new Date('2027-01-01T12:00')), '2026-W53');
+  console.log('usage count tests passed');
+}

@@ -21,7 +21,7 @@ An all-in-one baby tracker for the first year: logging, timers, reminders, healt
 ## Positioning
 
 - **Answers from the baby's own log.** "Why is my baby crying?", "Is my baby eating enough?" and similar questions are answered against what was actually logged (time since last feed vs age interval, diaper counts by day of life, awake time vs wake window), not only with generic advice.
-- **Private by design.** No account, no analytics, no ads; data stays on the device and works fully offline. Prescription OCR runs on the phone; the photo never leaves it.
+- **Private by design.** No account, no tracking, no ads (only an anonymous, opt-out daily usage count with no ID); data stays on the device and works fully offline. Prescription OCR runs on the phone; the photo never leaves it.
 - **Reminders that respect a sleeping baby.** Feed, diaper, tummy-time and vitamin D reminders hold while the sleep timer runs; no sound while the baby sleeps; quiet hours vibrate only.
 
 ## Operating Context
