@@ -223,6 +223,7 @@
     // Today screen
     html += '<div class="section-title"><h2>Today screen</h2></div><div class="card">' +
       row('Quick log buttons', 'Choose which buttons show on Today, and their order.', '<button class="btn btn--sm" data-action="quick-edit">Edit</button>') +
+      row('Arrange sections', 'Reorder or hide parts of Today (milk, last 24 hours, coming up…).', '<button class="btn btn--sm" data-action="sections-edit">Edit</button>') +
       (window.BabyMic ? BabyMic.settingsRows(row, sel) : '') + '</div>';
 
     // Units
@@ -434,6 +435,14 @@
       S.get().settings.quickLog = ids; commit();
     },
     'quick-reset': function () { S.get().settings.quickLog = []; commit(); h.toast('Today buttons reset'); },
+    'sections-edit': function () { h.openSheet({ title: 'Today’s sections', html: function () { return V.sectionEditor(); } }); },
+    'section-move': function (n) {
+      var o = V.sectionOrder(), id = n.getAttribute('data-id'), i = o.indexOf(id), j = i + (+n.getAttribute('data-d'));
+      if (i < 0 || j < 0 || j >= o.length) return;
+      o.splice(i, 1); o.splice(j, 0, id);
+      S.get().settings.todayOrder = o; commit();
+    },
+    'section-reset': function () { var s = S.get().settings; s.todayOrder = []; s.todayHidden = []; s.milkMode = 'attention'; commit(); h.toast('Today’s sections reset'); },
     'log-vitd': function () {
       var e = S.addEvent({ type: 'med', time: Date.now(), data: { medId: 'vitd', name: 'Vitamin D drops', dose: '', intervalH: 24, maxPerDay: 1, remind: false } });
       commit(); h.toast('Vitamin D logged ☀️', { label: 'Undo', fn: function () { S.removeEvent(e.id); commit(); } });
@@ -761,6 +770,12 @@
         delete b.milestones[k];
       }
       S.save(); render();
+    } else if (ac === 'section-toggle') {
+      var st0 = S.get().settings, hid = (st0.todayHidden || []).filter(function (x) { return x !== t.getAttribute('data-id'); });
+      if (!t.checked) hid.push(t.getAttribute('data-id'));
+      st0.todayHidden = hid; commit();
+    } else if (ac === 'milk-mode') {
+      S.get().settings.milkMode = t.value; commit();
     } else if (ac === 'quick-toggle') {
       var qids = V.quickIds(S.ageDays(Date.now())).main.slice(), qid = t.getAttribute('data-id');
       if (t.checked) { if (qids.indexOf(qid) < 0) qids.push(qid); }

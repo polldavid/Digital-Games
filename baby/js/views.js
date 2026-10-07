@@ -157,8 +157,15 @@
   }
   function moreActions(days) {
     var more = quickItems(days).more;
+    var OPEN = { tiles: ['go', 'log'], milk: ['milk-list', ''], cry: ['help', 'cry'], checks: ['help', 'enough'], coming: ['go', 'settings'], log: ['go', 'log'] };
+    var hidden = SECTIONS.filter(sectionHidden);
     return (more.length ? '<div class="qa-grid qa-grid--3">' + qaButtons(more) + '</div>' : '<p class="muted">Every button is already on Today.</p>') +
-      '<button class="btn btn--block" data-action="quick-edit">✏️ Choose which buttons show on Today</button>';
+      (hidden.length ? '<div class="section-title"><h2>Hidden from Today</h2></div><div class="rows">' + hidden.map(function (id) {
+        var o = OPEN[id];
+        return '<button class="row" data-action="' + o[0] + '"' + (o[0] === 'go' ? ' data-view="' + o[1] + '"' : o[0] === 'help' ? ' data-topic="' + o[1] + '"' : '') + '><div class="row__main"><div class="row__t">' + esc(SECTION_NAMES[id]) + '</div></div><span class="faint">Open ›</span></button>';
+      }).join('') + '</div>' : '') +
+      '<button class="btn btn--block" data-action="quick-edit">✏️ Choose which buttons show on Today</button>' +
+      '<button class="btn btn--block" data-action="sections-edit" style="margin-top:8px">↕️ Arrange Today’s sections</button>';
   }
 
   // Pick and order the Today buttons. Changes apply straight away.
@@ -240,23 +247,71 @@
     }).join('') + '</div>';
   }
 
+  /* Today is made of sections the parent can reorder and hide (Settings → Today
+     screen → Arrange sections, per phone). Running timers always lead and can't be
+     hidden; the quick-log buttons can move but not hide (they're how you log).
+     A hidden section still shows when it holds something urgent: low wet
+     diapers or feeds, milk about to expire. */
+  var SECTIONS = ['buttons', 'tiles', 'milk', 'cry', 'checks', 'coming', 'log'];
+  var SECTION_NAMES = { buttons: '➕ Quick log buttons', tiles: '🕒 Last feed, diaper, sleep', milk: '🧊 Milk', cry: '😭 “Crying?” shortcut', checks: '📊 Last 24 hours', coming: '🔔 Coming up', log: '📋 Today’s entries' };
+  var FIXED = { buttons: true };
+  function sectionOrder() {
+    var o = (S.get().settings.todayOrder || []).filter(function (id) { return SECTIONS.indexOf(id) >= 0; });
+    SECTIONS.forEach(function (id, i) { if (o.indexOf(id) < 0) o.splice(Math.min(i, o.length), 0, id); });
+    return o;
+  }
+  function sectionHidden(id) { return !FIXED[id] && (S.get().settings.todayHidden || []).indexOf(id) >= 0; }
+
   function today() {
-    var now = Date.now(), days = S.ageDays(now), b = S.baby();
-    var rem = S.reminders(now).filter(function (r) { return !r.done; }).slice(0, 4);
-    var todays = S.events({ from: S.startOfDay(now) }).filter(function (e) { return e.time >= S.startOfDay(now); }).reverse();
-    return '<h1 class="sr-only">Today</h1>' + liveCards(now) +
-      quickActions(days) +
-      tiles(now, days) +
-      (window.BabyMilk ? window.BabyMilk.todayCard(now) : '') +
-      '<button class="cry-cta" data-action="help" data-topic="cry"><span class="cry-cta__icon">😭</span><span class="cry-cta__t">Crying? See the likely reasons</span><span class="cry-cta__go">›</span></button>' +
-      installTip() +
-      '<div class="section-title"><h2>Last 24 hours</h2> <button class="btn--link" data-action="help" data-topic="enough">What’s normal?</button></div>' +
-      '<div class="card">' + checks(now, days) + '</div>' +
-      '<div class="section-title"><h2>Coming up</h2> <button class="btn--link" data-action="go" data-view="settings" data-focus="reminders">Manage</button></div>' +
-      '<div class="card">' + reminderRows(rem, now) + '</div>' +
-      '<div class="section-title"><h2>Today</h2> <button class="btn--link" data-action="go" data-view="log">All history</button></div>' +
-      '<div class="card">' + timelineRows(todays.slice(0, 10), now) +
-      (todays.length > 10 ? '<button class="btn btn--link btn--block" data-action="go" data-view="log">See all ' + todays.length + ' entries today</button>' : '') + '</div>';
+    var now = Date.now(), days = S.ageDays(now);
+    var parts = {
+      buttons: function () { return quickActions(days); },
+      tiles: function (hidden) { return hidden ? '' : tiles(now, days); },
+      milk: function (hidden) { return window.BabyMilk ? window.BabyMilk.todayCard(now, hidden ? 'urgent' : S.get().settings.milkMode) : ''; },
+      cry: function (hidden) { return hidden ? '' : '<button class="cry-cta" data-action="help" data-topic="cry"><span class="cry-cta__icon">😭</span><span class="cry-cta__t">Crying? See the likely reasons</span><span class="cry-cta__go">›</span></button>'; },
+      checks: function (hidden) {
+        var c = checks(now, days);
+        if (hidden && !/note--(warn|urgent)/.test(c)) return '';
+        return '<div class="section-title"><h2>' + (hidden ? 'Needs a look' : 'Last 24 hours') + '</h2> <button class="btn--link" data-action="help" data-topic="enough">What’s normal?</button></div><div class="card">' + c + '</div>';
+      },
+      coming: function (hidden) {
+        if (hidden) return '';
+        var rem = S.reminders(now).filter(function (r) { return !r.done; }).slice(0, 4);
+        return '<div class="section-title"><h2>Coming up</h2> <button class="btn--link" data-action="go" data-view="settings" data-focus="reminders">Manage</button></div><div class="card">' + reminderRows(rem, now) + '</div>';
+      },
+      log: function (hidden) {
+        if (hidden) return '';
+        var todays = S.events({ from: S.startOfDay(now) }).filter(function (e) { return e.time >= S.startOfDay(now); }).reverse();
+        return '<div class="section-title"><h2>Today</h2> <button class="btn--link" data-action="go" data-view="log">All history</button></div>' +
+          '<div class="card">' + timelineRows(todays.slice(0, 10), now) +
+          (todays.length > 10 ? '<button class="btn btn--link btn--block" data-action="go" data-view="log">See all ' + todays.length + ' entries today</button>' : '') + '</div>';
+      }
+    };
+    var html = '<h1 class="sr-only">Today</h1>' + liveCards(now);
+    sectionOrder().forEach(function (id) {
+      html += parts[id](sectionHidden(id));
+      if (id === 'cry') html += installTip();
+    });
+    return html;
+  }
+
+  // Arrange Today's sections. Changes apply straight away.
+  function sectionEditor() {
+    var order = sectionOrder(), s = S.get().settings;
+    var rows = order.map(function (id, i) {
+      var shown = !sectionHidden(id);
+      return '<div class="row qe-row' + (shown ? '' : ' qe-row--off') + '">' +
+        '<label class="check-line qe-row__main"><input type="checkbox" data-action-change="section-toggle" data-id="' + id + '"' + (shown ? ' checked' : '') + (FIXED[id] ? ' disabled' : '') + ' />' + esc(SECTION_NAMES[id]) + '</label>' +
+        '<button class="iconbtn" data-action="section-move" data-id="' + id + '" data-d="-1" aria-label="Move ' + esc(SECTION_NAMES[id]) + ' up"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+        '<button class="iconbtn" data-action="section-move" data-id="' + id + '" data-d="1" aria-label="Move ' + esc(SECTION_NAMES[id]) + ' down"' + (i === order.length - 1 ? ' disabled' : '') + '>▼</button></div>' +
+        (id === 'milk' && shown ? '<div class="field" style="margin:4px 0 8px 36px"><div class="seg" role="radiogroup" aria-label="When to show milk">' +
+          [['attention', 'Only when needed'], ['always', 'Always']].map(function (o) { return '<label><input type="radio" name="milkMode" data-action-change="milk-mode" value="' + o[0] + '"' + (s.milkMode === o[0] ? ' checked' : '') + ' /><span>' + o[1] + '</span></label>'; }).join('') +
+          '</div><p class="faint" style="margin-top:4px">“Only when needed”: milk out of the freezer or expiring soon; frozen milk is one line.</p></div>' : '');
+    }).join('');
+    return '<p class="muted">Sections show on Today in this order. Running timers always come first.</p>' +
+      '<p class="faint">Hidden sections still appear when something needs attention — fewer wet diapers than expected, or milk about to expire.</p>' +
+      '<div class="rows">' + rows + '</div>' +
+      '<div class="btn-row sheet-save"><button class="btn" data-action="section-reset">Reset to default</button><button class="btn btn--primary btn--lg" data-action="sheet-close">Done</button></div>';
   }
 
   /* ======================= HISTORY ======================= */
@@ -476,5 +531,5 @@
   }
   function stat(v, k) { return '<div class="stat"><div class="stat__v">' + v + '</div><div class="stat__k">' + k + '</div></div>'; }
 
-  window.BabyViews = { quickEditor: quickEditor, quickIds: quickIds, ITEM_ORDER: ITEM_ORDER, moreActions: moreActions, today: today, history: history, trends: trends, checks: checks, reminderRows: reminderRows, dayStats: dayStats };
+  window.BabyViews = { sectionEditor: sectionEditor, sectionOrder: sectionOrder, SECTIONS: SECTIONS, quickEditor: quickEditor, quickIds: quickIds, ITEM_ORDER: ITEM_ORDER, moreActions: moreActions, today: today, history: history, trends: trends, checks: checks, reminderRows: reminderRows, dayStats: dayStats };
 })();

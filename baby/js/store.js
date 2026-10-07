@@ -41,6 +41,8 @@
         quickLog: [],                            // Today buttons chosen by the parent ([] = age-based default)
         pumpStore: 'fridge',                     // where pumped milk usually goes ('' = not tracked)
         usageCount: true,                        // anonymous once-a-day count (ping.js); the parent can turn it off
+        todayOrder: [], todayHidden: [],          // Today sections: the parent's order and the ones they hid ([] = default)
+        milkMode: 'attention',                   // Milk on Today: 'attention' (only what needs it soon) or 'always'
         installTipDismissed: false
       }
     };

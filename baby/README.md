@@ -124,6 +124,14 @@ disclaimer.
   ([`server/`](server/README.md), a Cloudflare Worker + D1) stores ciphertext
   under hashed names. No account. A phone that already tracked the baby is
   merged in ("Combine the logs"). Settings, alerts and photos stay per phone.
+- **Arrange Today:** Settings → Today screen → *Arrange sections* (or More →
+  *Arrange Today's sections*) reorders or hides the quick-log buttons, tiles,
+  Milk, the crying shortcut, Last 24 hours, Coming up and Today's entries, per
+  phone. Running timers always lead; the buttons can move but not hide. A
+  hidden section still appears when it matters (milk about to expire; "Needs
+  a look" when wet diapers or feeds are low), and hidden sections stay listed
+  under More. Milk defaults to *only when needed*: milk out of the freezer or
+  expiring within a day, with frozen milk as one summary line.
 - **Data safety with sharing:** only one copy of Alaga saves at a time on a
   phone (a second tab or window makes the first step aside — an older copy can
   never save over newer entries); deletions nobody made are never synced —
@@ -211,6 +219,19 @@ node baby/tests/e2e.voice.js        # voice logging + app shortcuts in Chromium 
 node baby/tests/sync.test.js        # partner sync with three simulated phones (SYNC_URL=… for a real server)
 SYNC_URL=http://127.0.0.1:8787 node baby/tests/e2e.sync.js   # two browsers, against `wrangler dev` (see server/)
 ```
+
+## Planned
+
+- **Diaper photos** (optional, on dirty/both diapers): shrunk on the phone,
+  never uploaded, kept in Alaga's own storage (not the phone gallery in the
+  Android app); thumbnail in History; a "for the doctor" gallery led by
+  flagged diapers; a stool colour card beside the photo for comparison — no
+  automatic colour reading (a pale stool must never be called normal); keep
+  for 30 / 90 days / forever (flagged kept). Partner sharing of photos later,
+  as an opt-in, end-to-end encrypted.
+- **Reminders with the app closed on the web / iPhone** via Web Push (see the
+  notifications notes) — the Android app already has them.
+- **Bring in an old shared log** (the Oct 5–6 deletions in the first shared log).
 
 ## Android app
 

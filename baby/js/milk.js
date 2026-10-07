@@ -31,16 +31,30 @@
   }
 
   /* ---------- Today ---------- */
-  function todayCard(now) {
-    var list = S.milkActive();
-    if (!list.length) return '';
+  /* mode: 'always' — everything; 'attention' (default) — milk out of the freezer or
+     expiring within a day, with frozen milk as one summary line; 'urgent' — the
+     section is hidden, so only milk about to expire or already expired shows. */
+  function todayCard(now, mode) {
+    var all = S.milkActive(), list = all, frozen = [];
+    if (mode === 'attention' || mode === 'urgent') {
+      list = all.filter(function (m) {
+        var st = status(m, now);
+        if (mode === 'urgent') return st.level !== 'ok';
+        return st.level !== 'ok' || m.where !== 'freezer' || G.milkExpiry(m).at - now < DAY;
+      });
+      frozen = mode === 'attention' ? all.filter(function (m) { return list.indexOf(m) < 0 && m.where === 'freezer'; }) : [];
+    }
+    if (!list.length && !frozen.length) return '';
+    var oldest = frozen.reduce(function (a, m) { return !a || m.madeAt < a.madeAt ? m : a; }, null);
+    var frozenLine = frozen.length ? '<button class="row" data-action="milk-list"><span class="row__icon" aria-hidden="true">❄️</span><div class="row__main"><div class="row__t">' +
+      frozen.length + ' frozen · ' + h.vol(frozen.reduce(function (a, m) { return a + (m.ml || 0); }, 0)) + '</div><div class="row__s">Oldest pumped ' + h.fmtDate(oldest.madeAt) + '</div></div><span class="faint">All ›</span></button>' : '';
     var rows = list.slice(0, 6).map(function (m) {
       var st = status(m, now);
       return '<button class="row" data-action="milk-open" data-id="' + m.id + '"><span class="row__icon" aria-hidden="true">' + (m.leftoverAt ? '🍼' : ICON[m.where] || '🍼') + '</span><div class="row__main"><div class="row__t">' + esc(what(m)) + '</div>' +
         '<div class="row__s">' + esc((G.MILK_WHERE[m.where] || m.where) + (m.label ? ' · ' + m.label : '') + ' · use by ' + useBy(st.x.at, now)) + '</div></div>' +
         '<span class="status status--' + (st.level === 'ok' ? 'ok' : st.level) + '">' + esc(st.level === 'urgent' ? 'Throw out' : st.level === 'warn' ? 'Use soon' : h.until(st.x.at, now).replace(/^in /, '') + ' left') + '</span></button>';
     }).join('');
-    return '<div class="section-title"><h2>Milk</h2><button class="btn btn--link" data-action="milk-add">＋ Add</button></div><div class="card"><div class="rows">' + rows + '</div>' +
+    return '<div class="section-title"><h2>' + (mode === 'urgent' ? 'Milk to use soon' : 'Milk') + '</h2><button class="btn btn--link" data-action="milk-add">＋ Add</button></div><div class="card"><div class="rows">' + rows + frozenLine + '</div>' +
       (list.length > 6 ? '<button class="btn btn--sm" data-action="milk-list" style="margin-top:8px">All ' + list.length + '</button>' : '') + '</div>';
   }
 
@@ -71,7 +85,7 @@
   }
 
   function listSheet() {
-    h.openSheet({ title: 'Milk', html: function () { return todayCard(Date.now()).replace(/^<div class="section-title">[\s\S]*?<\/div>/, '') + '<button class="btn btn--block" data-action="milk-add">＋ Add milk</button>'; } });
+    h.openSheet({ title: 'Milk', html: function () { return todayCard(Date.now(), 'always').replace(/^<div class="section-title">[\s\S]*?<\/div>/, '') + '<button class="btn btn--block" data-action="milk-add">＋ Add milk</button>'; } });
   }
 
   /* ---------- Add ---------- */
