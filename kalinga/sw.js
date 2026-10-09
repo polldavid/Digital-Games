@@ -6,11 +6,11 @@
    ?v= in index.html together (tests/e2e.smoke.js checks they
    match), so a new page is never paired with an old script.
    ========================================================= */
-var V = '1';
+var V = '2';
 var VERSION = 'kalinga-v' + V;
 var VERSIONED = ['css/kalinga.css',
-  'js/schedule.js', 'js/stock.js', 'js/scale.js', 'js/vitals.js', 'js/conditions.js', 'js/speechnum.js', 'js/store.js',
-  'js/i18n.js', 'js/files.js', 'js/ui.js', 'js/voice.js', 'js/show.js', 'js/reminders.js', 'js/elder.js', 'js/care.js', 'js/app.js'];
+  'js/schedule.js', 'js/stock.js', 'js/scale.js', 'js/vitals.js', 'js/conditions.js', 'js/speechnum.js', 'js/rximport.js', 'js/store.js',
+  'js/i18n.js', 'js/files.js', 'js/rxpdf.js', 'js/ui.js', 'js/voice.js', 'js/show.js', 'js/reminders.js', 'js/elder.js', 'js/care.js', 'js/app.js'];
 var FILES = ['./', 'index.html', 'privacy.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png']
   .concat(VERSIONED.map(function (f) { return f + '?v=' + V; }));
 

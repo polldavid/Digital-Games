@@ -7,7 +7,7 @@
   <title>Privacy · Kalinga</title>
   <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('kalinga-theme')||'light');}catch(e){}</script>
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="css/kalinga.css?v=1" />
+  <link rel="stylesheet" href="css/kalinga.css?v=2" />
   <style>
     .doc { max-width: 680px; margin: 0 auto; padding: max(24px, env(safe-area-inset-top)) 16px 48px; }
     .doc h1 { font-size: calc(30 * var(--u)); font-weight: 850; margin: 8px 0 4px; color: var(--brand); }
@@ -30,6 +30,11 @@
       <li>Profiles, conditions, medicines, schedules, doses, readings and settings are saved in this browser’s storage for this site.</li>
       <li>Photos (pills, swelling) and recorded voice reminders are kept on this phone, in the browser’s file storage. Photos are made smaller first.</li>
       <li>Clearing this site’s data in your browser deletes everything. So does <em>More → Erase everything on this phone</em>. Export a backup first if you want to keep it.</li>
+    </ul>
+    <h2>Prescription PDFs</h2>
+    <ul>
+      <li>When you import an e-prescription PDF, it is read on this phone. The file and its password are never uploaded and the password is not saved.</li>
+      <li>The first import downloads the free PDF reader (pdf.js) from cdnjs.cloudflare.com; only that program code is downloaded, nothing about you is sent.</li>
     </ul>
     <h2>Voice</h2>
     <ul>

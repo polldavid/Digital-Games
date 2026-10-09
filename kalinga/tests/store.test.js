@@ -53,6 +53,7 @@ assert.strictEqual(A.isCurrent(), false);
 const papa = S.addElder({ name: 'Papa' }, 'Poll');
 assert.ok(papa.id && papa.updatedAt === clockNow && papa.by === 'Poll');
 assert.deepStrictEqual(papa.alerts, { rerings: [10, 20], cutoffMin: 30 });
+assert.deepStrictEqual(papa.routine, { breakfast: '07:00', lunch: '12:00', dinner: '19:00', bedtime: '21:00' }, 'daily routine for prescription times');
 const mama = S.addElder({ name: 'Mama' }, 'Poll');
 assert.strictEqual(S.find('elders', papa.id).name, 'Papa');
 clockNow += MIN;

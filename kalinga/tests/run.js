@@ -8,18 +8,18 @@ const path = require('path');
 const vm = require('vm');
 const assert = require('assert');
 
-const TESTS = ['schedule', 'schedule.dst', 'schedule.dstmid', 'stock', 'scale', 'vitals', 'speechnum', 'conditions', 'store'];
+const TESTS = ['schedule', 'schedule.dst', 'schedule.dstmid', 'stock', 'scale', 'vitals', 'speechnum', 'conditions', 'rximport', 'store'];
 for (const t of TESTS) {
   execFileSync(process.execPath, [path.join(__dirname, t + '.test.js')], { stdio: 'inherit' });
 }
 
 // Browser load order (index.html must use the same order).
-const ORDER = ['schedule.js', 'stock.js', 'scale.js', 'vitals.js', 'conditions.js', 'speechnum.js', 'store.js'];
+const ORDER = ['schedule.js', 'stock.js', 'scale.js', 'vitals.js', 'conditions.js', 'speechnum.js', 'rximport.js', 'store.js'];
 const win = { console };
 win.window = win;
 vm.createContext(win);
 for (const f of ORDER) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', f), 'utf8'), win, { filename: f });
-['KalingaSchedule', 'KalingaStock', 'KalingaScale', 'KalingaVitals', 'KalingaConditions', 'KalingaSpeech', 'KalingaStore']
+['KalingaSchedule', 'KalingaStock', 'KalingaScale', 'KalingaVitals', 'KalingaConditions', 'KalingaSpeech', 'KalingaRxImport', 'KalingaStore']
   .forEach((g) => assert.ok(win[g], g + ' is not a browser global'));
 // The browser store works without require, against an in-memory localStorage.
 const m = {};

@@ -110,7 +110,8 @@
   function medsView() {
     var el = elder(); if (!el) return '';
     var meds = S().list('meds', function (m) { return m.elderId === el.id; }).sort(function (a, b) { return (b.active !== false) - (a.active !== false) || a.name.localeCompare(b.name); });
-    return '<h1>' + esc(t('meds.title', { name: el.name })) + '</h1><div style="margin:10px 0 14px"><button class="btn btn--primary btn--lg btn--block" data-action="med-new">' + esc(t('dash.addMed')) + '</button></div>' +
+    return '<h1>' + esc(t('meds.title', { name: el.name })) + '</h1><div style="margin:10px 0 14px;display:grid;gap:10px"><button class="btn btn--primary btn--lg btn--block" data-action="med-new">' + esc(t('dash.addMed')) + '</button>' +
+      '<button class="btn btn--soft btn--lg btn--block" data-action="rx-import">📄 ' + esc(t('rx.import')) + '</button></div>' +
       (meds.length ? '<div class="list">' + meds.map(function (m) {
         var sch = schedulesOf(m)[0], d = St.daysLeft(m, schedulesOf(m));
         return '<button class="row" data-action="med-edit" data-id="' + esc(m.id) + '"' + (m.active === false ? ' style="opacity:.6"' : '') + '>' + k.medPic(m) +
@@ -354,6 +355,7 @@
       _new: !el, name: el ? el.name : '', photoId: el ? el.photoId : null, allergies: el ? el.allergies : '', bloodType: el ? el.bloodType : '',
       contacts: el ? (Array.isArray(el.contacts) ? el.contacts.map(function (c) { return c.name + ' — ' + c.number; }).join('\n') : el.contacts || '') : '',
       _rering: el ? (el.alerts.rerings || []).join(', ') : '10, 20', _cutoff: el ? el.alerts.cutoffMin : 30,
+      _routine: Object.assign({}, window.KalingaRxImport.ROUTINE, (el && el.routine) || {}),
       _conds: conds.filter(function (c) { return c.libraryKey; }).map(function (c) { return c.libraryKey; }),
       _custom: conds.filter(function (c) { return !c.libraryKey; }).map(function (c) { return c.name; }),
       _untick: {}
@@ -382,6 +384,8 @@
     out += h.field(t('prof.allergies'), '<input class="input" name="allergies" maxlength="100" value="' + v(d.allergies) + '"' + bind('allergies') + ' />');
     out += h.field(t('prof.bloodType'), h.select('bloodType', [['', '—'], ['A+', 'A+'], ['A-', 'A−'], ['B+', 'B+'], ['B-', 'B−'], ['AB+', 'AB+'], ['AB-', 'AB−'], ['O+', 'O+'], ['O-', 'O−']], d.bloodType, bind('bloodType')));
     out += h.field(t('prof.contacts'), '<textarea class="input" name="contacts" rows="3" placeholder="' + esc(t('prof.contactsPh')) + '"' + bind('contacts') + '>' + v(d.contacts) + '</textarea>');
+    out += '<div class="field"><span class="field__label">' + esc(t('prof.routine')) + '</span><span class="field__hint">' + esc(t('prof.routineHint')) + '</span><div class="grid2">' +
+      ['breakfast', 'lunch', 'dinner', 'bedtime'].map(function (k2) { return h.field(t('prof.' + k2), '<input class="input" type="time" name="r_' + k2 + '" value="' + v(d._routine[k2]) + '"' + bind('_routine.' + k2) + ' />'); }).join('') + '</div></div>';
     out += '<div class="grid2">' + h.field(t('prof.rering'), '<input class="input" name="rering" value="' + v(d._rering) + '"' + bind('_rering') + ' />') + h.field(t('prof.cutoff'), '<input class="input" name="cutoff" type="number" min="5" max="240" value="' + v(d._cutoff) + '"' + numBind('_cutoff') + ' />') + '</div>';
     out += '<div class="btn-row sheet-save"><button type="button" class="btn btn--primary btn--lg" data-action="profile-save">' + esc(t('c.save')) + '</button></div>';
     return out + '</form>';
@@ -395,7 +399,9 @@
     var cutoff = d._cutoff > 0 ? d._cutoff : 30;
     if (rerings.some(function (x) { return x >= cutoff; })) { h.fieldError(form, 'rering', I.getLang() === 'en' ? 'Re-rings must come before the cutoff.' : 'Dapat mas maaga ang pag-ring ulit kaysa sa cutoff.'); return; }
     var contacts = window.KalingaElder.parseContacts(d.contacts);
-    var fields = { name: name, photoId: d.photoId || null, allergies: d.allergies || '', bloodType: d.bloodType || '', contacts: contacts, alerts: { rerings: rerings, cutoffMin: cutoff } };
+    var routine = {};
+    ['breakfast', 'lunch', 'dinner', 'bedtime'].forEach(function (k2) { routine[k2] = /^\d\d:\d\d$/.test(d._routine[k2] || '') ? d._routine[k2] : window.KalingaRxImport.ROUTINE[k2]; });
+    var fields = { name: name, photoId: d.photoId || null, allergies: d.allergies || '', bloodType: d.bloodType || '', contacts: contacts, alerts: { rerings: rerings, cutoffMin: cutoff }, routine: routine };
     var el = d._new ? S().addElder(fields, by()) : S().update('elders', elder().id, fields, by());
     var dev = S().get().device;
     dev.elderId = el.id;
@@ -421,6 +427,110 @@
     App.render();
     h.toast(t('c.saved'));
   }
+
+  /* ================= PRESCRIPTION IMPORT (PDF) =================
+     File -> (password) -> rows -> KalingaRxImport.parse -> review -> save.
+     Every line is a draft: the caregiver checks it; nothing is saved until
+     "I-save". Lines the parser couldn't read are shown, never guessed. */
+  var rx = null; // { phase: 'reading'|'password'|'review'|'error', file, msg, patient, date }
+  function openImport(file) {
+    rx = { phase: 'reading', file: file, msg: '' };
+    App.ui.draft = null;
+    h.openSheet({ title: '📄 ' + t('rx.import'), html: importHtml, onclose: function () { rx = null; App.ui.draft = null; } });
+    readImport('');
+  }
+  function readImport(password) {
+    rx.phase = 'reading'; h.renderSheet();
+    window.KalingaRxPdf.read(rx.file, password).then(function (res) {
+      if (!rx) return;
+      var el = elder(), parsed = window.KalingaRxImport.parse(res.lines);
+      if (!parsed.items.length) { rx.phase = 'error'; rx.msg = t('rx.none'); h.renderSheet(); return; }
+      var start = window.KalingaRxImport.startDate(parsed.date, Date.now());
+      var have = S().list('meds', function (m) { return m.elderId === el.id; }).map(function (m) { return m.name.toLowerCase(); });
+      rx.patient = parsed.patient; rx.date = parsed.date; rx.phase = 'review';
+      App.ui.draft = { items: parsed.items.map(function (it) {
+        var d = window.KalingaRxImport.draft(it, el.routine), dupe = have.indexOf(d.name.toLowerCase()) >= 0;
+        return {
+          ok: it.ok, sig: it.sig, dupe: dupe, on: it.ok && !dupe, name: d.name,
+          purpose: d.purpose ? d.purpose[I.getLang() === 'en' ? 'en' : 'tl'] : '', form: d.form, dose: d.dose, food: d.food,
+          prn: d.prn, timesText: d.times.join(', '), count: d.count, start: start, end: window.KalingaRxImport.endDate(start, d.days), err: ''
+        };
+      }) };
+      h.renderSheet();
+    }, function (e) {
+      if (!rx) return;
+      var code = (e && e.code) || 'not-pdf';
+      if (code === 'password' || code === 'wrong-password') { rx.phase = 'password'; rx.msg = code === 'wrong-password' ? t('rx.wrongPw') : ''; }
+      else { rx.phase = 'error'; rx.msg = t(code === 'offline' ? 'rx.offline' : 'rx.notPdf'); }
+      h.renderSheet();
+    });
+  }
+  function importHtml() {
+    if (!rx) return '';
+    if (rx.phase === 'reading') return '<div class="empty">⏳ ' + esc(t('rx.reading')) + '</div>';
+    if (rx.phase === 'error') return '<div class="note note--bad">' + esc(rx.msg) + '</div><div class="btn-row" style="margin-top:14px"><button class="btn btn--lg" data-action="sheet-close">' + esc(t('c.close')) + '</button></div>';
+    if (rx.phase === 'password') {
+      return '<form class="form" id="rx-pw-form" autocomplete="off"><p style="margin:0">🔒 ' + esc(t('rx.password')) + '</p>' +
+        (rx.msg ? '<p class="field__error" role="alert">' + esc(rx.msg) + '</p>' : '') +
+        h.field(t('rx.pwLabel'), '<input class="input input--lg" type="password" name="rxpw" autocomplete="off" autofocus />', esc(t('rx.pwHint'))) +
+        '<button class="btn btn--primary btn--lg" type="submit">' + esc(t('rx.unlock')) + '</button></form>';
+    }
+    var d = App.ui.draft, n = d.items.filter(function (x) { return x.on; }).length;
+    var out = '<div class="form">' + (rx.patient ? '<p style="margin:0"><b>' + esc(t('rx.for', { name: rx.patient })) + '</b>' + (rx.date ? ' · ' + esc(rx.date) : '') + '</p>' : '') +
+      '<p class="note">' + esc(t('rx.reviewHint')) + '</p>';
+    d.items.forEach(function (it, i) {
+      var p = 'items.' + i + '.';
+      out += '<div class="box"' + (it.on ? '' : ' style="opacity:.7"') + '>';
+      if (!it.ok) {
+        out += '<div class="box__head">⚠️ ' + esc(it.name) + '</div><div class="note note--due">' + esc(t('rx.unreadable')) + '<br><i>' + esc(it.sig) + '</i></div></div>';
+        return;
+      }
+      out += '<label class="check"><input type="checkbox"' + (it.on ? ' checked' : '') + bind(p + 'on', true) + ' /><span><b>' + esc(it.name) + '</b>' + (it.dupe ? ' <span class="badge badge--due">' + esc(t('rx.dupe')) + '</span>' : '') + '</span></label>';
+      if (it.on) {
+        out += h.field(t('vit.name'), '<input class="input" maxlength="60" value="' + v(it.name) + '"' + bind(p + 'name') + ' />') +
+          h.field(t('med.purpose', { name: elder().name }), '<input class="input" maxlength="80" value="' + v(it.purpose) + '"' + bind(p + 'purpose') + ' />') +
+          '<p style="margin:0">💊 ' + esc(k.amountText({ form: it.form, dose: it.dose })) + (it.food !== 'any' ? ' · ' + esc(t('food.' + it.food)) : '') + '</p>' +
+          (it.prn ? '<p style="margin:0">🤲 ' + esc(t('rx.prnLine', { n: it.prn.maxPerDay || '—' })) + '</p>'
+            : h.field(t('rx.times'), '<input class="input" name="rxt' + i + '" value="' + v(it.timesText) + '"' + bind(p + 'timesText') + ' />', esc(t('rx.timesHint')))) +
+          '<div class="grid2">' + h.field(t('med.stock'), '<input class="input" type="number" min="0" step="0.5" inputmode="decimal" value="' + v(it.count) + '"' + numBind(p + 'count') + ' />') +
+          h.field(t('rx.until'), '<input class="input" type="date" value="' + v(it.end) + '"' + bind(p + 'end') + ' />') + '</div>' +
+          (it.err ? '<p class="field__error" role="alert">' + esc(it.err) + '</p>' : '');
+      }
+      out += '</div>';
+    });
+    out += '<div class="btn-row sheet-save"><button class="btn btn--primary btn--lg" data-action="rx-save"' + (n ? '' : ' disabled') + '>' + esc(t('rx.saveN', { n: n })) + '</button></div></div>';
+    return out;
+  }
+  function saveImport() {
+    var d = App.ui.draft, el = elder(); if (!d || !el) return;
+    var plans = [], bad = false;
+    d.items.forEach(function (it) {
+      it.err = '';
+      if (!it.on || !it.ok) return;
+      var times = String(it.timesText || '').split(/[,\s]+/).filter(Boolean).sort();
+      var med = { elderId: el.id, name: String(it.name || '').trim(), purpose: String(it.purpose || '').trim(), form: it.form, dose: it.dose, food: it.food, prn: it.prn,
+        stock: { count: it.count == null || isNaN(it.count) ? null : it.count, packSize: 0, lowDays: 7 } };
+      var rule = it.prn ? null : { times: times, weekdays: [], everyN: 0, start: it.start, end: it.end || '', prn: false };
+      var e = S().checkMed(med) || (rule && Sch.validate(rule));
+      if (e) { it.err = I.err(e); bad = true; return; }
+      plans.push({ med: med, rule: rule });
+    });
+    if (bad) { h.renderSheet(); var first = h.$('#sheet .field__error'); if (first) first.scrollIntoView({ block: 'center' }); return; }
+    plans.forEach(function (pl) {
+      var saved = S().saveMed(pl.med, by()).med;
+      if (saved && pl.rule) S().saveSchedule({ medId: saved.id, rule: pl.rule }, by());
+    });
+    App.commit();
+    h.closeSheet();
+    App.ui.view = 'meds';
+    App.render();
+    h.toast(t('rx.savedN', { n: plans.length }));
+  }
+  document.addEventListener('submit', function (e) {
+    if (!e.target || e.target.id !== 'rx-pw-form') return;
+    e.preventDefault();
+    if (rx) readImport(e.target.elements.rxpw.value);
+  });
 
   /* ================= MORE ================= */
   function moreView() {
@@ -524,10 +634,13 @@
     'elder-add': function () { h.closeSheet(); setTimeout(function () { openProfile(true); }, 30); },
     'elder-switch': openSwitch,
     'elder-pick': function (n) { S().get().device.elderId = n.getAttribute('data-id'); App.commit(); h.closeSheet(); App.render(); },
-    'log-open': openLog
+    'log-open': openLog,
+    'rx-import': function () { var f = h.$('#rx-file'); f.value = ''; f.click(); },
+    'rx-save': saveImport
   });
   App.changeActions = App.changeActions || {};
   App.changeActions['med-photo'] = function (input) { draftPhoto(input, 'photoId'); };
+  App.changeActions['rx-file'] = function (input) { var f = input.files && input.files[0]; if (f) openImport(f); };
   App.changeActions['profile-photo'] = function (input) { draftPhoto(input, 'photoId'); };
   App.changeActions['unit-touched'] = function () { if (App.ui.draft) App.ui.draft._unitTouched = true; };
   App.changeActions['sugg-toggle'] = function (input) { var d = App.ui.draft; if (d) d._untick[input.getAttribute('data-value')] = !input.checked; };

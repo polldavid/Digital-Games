@@ -337,7 +337,8 @@
 
     /* ---------- Elders ---------- */
     self.addElder = function (e, by) {
-      var rec = Object.assign({ name: '', photoId: null, allergies: '', bloodType: '', contacts: [], doctors: [], alerts: { rerings: [10, 20], cutoffMin: 30 } }, e || {});
+      var rec = Object.assign({ name: '', photoId: null, allergies: '', bloodType: '', contacts: [], doctors: [], alerts: { rerings: [10, 20], cutoffMin: 30 },
+        routine: { breakfast: '07:00', lunch: '12:00', dinner: '19:00', bedtime: '21:00' } }, e || {}); // routine: clock times for "3 times daily" etc.
       return self.add('elders', rec, by);
     };
 
