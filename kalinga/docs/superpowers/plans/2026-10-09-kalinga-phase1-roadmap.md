@@ -63,6 +63,7 @@
   - The caregiver phone gets FCM data messages and shows a local notification with the elder's name and the details, looked up locally.
   - A late confirmation sends a follow-up ("taken 8:12, phone was offline").
 - **Removing a device** switches the circle to a new key, and the remaining devices re-encrypt and re-upload.
+- **Circle timezone (deferred from the 1A review, finding I9):** 1A computes days and times in the phone's own zone. That's correct while each elder's phone works alone (1B, 1C). Before a caregiver abroad views a parent's timeline, the circle's zone (spec §5) must flow into `schedule.js` and `vitals.js` day and hour math, via `Intl` with a `timeZone`. Otherwise a Dubai caregiver sees 08:00 Manila doses at 04:00 and wrong statuses. Alerts aren't affected, because deadlines are absolute times uploaded by the elder's phone.
 - **Tests:** in-memory fake server (as in `baby/tests/sync.test.js`) for sync, tombstones, the generation guard and key rotation. Worker tests stub FCM, and **tests never call the live server**.
 
 ## Phases 2 and 3
