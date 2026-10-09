@@ -4,6 +4,7 @@
 # old /baby/ address instead (via permalinks), so old installs can save their log.
 exclude:
   - baby
+  - kalinga
   - node_modules
   - package.json
   - package-lock.json
