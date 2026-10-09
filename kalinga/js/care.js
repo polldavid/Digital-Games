@@ -232,6 +232,9 @@
     h.clearFieldErrors(form);
     var ins = k.isInsulin(d), scale = ins && d.insulin.mode === 'scale';
     var rule = null;
+    // A time typed in the box but not added with '+ Time' still counts.
+    var pend = h.$('#time-custom');
+    if (d._when === 'sched' && pend && /^\d\d:\d\d$/.test(pend.value) && d._times.indexOf(pend.value) < 0) { d._times.push(pend.value); d._times.sort(); }
     if (d._when === 'sched') {
       rule = { times: d._times.slice().sort(), weekdays: d._days === 'weekdays' ? d._weekdays.slice().sort() : [], everyN: d._days === 'everyN' ? d._everyN : 0, start: d._start, end: d._end || '', prn: false };
       var re = Sch.validate(rule);
@@ -250,6 +253,8 @@
     var res = S().saveMed(med, by(), { confirmChart: !!d._confirm });
     if (res.error) { h.fieldError(form, { name: 'name', form: 'form', dose: 'dose', prn: 'prn', charts: scale && res.error.error === 'not-confirmed' ? 'confirm' : 'ctx' + (res.error.chart > 0 ? res.error.chart : 0), insulin: 'form', elderId: 'name' }[res.error.field] || 'name', I.err(res.error)); return; }
     var saved = res.med;
+    // An existing medicine that wasn't counted yet: the typed count starts the count.
+    if (d.id && d._count != null && !isNaN(d._count) && !St.tracked(saved)) S().setStockCount(saved.id, d._count, by());
     if (rule) {
       var sr = S().saveSchedule({ id: d._scheduleId || undefined, medId: saved.id, rule: rule }, by());
       if (sr.error) { h.fieldError(form, 'timeCustom', I.err(sr.error)); return; }
@@ -311,6 +316,8 @@
   function saveVital() {
     var d = App.ui.draft, form = h.$('#vital-form'); if (!d || !form) return;
     h.clearFieldErrors(form);
+    var vp = h.$('#vtime-custom');
+    if (vp && /^\d\d:\d\d$/.test(vp.value)) { d.logReminders = d.logReminders || []; if (d.logReminders.indexOf(vp.value) < 0) { d.logReminders.push(vp.value); d.logReminders.sort(); } }
     var type = {};
     Object.keys(d).forEach(function (key) { if (key.charAt(0) !== '_') type[key] = d[key]; });
     if (type.kind === 'number') {

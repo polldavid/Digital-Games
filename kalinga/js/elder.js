@@ -24,7 +24,9 @@
 
   function S() { return App.store; }
   function elder() { var d = S().get().device; return d.elderId ? S().find('elders', d.elderId) : null; }
-  function by() { var e = elder(); return e ? e.name : ''; }
+  // Who recorded it: the elder in elder mode, the caregiver when helping from caregiver mode.
+  function by() { var d = S().get().device, e = elder(); return d.mode === 'elder' ? (e ? e.name : '') : (d.name || 'Caregiver'); }
+  var EARLY = 60 * MIN; // a dose can be confirmed from 1 hour before its time
 
   /* ================= HOME ================= */
   function dayInfo(el, now) {
@@ -100,13 +102,21 @@
       return { medId: it.medId, scheduleId: it.scheduleId, dose: it.dose, on: !it.takenEarlier && !k.isScale(m), earlier: !!it.takenEarlier, units: null, reading: null, look: null };
     });
     if (!items.length) return;
-    dose = { slotKey: slotKey, at: slot.at, items: items, phase: 'ask', ringing: !!ringing };
+    var early = slot.at - Date.now() > EARLY;
+    dose = { slotKey: slotKey, at: slot.at, items: items, phase: 'ask', ringing: !!ringing && !early, early: early };
     items.forEach(function (it) { if (k.isScale(S().find('meds', it.medId))) useRecentSugar(it); });
     $dose().hidden = false;
     document.body.classList.add('sheet-open');
     renderDose();
-    if (ringing) R.alarm(function (done) { speakDose(done); });
+    if (dose.ringing) R.alarm(function (done) { speakDose(done); });
     setTimeout(function () { var b = h.$('#dose [data-action="dose-take"]'); if (b) try { b.focus({ preventScroll: true }); } catch (e) {} }, 50);
+  }
+  // A re-ring while the card is still up: sound again (an early preview becomes the real card).
+  function realarm() {
+    if (!dose) return;
+    if (dose.early || dose.phase === 'done') { var key = dose.slotKey; closeDose(); openDose(key, true); return; }
+    dose.ringing = true;
+    R.alarm(function (done) { speakDose(done); });
   }
   function slotTimeOf(key) { var m = /@(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(key); return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : Date.now(); }
   function $dose() { return h.$('#dose'); }
@@ -143,13 +153,26 @@
     var anyOn = dose.items.some(function (it) { return it.on && !it.earlier; });
     var pending = dose.items.filter(function (it) { return !it.earlier; }).length;
     var applyOnly = dose.items.every(function (it) { var m = S().find('meds', it.medId); return m && k.APPLY_FORMS[m.form]; });
+    var insulinOnly = dose.items.every(function (it) { return k.isInsulin(S().find('meds', it.medId)); });
+    if (dose.early) {
+      // Hours early: show what is coming, but nothing can be confirmed (no double or missed doses).
+      return '<div class="dose__inner"><div class="dose__head"><h2 id="dose-title">' + esc(t('dose.title', { time: h.fmtTime(dose.at), part: t('pod.' + Sch.partOfDay(dose.at)) })) + '</h2>' +
+        '<button class="speakbtn" data-action="dose-speak" aria-label="' + esc(t('c.speak')) + '">🔊</button></div>' +
+        '<p class="note note--due" style="font-size:inherit;font-weight:750">⏳ ' + esc(t('dose.notYet', { time: h.fmtTime(dose.at) })) + '</p>' +
+        '<div class="dose__meds">' + dose.items.map(function (it) {
+          var m = S().find('meds', it.medId); if (!m) return '';
+          var u = itemUnits(it, m);
+          return '<div class="dmed">' + k.medPic(m, 'dmed__pic') + '<span><span class="dmed__amount">' + esc(u != null ? k.amountText(m, u) : '? ' + t('unit.units')) + '</span><span class="dmed__name" style="display:block">' + esc(m.name) + '</span>' + (m.purpose ? '<span class="dmed__purpose" style="display:block">' + esc(m.purpose) + '</span>' : '') + '</span></div>';
+        }).join('') + '</div>' +
+        '<div class="dose__actions"><button class="btn btn--primary el-btn el-btn--huge" data-action="dose-close">' + esc(t('c.close')) + '</button></div></div>';
+    }
     return '<div class="dose__inner">' +
       '<div class="dose__head"><h2 id="dose-title">' + esc(t('dose.title', { time: h.fmtTime(dose.at), part: t('pod.' + Sch.partOfDay(dose.at)) })) + '</h2>' +
       '<button class="speakbtn" data-action="dose-speak" aria-label="' + esc(t('c.speak')) + '">🔊</button></div>' +
       (pending > 1 ? '<p class="dose__hint">' + esc(t('dose.tapToUncheck')) + '</p>' : '') +
       '<div class="dose__meds">' + meds + '</div>' +
       '<div class="dose__actions">' +
-      (pending ? '<button class="btn btn--primary el-btn el-btn--huge" data-action="dose-take"' + (anyOn ? '' : ' disabled') + '>✓ ' + esc(applyOnly ? t('dose.applied') : t('dose.takeAll')) + '</button>' +
+      (pending ? '<button class="btn btn--primary el-btn el-btn--huge" data-action="dose-take"' + (anyOn ? '' : ' disabled') + '>✓ ' + esc(applyOnly ? t('dose.applied') : insulinOnly ? t('dose.injected') : t('dose.takeAll')) + '</button>' +
         '<div class="btn-row"><button class="btn el-btn" data-action="dose-later">⏰ ' + esc(t('dose.later')) + '</button><button class="btn el-btn" data-action="dose-skip">' + esc(t('dose.skip')) + '</button></div>'
         : '<button class="btn btn--primary el-btn el-btn--huge" data-action="dose-close">' + esc(t('c.close')) + '</button>') +
       '</div></div>';
@@ -169,7 +192,8 @@
     } else {
       out += '<div class="note note--bad" style="font-size:inherit;font-weight:750">' + esc(look.noChart ? t('ins.noChart') : t('ins.outside', { v: shown })) + '</div>';
     }
-    out += '<button class="btn" data-action="dose-units" data-id="' + esc(m.id) + '">' + esc(t('ins.adjust')) + '</button>';
+    if (look.row) out += '<button class="btn" data-action="dose-units" data-id="' + esc(m.id) + '">' + esc(t('ins.adjust')) + '</button>';
+    out += '<button class="btn" data-action="dose-sugar" data-id="' + esc(m.id) + '">🩸 ' + esc(t('ins.again')) + '</button>';
     return out + '</div>';
   }
   function sugarTypeOf() { var el = elder(); return el ? S().list('vitalTypes', function (v) { return v.elderId === el.id && v.key === 'sugar'; })[0] || null : null; }
@@ -211,23 +235,39 @@
   }
 
   function takeDose() {
-    if (!dose) return;
-    var el = elder(), missing = null;
+    if (!dose || dose.early) return;
+    var el = elder(), now = Date.now(), stale = false, missing = false, left = [];
+    // A sugar reading only decides insulin units for 30 minutes: older means measure again.
+    dose.items.forEach(function (it) {
+      if (it.earlier || !it.reading) return;
+      if (now - it.reading.at > 30 * MIN) { it.reading = null; it.look = null; it.units = null; it.on = false; stale = true; }
+    });
+    if (stale) { renderDose(); h.toast(t('ins.readingOld')); Voice.say(t('ins.readingOld')); return; }
     dose.items.forEach(function (it) {
       if (it.earlier || !it.on) return;
       var m = S().find('meds', it.medId);
-      if (k.isScale(m) && it.units == null) missing = it;
+      if (k.isScale(m) && it.units == null) missing = true;
     });
     if (missing) { h.toast(t('ins.needReading')); return; }
     dose.items.forEach(function (it) {
       if (it.earlier) return;
       var m = S().find('meds', it.medId);
+      // Sliding-scale insulin without a reading stays open — never recorded as skipped by accident.
+      if (k.isScale(m) && !it.reading) { left.push(it); return; }
       S().recordDose({ elderId: el.id, medId: it.medId, scheduleId: it.scheduleId, slotKey: dose.slotKey, dueAt: dose.at, status: it.on ? 'taken' : 'skipped', units: it.on ? itemUnits(it, m) : null, by: by() });
     });
+    if (left.length) {
+      App.commit();
+      R.stopAlarm();
+      dose.items = left;
+      renderDose();
+      h.toast(t('ins.stillNeed')); Voice.say(t('ins.stillNeed'));
+      return;
+    }
     finishDose(t('dose.saidTaken'));
   }
   function laterDose() {
-    if (!dose) return;
+    if (!dose || dose.early) return;
     var el = elder();
     dose.items.forEach(function (it) { if (!it.earlier) S().recordDose({ elderId: el.id, medId: it.medId, scheduleId: it.scheduleId, slotKey: dose.slotKey, dueAt: dose.at, status: 'snoozed', by: by() }); });
     R.snooze(dose.slotKey, 10);
@@ -262,12 +302,38 @@
   function startReading(typeId, onDone) {
     var type = S().find('vitalTypes', typeId); if (!type) return;
     rd = { typeId: typeId, phase: type.kind === 'face' ? 'faces' : (Voice.canHear() ? 'voice' : 'keypad'), value: null, keys: '', step: 'sys', pair: {}, wrongs: 0, heard: '', msg: Voice.canHear() || type.kind === 'face' ? '' : t('rd.noMic'), context: V.guessContext(type, Date.now()), photoId: null, onDone: onDone || null };
-    h.openSheet({ elder: true, title: k.vitalIcon(type) + ' ' + k.vitalName(type), html: readingHtml, onclose: function () { Voice.stopHearing(); Voice.stop(); rd = null; } });
+    h.openSheet({ elder: true, title: k.vitalIcon(type) + ' ' + k.vitalName(type), html: readingHtml, onclose: function () {
+      Voice.stopHearing(); Voice.stop();
+      var after = rd && rd.after, rec = rd && rd.rec;
+      rd = null;
+      if (after && rec) after(rec); // back to the dose card, after the verdict was seen
+    } });
     if (type.kind === 'face') Voice.say(t('rd.how', { what: k.vitalName(type) }));
   }
   function rType() { return rd && S().find('vitalTypes', rd.typeId); }
 
+  /* "My doctor said otherwise": units on the big keypad, read back, and
+     never above the highest number on the caregiver's chart. */
+  function startUnits(it) {
+    var m = S().find('meds', it.medId), max = 0;
+    (m.insulin.charts || []).forEach(function (c) { (c.rows || []).forEach(function (r) { if (r.units > max) max = r.units; }); });
+    rd = { unitsFor: it.medId, max: max, phase: 'keypad', keys: '', wrongs: 0, msg: '', value: null };
+    h.openSheet({ elder: true, title: t('ins.adjust'), html: readingHtml, onclose: function () { Voice.stop(); rd = null; } });
+  }
+  function unitsHtml() {
+    if (rd.phase === 'confirm') {
+      return '<div class="readback"><div class="readback__num">' + esc(rd.value) + '</div><div class="readback__unit">' + esc(t('unit.units')) + '</div>' +
+        '<p style="margin:0;font-weight:800">' + esc(t('ins.unitsQ', { u: rd.value })) + '</p>' +
+        '<div class="btn-row"><button class="btn el-btn" data-action="rd-wrong">✗ ' + esc(t('rd.wrong')) + '</button><button class="btn btn--primary el-btn" data-action="units-right">✓ ' + esc(t('rd.right')) + '</button></div></div>';
+    }
+    return (rd.msg ? '<p class="note note--bad" role="alert" style="font-size:inherit;font-weight:750">' + esc(rd.msg) + '</p>' : '') +
+      '<div class="keypad"><div class="keypad__label">' + esc(t('ins.units')) + '</div><div class="keypad__display" aria-live="polite">' + esc(rd.keys || '—') + '</div>' +
+      ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'].map(function (c) { return '<button data-action="rd-key" data-value="' + esc(c) + '" aria-label="' + esc(c === '⌫' ? 'Delete' : c) + '">' + esc(c) + '</button>'; }).join('') +
+      '</div><div class="btn-row" style="margin-top:14px"><button class="btn btn--primary el-btn" data-action="rd-key-ok"' + (rd.keys ? '' : ' disabled') + '>✓ OK</button></div>';
+  }
+
   function readingHtml() {
+    if (rd && rd.unitsFor) return unitsHtml();
     var type = rType(); if (!type) return '';
     if (rd.phase === 'voice') {
       return '<div class="mic">' + (rd.msg ? '<p class="note note--due" role="alert" style="font-size:inherit">' + esc(rd.msg) + '</p>' : '') +
@@ -372,6 +438,15 @@
     h.renderSheet();
   }
   function keyOk(skip) {
+    if (rd.unitsFor) {
+      var u = parseFloat(rd.keys);
+      rd.keys = '';
+      if (!(u >= 0) || (u * 2) % 1 !== 0) { rd.msg = t('err.bad-level'); h.renderSheet(); return; }
+      if (u > rd.max) { rd.msg = t('ins.overChart', { max: rd.max }); h.renderSheet(); Voice.say(rd.msg); return; }
+      rd.value = u; rd.phase = 'confirm'; rd.msg = '';
+      h.renderSheet(); Voice.say(t('ins.unitsQ', { u: u }));
+      return;
+    }
     var type = rType(), n = skip ? null : parseFloat(rd.keys);
     if (!skip && !(n >= 0)) return;
     if (type.kind === 'pair') {
@@ -388,6 +463,7 @@
     toConfirm(canon);
   }
   function wrong() {
+    if (rd.unitsFor) { rd.phase = 'keypad'; rd.value = null; rd.keys = ''; h.renderSheet(); return; }
     rd.wrongs++;
     rd.value = null;
     rd.phase = rd.wrongs >= 2 || !Voice.canHear() ? 'keypad' : 'voice';
@@ -400,8 +476,7 @@
     App.commit();
     rd.verdict = V.verdict(type, rd.value);
     rd.phase = 'result';
-    var done = rd.onDone;
-    if (done) { rd.onDone = null; h.closeSheet(); done(rec); return; }
+    rd.rec = rec; rd.after = rd.onDone; rd.onDone = null;
     h.renderSheet();
     var words = k.valueText(type, rd.value) + '. ' + k.verdictWord(type, rd.verdict) + (rd.verdict.danger ? '. ' + t('card.' + rd.verdict.danger.card) : '');
     Voice.say(words);
@@ -458,12 +533,16 @@
       startReading(st.id, function (rec) { if (it && rec) applyReading(it, rec); renderDose(); });
     },
     'dose-units': function (n) {
-      var it = dose.items.filter(function (x) { return x.medId === n.getAttribute('data-id'); })[0];
+      var it = dose && dose.items.filter(function (x) { return x.medId === n.getAttribute('data-id'); })[0];
+      if (!it || !it.look || !it.look.row) return; // never when the reading is off the chart
       R.stopAlarm();
-      var v = window.prompt(t('ins.units'), it.units != null ? it.units : '');
-      if (v == null) return;
-      var u = parseFloat(v);
-      if (u >= 0 && u <= 100 && (u * 2) % 1 === 0) { it.units = u; it.on = u > 0; renderDose(); }
+      startUnits(it);
+    },
+    'units-right': function () {
+      var it = dose && rd && dose.items.filter(function (x) { return x.medId === rd.unitsFor; })[0];
+      if (it && rd.value != null) { it.units = rd.value; it.on = rd.value > 0; }
+      h.closeSheet();
+      renderDose();
     },
     'measure-open': openMeasure,
     'rd-start': function (n) { startReading(n.getAttribute('data-id')); },
@@ -489,6 +568,7 @@
 
   window.KalingaElder = {
     home: home, openDose: openDose, closeDose: closeDose, renderDose: renderDose, isDoseOpen: function () { return !!dose; },
+    doseSlot: function () { return dose ? dose.slotKey : null; }, realarm: realarm,
     openMeasure: openMeasure, startReading: startReading, parseContacts: parseContacts
   };
 })();

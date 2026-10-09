@@ -11,7 +11,7 @@ var VERSION = 'kalinga-v' + V;
 var VERSIONED = ['css/kalinga.css',
   'js/schedule.js', 'js/stock.js', 'js/scale.js', 'js/vitals.js', 'js/conditions.js', 'js/speechnum.js', 'js/store.js',
   'js/i18n.js', 'js/files.js', 'js/ui.js', 'js/voice.js', 'js/show.js', 'js/reminders.js', 'js/elder.js', 'js/care.js', 'js/app.js'];
-var FILES = ['./', 'index.html', 'privacy.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png']
+var FILES = ['./', 'index.html', 'privacy.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png']
   .concat(VERSIONED.map(function (f) { return f + '?v=' + V; }));
 
 self.addEventListener('install', function (e) {

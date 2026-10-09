@@ -53,8 +53,10 @@
   function ringFor(slot, el, st, now) {
     var snooze = st.snooze[slot.slotKey];
     if (snooze) {
-      if (now < snooze) return null;
-      return now - slot.at < SNOOZE_LATE ? slot.slotKey + '@s' + snooze : null;
+      // The snooze end is a new due time: ring then, and re-ring after it (+10, +20 by default).
+      if (now < snooze || now - slot.at >= SNOOZE_LATE) return null;
+      var sr = Sch.rings(snooze, el.alerts).filter(function (r) { return r <= now; });
+      return slot.slotKey + '@s' + sr[sr.length - 1];
     }
     if (now >= Sch.cutoff(slot.at, el.alerts)) return null;
     var rs = Sch.rings(slot.at, el.alerts).filter(function (r) { return r <= now; });
@@ -78,19 +80,23 @@
 
   function tick() {
     if (!S()) return;
+    // A stale copy of the app (another tab saved since) must not ring for answered doses.
+    if (S().isCurrent && !S().isCurrent()) return;
     var el = elder(), now = Date.now(), st = load();
     prune(st, now);
     if (st.test && now >= st.test) { delete st.test; save(st); if (handlers.test) handlers.test(); return; }
     if (!el) { save(st); return; }
-    var ring = null;
+    var ring = null, ringKey = null;
     open(now, el.id).forEach(function (slot) {
       var key = ringFor(slot, el, st, now);
-      if (key && !st.fired[key] && !ring) { ring = slot; st.fired[key] = now; }
+      if (key && !st.fired[key] && !ring) { ring = slot; ringKey = key; }
     });
     var measure = measuresDue(el, now).filter(function (m) { return !st.fired[m.key]; });
     measure.forEach(function (m) { st.fired[m.key] = now; });
+    // A ring counts as fired only once it has really sounded: the handler
+    // returns false when another slot's card is open (it rings after that).
+    if (ring && handlers.ring && handlers.ring(ring) !== false) st.fired[ringKey] = now;
     save(st);
-    if (ring && handlers.ring) handlers.ring(ring);
     if (measure.length && handlers.measure) handlers.measure(measure);
   }
 
@@ -108,7 +114,7 @@
   function reset() { try { localStorage.removeItem(KEY); } catch (e) {} }
 
   /* ---------- Sound and notifications ---------- */
-  var ctx = null, loop = null;
+  var ctx = null, loop = null, alarms = 0;
   function chime() {
     try {
       ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
@@ -126,6 +132,7 @@
      to 3 minutes. The card stays on screen after the sound stops. */
   function alarm(speakFn) {
     stopAlarm();
+    alarms++;
     var until = Date.now() + 3 * MIN, me = {};
     loop = me;
     (function round() {
@@ -150,7 +157,7 @@
   }
 
   window.KalingaReminders = {
-    start: start, tick: tick, open: open, measuresDue: measuresDue, snooze: snooze, clearSnooze: clearSnooze,
+    start: start, tick: tick, alarmCount: function () { return alarms; }, open: open, measuresDue: measuresDue, snooze: snooze, clearSnooze: clearSnooze,
     setTest: setTest, reset: reset, chime: chime, alarm: alarm, stopAlarm: stopAlarm,
     notifyPermission: notifyPermission, askNotify: askNotify, notify: notify
   };

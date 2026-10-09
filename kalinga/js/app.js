@@ -28,7 +28,10 @@
 
   /* ---------- Saving ---------- */
   S.onSaveError = function () { var b = h.$('#save-warning'); b.textContent = t('app.notSaved'); b.hidden = false; };
+  /* Another copy of the app saved since this one loaded. With nothing open,
+     just reload (the elder never sees it); otherwise say so, in either mode. */
   S.onConflict = function () {
+    if (!App.ui.sheet && !E.isDoseOpen()) { location.reload(); return; }
     var b = h.$('#save-warning');
     b.innerHTML = esc(t('app.otherCopy')) + ' <button class="btn btn--sm" data-action="reload">' + esc(t('app.reload')) + '</button>';
     b.hidden = false;
@@ -176,9 +179,9 @@
       S.set(K.defaults());
       S.save();
       R.reset();
-      try { indexedDB.deleteDatabase('kalinga-files'); } catch (e) {}
       App.ui.view = 'today';
       render();
+      F.destroy();
     });
   }
 
@@ -241,10 +244,18 @@
 
   /* ---------- Reminders ---------- */
   R.start({
+    // Returns false when it could not ring now (another slot's card is open), so it rings later.
     ring: function (slot) {
       var names = slot.items.map(function (it) { var m = S.find('meds', it.medId); return m ? m.name : ''; }).filter(Boolean).join(', ');
+      if (E.isDoseOpen()) {
+        if (E.doseSlot() !== slot.slotKey) return false;
+        E.realarm(); // the card is still up: a re-ring sounds again
+      } else {
+        if (App.ui.sheet) h.closeSheet();
+        E.openDose(slot.slotKey, true);
+      }
       R.notify('⏰ ' + t('el.nowDue'), h.fmtTime(slot.at) + ' — ' + names, slot.slotKey);
-      if (!E.isDoseOpen()) { if (App.ui.sheet) h.closeSheet(); E.openDose(slot.slotKey, true); }
+      return true;
     },
     measure: function (list) {
       var what = list.map(function (m) { return App.k.vitalName(m.type); }).join(', ');

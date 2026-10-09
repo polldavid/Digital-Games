@@ -172,6 +172,8 @@ function serve() {
     assert.match(await page.textContent('#sheet'), /185 — tama ba\?/);
     await snap('readback');
     await tap('#sheet [data-action="rd-right"]');
+    await page.waitForSelector('#sheet .verdict'); // the verdict always shows first
+    await tap('#sheet [data-action="rd-done"]');
     await page.waitForSelector('#sheet', { state: 'hidden' });
     assert.match(await page.textContent('#dose'), /185 mg\/dL → 2 units/);
     await snap('dose-insulin');

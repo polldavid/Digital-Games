@@ -99,5 +99,19 @@
     }));
   }
 
-  root.KalingaFiles = { put: put, get: get, remove: remove, keys: keys, compress: compress, toBase64: toBase64, url: url, hydrate: hydrate, exportAll: exportAll, importAll: importAll };
+  // Erase: close our connection (or deleteDatabase stays blocked), then delete it all.
+  function destroy() {
+    var closing = dbp ? dbp.then(function (d) { d.close(); }, function () {}) : Promise.resolve();
+    dbp = null;
+    Object.keys(urls).forEach(forget);
+    return closing.then(function () {
+      return new Promise(function (resolve) {
+        var r = root.indexedDB ? indexedDB.deleteDatabase(DB) : null;
+        if (!r) { resolve(); return; }
+        r.onsuccess = r.onerror = r.onblocked = function () { resolve(); };
+      });
+    });
+  }
+
+  root.KalingaFiles = { destroy: destroy, put: put, get: get, remove: remove, keys: keys, compress: compress, toBase64: toBase64, url: url, hydrate: hydrate, exportAll: exportAll, importAll: importAll };
 })(this);

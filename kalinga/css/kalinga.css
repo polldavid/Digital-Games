@@ -184,6 +184,7 @@ button.row { cursor: pointer; }
 .tab[aria-current="page"] { color: var(--brand); }
 .tab[aria-current="page"] b { text-decoration: underline; text-underline-offset: 4px; }
 .banner { margin: 10px 16px 0; padding: 12px 14px; border-radius: var(--radius-sm); font-weight: 650; }
+.banner--top { position: fixed; left: 0; right: 0; top: max(8px, env(safe-area-inset-top)); z-index: 95; font-size: calc(18 * var(--u)); box-shadow: var(--shadow); }
 .banner--bad { background: var(--bad-bg); border: 1px solid var(--bad-line); color: var(--bad); }
 
 /* timeline */
@@ -231,7 +232,7 @@ body.mode-elder .toast { font-size: calc(19 * var(--u)); }
    ELDER MODE — big, calm, photo-first
    ========================================================= */
 .elder { min-height: 100dvh; background: var(--bg); }
-.elder__view { max-width: 640px; margin: 0 auto; padding: max(14px, env(safe-area-inset-top)) 16px 40px; outline: none; display: grid; gap: 16px; font-size: calc(21 * var(--u)); }
+.elder__view { max-width: 640px; margin: 0 auto; padding: max(14px, env(safe-area-inset-top)) 16px 40px; outline: none; display: grid; gap: 16px; font-size: calc(24 * var(--u)); }
 .el-top { display: flex; align-items: flex-start; gap: 12px; }
 .el-hello { flex: 1; min-width: 0; }
 .el-hello h1 { overflow-wrap: anywhere; }
@@ -245,14 +246,14 @@ body.mode-elder .toast { font-size: calc(19 * var(--u)); }
 .el-tile__icon { width: 76px; height: 76px; border-radius: 22px; display: grid; place-items: center; font-size: calc(40 * var(--u)); background: var(--brand-soft); }
 .el-tile > span:last-child { min-width: 0; }
 .el-tile__label { display: block; font-size: calc(26 * var(--u)); font-weight: 850; line-height: 1.15; overflow-wrap: anywhere; }
-.el-tile__sub { display: block; font-size: calc(20 * var(--u)); color: var(--text-dim); margin-top: 4px; overflow-wrap: anywhere; }
+.el-tile__sub { display: block; font-size: calc(24 * var(--u)); color: var(--text-dim); margin-top: 4px; overflow-wrap: anywhere; }
 .el-tile--due { background: var(--due-bg); border-color: var(--due); }
 .el-tile--due .el-tile__icon { background: var(--due); color: #fff; }
 .el-tile--done .el-tile__icon { background: var(--ok-bg); }
 .el-pics { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
 .el-pics img, .el-pics .pillicon { width: 54px; height: 54px; border-radius: 14px; object-fit: cover; }
 .el-list { display: grid; gap: 10px; }
-.el-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 20px; background: var(--card); border: 1.5px solid var(--line); font-size: calc(21 * var(--u)); }
+.el-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 20px; background: var(--card); border: 1.5px solid var(--line); font-size: calc(24 * var(--u)); }
 .el-row__time { font-weight: 850; flex: none; }
 .el-row__what { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .el-row__mark { font-size: calc(28 * var(--u)); flex: none; }
@@ -263,7 +264,8 @@ body.mode-elder .toast { font-size: calc(19 * var(--u)); }
 /* Elder sheet: the reading flow and as-needed medicine */
 .sheet--elder .sheet__panel { max-height: 100dvh; height: 100dvh; border-radius: 0; width: 100%; max-width: 100%; }
 .sheet--elder .sheet__title { font-size: calc(26 * var(--u)); }
-.sheet--elder .sheet__body { font-size: calc(21 * var(--u)); }
+.sheet--elder .sheet__body { font-size: calc(24 * var(--u)); }
+.sheet--elder .chip { min-height: 64px; font-size: calc(22 * var(--u)); padding: 8px 18px; }
 .sheet--elder .iconbtn { width: 60px; height: 60px; font-size: calc(24 * var(--u)); }
 .el-choices { display: grid; gap: 12px; }
 .el-choice { display: flex; align-items: center; gap: 16px; min-height: 92px; padding: 14px 18px; border-radius: 24px; border: 2px solid var(--line); background: var(--card); font-size: calc(24 * var(--u)); font-weight: 800; cursor: pointer; text-align: left; width: 100%; }
@@ -275,12 +277,12 @@ body.mode-elder .toast { font-size: calc(19 * var(--u)); }
 .mic__orb--on { animation: pulse 1.2s ease-in-out infinite; background: var(--bad); }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 @media (prefers-reduced-motion: reduce) { .mic__orb--on { animation: none; } }
-.mic__hint { font-size: calc(21 * var(--u)); color: var(--text-dim); margin: 0; }
+.mic__hint { font-size: calc(24 * var(--u)); color: var(--text-dim); margin: 0; }
 .mic__heard { font-size: calc(19 * var(--u)); color: var(--text-faint); margin: 0; font-style: italic; }
 .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 420px; margin: 0 auto; }
 .keypad button { min-height: 72px; border-radius: 18px; border: 2px solid var(--line); background: var(--card); font-size: calc(32 * var(--u)); font-weight: 800; cursor: pointer; }
 .keypad__display { grid-column: 1 / -1; min-height: 84px; display: grid; place-items: center; border-radius: 18px; background: var(--card-2); border: 2px solid var(--line-strong); font-size: calc(44 * var(--u)); font-weight: 850; font-variant-numeric: tabular-nums; }
-.keypad__label { grid-column: 1 / -1; font-weight: 800; font-size: calc(20 * var(--u)); text-align: center; }
+.keypad__label { grid-column: 1 / -1; font-weight: 800; font-size: calc(24 * var(--u)); text-align: center; }
 .readback { text-align: center; display: grid; gap: 16px; }
 .readback__num { font-size: calc(64 * var(--u)); font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
 .readback__unit { font-size: calc(22 * var(--u)); color: var(--text-dim); }
@@ -300,12 +302,12 @@ body.mode-elder .toast { font-size: calc(19 * var(--u)); }
 /* =========================================================
    DOSE CARD — full screen, the alarm
    ========================================================= */
-.dose { position: fixed; inset: 0; z-index: 80; background: var(--bg); overflow-y: auto; font-size: calc(21 * var(--u)); }
+.dose { position: fixed; inset: 0; z-index: 80; background: var(--bg); overflow-y: auto; font-size: calc(24 * var(--u)); }
 .dose__inner { max-width: 640px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; gap: 14px; padding: max(18px, env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom)); }
 .dose__head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 24px; background: var(--due); color: #fff; }
 .dose__head h2 { flex: 1; font-size: calc(30 * var(--u)); font-weight: 900; }
 .dose__head .speakbtn { border-color: rgba(255,255,255,.6); background: rgba(255,255,255,.15); color: #fff; }
-.dose__hint { margin: 0 4px; color: var(--text-dim); font-size: calc(19 * var(--u)); }
+.dose__hint { margin: 0 4px; color: var(--text-dim); font-size: calc(24 * var(--u)); }
 .dose__meds { display: grid; gap: 12px; }
 .dmed {
   display: grid; grid-template-columns: 104px 1fr; gap: 14px; align-items: center; width: 100%; padding: 12px; text-align: left;
@@ -314,14 +316,14 @@ body.mode-elder .toast { font-size: calc(19 * var(--u)); }
 .dmed > span:nth-child(2) { padding-right: 46px; min-width: 0; }
 .dmed__pic { width: 104px; height: 104px; border-radius: 18px; object-fit: cover; background: var(--brand-soft); display: grid; place-items: center; font-size: calc(48 * var(--u)); }
 .dmed__amount { font-size: calc(28 * var(--u)); font-weight: 900; line-height: 1.1; }
-.dmed__name { font-size: calc(20 * var(--u)); font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
-.dmed__purpose { font-size: calc(19 * var(--u)); color: var(--text-dim); margin-top: 2px; }
+.dmed__name { font-size: calc(24 * var(--u)); font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
+.dmed__purpose { font-size: calc(24 * var(--u)); color: var(--text-dim); margin-top: 2px; }
 .dmed__tick { position: absolute; top: 10px; right: 12px; width: 40px; height: 40px; border-radius: 50%; background: var(--ok); color: #fff; display: grid; place-items: center; font-size: calc(22 * var(--u)); font-weight: 900; }
 .dmed--off { border-color: var(--line); opacity: .55; }
 .dmed--off .dmed__tick { background: var(--text-faint); }
 .dmed--off .dmed__amount { text-decoration: line-through; }
 .dmed--earlier { border-color: var(--line); }
-.dmed__note { font-size: calc(18 * var(--u)); font-weight: 750; color: var(--ok); margin-top: 6px; }
+.dmed__note { font-size: calc(24 * var(--u)); font-weight: 750; color: var(--ok); margin-top: 6px; }
 .dmed__scale { grid-column: 1 / -1; display: grid; gap: 10px; padding: 12px; border-radius: 18px; background: var(--card-2); cursor: default; }
 .dmed__scale .btn { min-height: 64px; font-size: calc(21 * var(--u)); }
 .scale-row { font-size: calc(24 * var(--u)); font-weight: 850; }

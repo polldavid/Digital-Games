@@ -51,3 +51,30 @@
 8. **Settings + backup/restore + privacy page + PWA (sw, manifest, icons).**
 9. **e2e smoke test + deploy build.** Covers the full flow at 360px and checks for no horizontal scroll at 320px. Then deploy to `kalinga-app` (user-authorized).
 10. **Fresh whole-branch review → fix pass → merge.**
+
+## Review outcome (2026-10-10)
+
+A fresh whole-branch review found four medication-safety bugs. All are fixed and pinned by `tests/e2e.safety.js`:
+1. Re-rings were silent while the card stayed open. Now an open card re-alarms, and a ring only counts as fired once it sounds.
+2. On the insulin card, low sugar skipped its danger card, and "doctor said otherwise" accepted any units through a native prompt. Now the verdict and danger card always show first, there are no units and no adjust button when off the chart, and adjusting uses the big keypad with read-back, capped at the chart's highest units.
+3. "Nainom ko na" before measuring recorded sliding-scale insulin as skipped. Now the insulin stays open until measured.
+4. A dose hours away could be confirmed from the "next" tile. Now a card more than 1 hour early is read-only.
+
+Important fixes:
+- Snooze re-rings at +10 and +20 after it ends.
+- A stale copy auto-reloads, or warns in either mode, and never rings.
+- A sugar reading older than 30 minutes is re-asked at "take" time, with a "Sukatin ulit" button.
+- Typed custom times and an edited stock count are kept.
+- Erase deletes photos and voice clips.
+- Elder text is at least 24 design px, and elder chips at least 64px.
+
+Minor fixes: the "by" name in caregiver mode, and an "I injected it" label for insulin.
+
+Deferred minors:
+- A 0-unit chart row is recorded as skipped.
+- PIN has no lockout or reset path, and a restore brings the backup phone's PIN.
+- Needles can't be set on a med edited into insulin.
+- Re-rings for slots near midnight are lost after 00:00.
+- An as-needed dose is one tap with no undo.
+- The maskable icon isn't precached.
+- The chart editor is mg/dL only.
