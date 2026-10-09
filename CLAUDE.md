@@ -79,3 +79,10 @@ The tests are plain scripts, not a framework — there is no per-test filter; to
 - Health guidance in `guide.js` (feeding/sleep/diaper norms, fever thresholds, vaccine schedules for PH and US, milestones) follows AAP/CDC/WHO/NHS/DOH/PIDSP material; screens present it as general information with a "call your pediatrician" disclaimer.
 - The app **never suggests medicine doses** — it only records what was given and enforces spacing/max-per-day that the parent or prescription supplies.
 - Scanned prescriptions are **never saved without the parent confirming** the drafted lines.
+
+## Kalinga (`kalinga/`)
+
+Elder-care sibling of Alaga: medicine alarms, vitals and symptom check-ins, stock, and caregiver alerts. Spec and plans are in `kalinga/docs/superpowers/`. Same rules as Alaga (ES5, no build, no runtime deps, dual-export pure modules). Run `node kalinga/tests/run.js` before every commit. Excluded from GitHub Pages; deploys to https://kalinga-app.pages.dev.
+- **Safety:** the app never calculates, suggests or changes a dose. A sliding-scale chart is lookup only and must be confirmed by the caregiver (`insulin.chartConfirmed`).
+- **Data:** deletes are tombstones (`deleted: true`), never splices, because sync sends deletions explicitly. Only one copy of the app may save (`kalinga-gen` generation guard).
+- **Conditions:** nothing is diabetes-specific. Conditions are data in `js/conditions.js`.
