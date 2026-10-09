@@ -69,7 +69,10 @@
   }
 
   var FEED = {
-    title: function (ev) { return ev ? 'Edit feed' : 'Log a feed'; },
+    title: function (ev, preset) {
+      var meal = (ev ? ev.data.kind : preset && preset.kind) === 'solids' && days() >= 365;
+      return meal ? (ev ? 'Edit meal' : 'Log a meal') : ev ? 'Edit feed' : 'Log a feed';
+    },
     html: function (ev) {
       var b = S.baby(), d = ev ? ev.data : {};
       var bt = S.timers().bottle;
@@ -77,7 +80,8 @@
       var time = ev ? ev.time : bt && bt.done ? bt.start : Date.now();
       var bMin = d.durationMs ? Math.round(d.durationMs / MIN * 10) / 10 : !ev && bt && bt.done ? Math.max(1, Math.round(bt.acc / MIN)) : '';
       var amount = d.amountMl != null ? h.volToDisplay(d.amountMl) : h.volToDisplay(lastBottleMl() || G.feedingFor(days(), b.feeding).ml[0] || 60);
-      var html = seg('kind', [['breast', '🤱 Breast'], ['bottle', '🍼 Bottle'], ['solids', '🥣 Solids']], kind);
+      var html = days() >= 365 ? seg('kind', [['solids', '🍽️ Meal'], ['breast', '🤱 Breast'], ['bottle', '🥛 Milk / bottle']], kind)
+        : seg('kind', [['breast', '🤱 Breast'], ['bottle', '🍼 Bottle'], ['solids', '🥣 Solids']], kind);
 
       // Breast
       html += '<div data-panel="breast"' + (kind !== 'breast' ? ' hidden' : '') + '>';
@@ -108,13 +112,13 @@
 
       // Solids
       html += '<div data-panel="solids" class="form"' + (kind !== 'solids' ? ' hidden' : '') + '>' +
-        '<label class="field"><span class="field__label">What did they eat?</span><input class="input" name="food" maxlength="60" value="' + esc(d.food || '') + '" placeholder="e.g. mashed avocado" list="foods" /></label>' +
+        '<label class="field"><span class="field__label">What did they eat?</span><input class="input" name="food" maxlength="60" value="' + esc(d.food || '') + '" placeholder="' + (days() >= 365 ? 'e.g. rice, chicken and squash' : 'e.g. mashed avocado') + '" list="foods" /></label>' +
         '<datalist id="foods">' + foodsTried().map(function (f) { return '<option value="' + esc(f) + '">'; }).join('') + '</datalist>' +
         '<label class="check-line"><input type="checkbox" name="newFood"' + (d.newFood ? ' checked' : '') + ' /> First time trying this food</label>' +
         '<div class="field"><span class="field__label">How did it go?</span><div class="seg" role="radiogroup">' +
         Object.keys(h.REACTIONS).map(function (k) { return '<label><input type="radio" name="reaction" value="' + k + '"' + ((d.reaction || 'ok') === k ? ' checked' : '') + ' /><span>' + h.REACTIONS[k].split(' ')[0] + '</span></label>'; }).join('') +
         '</div></div>' +
-        (days() < 120 ? h.note('warn', 'A bit early for solids', 'Most babies are ready around 6 months — sitting with support, good head control, and interest in food. Check with your pediatrician first.') : '<p class="faint">Offer one new food at a time so you can spot a reaction. Common allergens (egg, peanut) can be introduced early — ask your pediatrician how.</p>') +
+        (days() >= 365 ? '<p class="faint">A little one day and a lot the next is normal. You decide what and when; ' + esc(S.baby().name) + ' decides how much.</p>' : days() < 120 ? h.note('warn', 'A bit early for solids', 'Most babies are ready around 6 months — sitting with support, good head control, and interest in food. Check with your pediatrician first.') : '<p class="faint">Offer one new food at a time so you can spot a reaction. Common allergens (egg, peanut) can be introduced early — ask your pediatrician how.</p>') +
         '</div>';
 
       html += '<div data-panel-common>' + h.timeField('time', time, 'Started') + noteField(d.note) + '</div>';
@@ -212,11 +216,19 @@
 
   /* ======================= DIAPER ======================= */
   var DIAPER = {
-    title: function (ev) { return ev ? 'Edit diaper' : 'Diaper change'; },
-    html: function (ev) {
+    title: function (ev, preset) {
+      var potty = ev ? !!ev.data.where : preset && preset.potty;
+      return potty ? (ev ? 'Edit potty' : 'Potty') : ev ? 'Edit diaper' : 'Diaper change';
+    },
+    html: function (ev, preset) {
       var d = ev ? ev.data : {};
       var what = ev ? (d.wet && d.dirty ? 'both' : d.dirty ? 'dirty' : d.wet ? 'wet' : 'dry') : 'wet';
-      var html = seg('what', [['wet', '💧 Wet'], ['dirty', '💩 Dirty'], ['both', 'Both'], ['dry', 'Dry']], what);
+      var where = d.where || (preset && preset.potty ? 'potty' : 'diaper');
+      var html = '';
+      if (where !== 'diaper' || days() >= 548) {
+        html += '<div class="field"><span class="field__label">Where?</span>' + seg('where', [['potty', '🚽 Potty'], ['accident', '💦 Accident'], ['diaper', '🧷 Diaper']], where) + '</div>';
+        html += seg('what', [['wet', '💧 Pee'], ['dirty', '💩 Poop'], ['both', 'Both'], ['dry', 'Nothing']], what);
+      } else html += seg('what', [['wet', '💧 Wet'], ['dirty', '💩 Dirty'], ['both', 'Both'], ['dry', 'Dry']], what);
       html += '<div data-poop' + (what === 'dirty' || what === 'both' ? '' : ' hidden') + ' class="form">' +
         '<div class="field"><span class="field__label">Color</span><div class="swatches">' +
         G.POOP_COLORS.map(function (c) { return '<button type="button" class="swatch" data-action="poop-color" data-color="' + c.id + '" aria-pressed="' + (d.color === c.id) + '"><span class="swatch__dot" style="background:' + c.hex + '"></span>' + esc(c.label) + '</button>'; }).join('') +
@@ -225,21 +237,24 @@
         '<div class="field"><span class="field__label" id="texture-label">Texture</span><div class="chips" role="radiogroup" aria-labelledby="texture-label">' +
         G.POOP_TEXTURES.map(function (t) { return '<label class="chip chip--pick"><input class="chip__input" type="radio" name="texture" value="' + t.id + '"' + (d.texture === t.id ? ' checked' : '') + ' />' + esc(t.label) + '</label>'; }).join('') +
         '</div></div><div id="texture-feedback"></div></div>';
-      html += '<label class="check-line"><input type="checkbox" name="rash"' + (d.rash ? ' checked' : '') + ' /> Diaper rash</label>';
+      html += '<label class="check-line" data-rash' + (where === 'diaper' ? '' : ' hidden') + '><input type="checkbox" name="rash"' + (d.rash ? ' checked' : '') + ' /> Diaper rash</label>';
       html += h.timeField('time', ev ? ev.time : Date.now()) + noteField(d.note) + footer(ev);
       return html;
     },
     parse: function (form) {
       var what = radio(form, 'what');
+      var where = radio(form, 'where');
       var data = { wet: what === 'wet' || what === 'both', dirty: what === 'dirty' || what === 'both', rash: checked(form, 'rash'), note: val(form, 'note').trim() };
+      if (where && where !== 'diaper') { data.where = where; data.rash = false; }
       if (data.dirty) { data.color = val(form, 'color') || null; data.texture = radio(form, 'texture') || null; }
       return { time: h.fromLocalInput(val(form, 'time')), data: data };
     },
     mount: function (body) {
       var form = body.querySelector('form');
       var sync = function () {
-        var w = radio(form, 'what');
+        var w = radio(form, 'what'), wh = radio(form, 'where');
         form.querySelector('[data-poop]').hidden = !(w === 'dirty' || w === 'both');
+        form.querySelector('[data-rash]').hidden = !!wh && wh !== 'diaper';
         var c = val(form, 'color'), fb = form.querySelector('#poop-feedback');
         var chk = c ? G.poopCheck(c, days()) : null;
         fb.innerHTML = chk ? h.note(chk.level === 'info' ? 'info' : chk.level, chk.level === 'ok' ? 'Normal' : chk.level === 'urgent' ? 'Call your pediatrician' : 'Worth a call', chk.text) : '';
@@ -523,7 +538,7 @@
     html: function (ev) {
       var d = ev ? ev.data : {}, b = S.baby();
       var html = '<label class="field"><span class="field__label">Weight (' + h.weightUnit() + ')</span><input class="input" type="number" inputmode="decimal" step="any" min="0" name="weight" value="' + (d.weightKg ? h.weightToDisplay(d.weightKg) : '') + '" placeholder="' + (h.weightUnit() === 'lb' ? 'e.g. 8.25' : 'e.g. 3.75') + '" /></label>' +
-        '<div class="field__row"><label class="field"><span class="field__label">Length (' + h.lenUnit() + ')</span><input class="input" type="number" inputmode="decimal" step="any" min="0" name="length" value="' + (d.lengthCm ? h.lenToDisplay(d.lengthCm) : '') + '" /></label>' +
+        '<div class="field__row"><label class="field"><span class="field__label">' + window.BabyViews.lenLabel(days()) + ' (' + h.lenUnit() + ')</span><input class="input" type="number" inputmode="decimal" step="any" min="0" name="length" value="' + (d.lengthCm ? h.lenToDisplay(d.lengthCm) : '') + '" /></label>' +
         '<label class="field"><span class="field__label">Head (' + h.lenUnit() + ')</span><input class="input" type="number" inputmode="decimal" step="any" min="0" name="head" value="' + (d.headCm ? h.lenToDisplay(d.headCm) : '') + '" /></label></div>' +
         '<div id="growth-feedback"></div>';
       if (!b.birthWeightKg) html += '<p class="faint">Tip: add the birth weight to ' + esc(b.name) + '’s profile (Settings) to see weight regained since birth.</p>';

@@ -109,7 +109,7 @@
   function lenToDisplay(cm) { return imperial() ? Math.round((cm / IN) * 10) / 10 : Math.round(cm * 10) / 10; }
   function lenFromDisplay(v) { v = parseFloat(v); if (isNaN(v)) return null; return imperial() ? v * IN : v; }
   function len(cm) { return lenToDisplay(cm) + ' ' + lenUnit(); }
-  // WHO percentile for a measurement taken at time t (null without sex, or past 2 years).
+  // WHO percentile for a measurement taken at time t (null without sex, or past 5 years).
   function growthPct(kind, x, t, babyId) {
     var b = S.baby(babyId);
     if (!b || !b.sex || !x) return null;
@@ -151,7 +151,7 @@
           }
           if (d.nipple) out.sub += ' · nipple ' + d.nipple;
         } else if (d.kind === 'solids') {
-          out.icon = '🥣'; out.title = 'Solids';
+          out.icon = days >= 365 ? '🍽️' : '🥣'; out.title = days >= 365 ? 'Meal' : 'Solids';
           out.sub = (d.food || 'Food') + (d.newFood ? ' · first try' : '') + (d.reaction ? ' · ' + REACTIONS[d.reaction] : '');
           out.flag = d.reaction === 'reaction';
         }
@@ -159,6 +159,10 @@
       case 'diaper':
         out.title = d.wet && d.dirty ? 'Wet + dirty' : d.dirty ? 'Dirty' : d.wet ? 'Wet' : 'Dry';
         out.icon = d.dirty ? '💩' : d.wet ? '💧' : '🧷';
+        if (d.where) { // potty training: on the potty, or an accident
+          out.title = (d.where === 'accident' ? 'Accident' : 'Potty') + ' · ' + (d.wet && d.dirty ? 'pee + poop' : d.dirty ? 'poop' : d.wet ? 'pee' : 'nothing');
+          out.icon = d.where === 'accident' ? '💦' : '🚽';
+        }
         var c = d.color ? G.poopColor(d.color) : null;
         var tx = d.texture ? G.POOP_TEXTURES.filter(function (t) { return t.id === d.texture; })[0] : null;
         out.sub = [c && c.label, tx && tx.label, d.rash && 'rash'].filter(Boolean).join(' · ');
@@ -555,10 +559,9 @@
     return '<div class="field"><span class="field__label">' + esc(label || 'When') + '</span>' +
       '<div class="time-row"><input class="input" type="datetime-local" name="' + name + '" value="' + toLocalInput(ms) + '" required />' +
       '<div class="chips">' +
-      '<button type="button" class="chip" data-action="time-set" data-target="' + name + '" data-min="0">Now</button>' +
-      '<button type="button" class="chip" data-action="time-set" data-target="' + name + '" data-min="15">−15m</button>' +
-      '<button type="button" class="chip" data-action="time-set" data-target="' + name + '" data-min="30">−30m</button>' +
-      '<button type="button" class="chip" data-action="time-set" data-target="' + name + '" data-min="60">−1h</button>' +
+      [[0, 'Now'], [5, '−5m'], [10, '−10m'], [15, '−15m'], [30, '−30m'], [60, '−1h']].map(function (c) {
+        return '<button type="button" class="chip" data-action="time-set" data-target="' + name + '" data-min="' + c[0] + '">' + c[1] + '</button>';
+      }).join('') +
       '</div></div></div>';
   }
 

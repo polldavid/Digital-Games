@@ -38,10 +38,10 @@
         tummyRemind: false, tummyTime: '16:00',
         quietNight: true,                        // 10pm–7am: vibrate only, no chime
         voice: false, voiceLang: 'en-US', voiceAutoSave: true, // voice logging (opt-in: speech goes to the phone's speech service)
-        quickLog: [],                            // Today buttons chosen by the parent ([] = age-based default)
+        today: {},                               // babyId -> { quickLog, todayOrder, todayHidden }: each child's Today (see prefs())
+        quickLog: [], todayOrder: [], todayHidden: [], // before v28 one Today served every child; moved into `today` on load
         pumpStore: 'fridge',                     // where pumped milk usually goes ('' = not tracked)
         usageCount: true,                        // anonymous once-a-day count (ping.js); the parent can turn it off
-        todayOrder: [], todayHidden: [],          // Today sections: the parent's order and the ones they hid ([] = default)
         milkMode: 'attention',                   // Milk on Today: 'attention' (only what needs it soon) or 'always'
         installTipDismissed: false
       }
@@ -140,6 +140,15 @@
     noteDeletes(milkBefore - out.milk.length);
     if (!out.health || typeof out.health !== 'object') out.health = {};
     if (!out.activeBaby && out.babies[0]) out.activeBaby = out.babies[0].id;
+    // One Today for every child (before v28): it becomes each existing child's own.
+    var st = out.settings;
+    if (!st.today || typeof st.today !== 'object') st.today = {};
+    if (st.quickLog.length || st.todayOrder.length || st.todayHidden.length) {
+      out.babies.forEach(function (b) {
+        if (!st.today[b.id]) st.today[b.id] = { quickLog: st.quickLog.slice(), todayOrder: st.todayOrder.slice(), todayHidden: st.todayHidden.length ? st.todayHidden.slice() : null };
+      });
+      st.quickLog = []; st.todayOrder = []; st.todayHidden = [];
+    }
     // A short-lived version stored custom-reminder icons as names ('pill'); show them as emoji again.
     var NAMED = { bell: '🔔', pill: '💊', bottle: '🍼', pump: '🧴', tub: '🛁', stethoscope: '🩺', phone: '📞', sun: '☀️', basket: '🧺', drop: '💧' };
     out.custom.forEach(function (r) { if (r && NAMED[r.icon]) r.icon = NAMED[r.icon]; });
@@ -181,7 +190,21 @@
     state.custom = state.custom.filter(function (r) { return r.baby !== id; });
     delete state.timers[id];
     delete state.health[id];
+    delete state.settings.today[id];
     if (state.activeBaby === id) state.activeBaby = state.babies[0] ? state.babies[0].id : null;
+  }
+
+  /* Each child's Today on this phone: the buttons (quickLog, [] = by age), the
+     order of sections (todayOrder, [] = default) and the hidden ones (todayHidden,
+     null = by age). Settings stay on the phone; they aren't shared. */
+  function prefs(id) {
+    id = id || state.activeBaby;
+    var all = state.settings.today, p = all[id];
+    if (!p) p = all[id] = {};
+    if (!Array.isArray(p.quickLog)) p.quickLog = [];
+    if (!Array.isArray(p.todayOrder)) p.todayOrder = [];
+    if (p.todayHidden !== null && !Array.isArray(p.todayHidden)) p.todayHidden = null;
+    return p;
   }
 
   function ageDays(now, id) {
@@ -608,7 +631,7 @@
     var asleep = isAsleep(id);
 
     // Next feed — from the START of the last feed, like a pediatrician counts it.
-    if (st.feedRemind) {
+    if (st.feedRemind && days < 730) {
       var lf = lastFeedAnchor(id);
       if (lf && !lf.live) {
         var iv = feedIntervalH(now, id);
@@ -624,7 +647,7 @@
     // Diaper check.
     if (st.diaperRemind && !asleep) {
       var ld = last('diaper', null, id);
-      if (ld) out.push({ key: 'diaper:' + ld.id, kind: 'diaper', icon: '🧷', title: 'Diaper check', text: 'Last change was ' + G.fmtDur((now - ld.time) / MIN) + ' ago.', at: ld.time + st.diaperIntervalH * HOUR });
+      if (ld && !ld.data.where) out.push({ key: 'diaper:' + ld.id, kind: 'diaper', icon: '🧷', title: 'Diaper check', text: 'Last change was ' + G.fmtDur((now - ld.time) / MIN) + ' ago.', at: ld.time + st.diaperIntervalH * HOUR });
     }
 
     // Nap window — when the wake window starts closing.
@@ -632,7 +655,7 @@
       var woke = awakeSince(now, id);
       if (woke) {
         var nap = G.nextNap(days, woke, now);
-        out.push({ key: 'nap:' + woke, kind: 'nap', icon: '😴', title: 'Nap window', text: name + ' has been awake ' + G.fmtDur((now - woke) / MIN) + '. Watch for sleepy cues and start winding down.', at: nap.from + Math.round((nap.to - nap.from) / 2) });
+        if (nap) out.push({ key: 'nap:' + woke, kind: 'nap', icon: '😴', title: 'Nap window', text: name + ' has been awake ' + G.fmtDur((now - woke) / MIN) + '. Watch for sleepy cues and start winding down.', at: nap.from + Math.round((nap.to - nap.from) / 2) });
       }
     }
 
@@ -798,7 +821,7 @@
     load: load, save: save, saveSoon: saveSoon, flush: flush, onSave: onSave, touch: touch,
     isCurrent: isCurrent, paused: false, onConflict: null, noteDeletes: noteDeletes, takeDeleteBudget: takeDeleteBudget, get: get, set: set, reset: reset, normalize: normalize,
     onSaveError: null, onSaveOk: null, onSaved: null, device: null,
-    baby: baby, addBaby: addBaby, updateBaby: updateBaby, removeBaby: removeBaby, ageDays: ageDays,
+    baby: baby, addBaby: addBaby, updateBaby: updateBaby, removeBaby: removeBaby, ageDays: ageDays, prefs: prefs,
     addEvent: addEvent, updateEvent: updateEvent, removeEvent: removeEvent, findEvent: findEvent, events: events, last: last,
     startOfDay: startOfDay, overlap: overlap,
     timers: timers, startTimer: startTimer, stopTimer: stopTimer,

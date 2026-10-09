@@ -215,7 +215,14 @@ console.log('hardening unit tests passed');
   assert.ok(mid > 4.4709 && mid < 5.5675);
   assert.strictEqual(G.growthPercentile('wfa', 'm', 0, 1.5).level, 'check');
   assert.strictEqual(G.growthPercentile('wfa', 'm', 0, 1.5).label, 'below 1st');
-  assert.strictEqual(G.growthPercentile('wfa', 'm', 800, 12), null, 'past 2 years: none');
+  assert.strictEqual(G.growthPercentile('wfa', 'm', 1900, 19), null, 'past 5 years: none');
+  // 2 to 5 years: WHO's own tables, standing height from 24 months.
+  assert.ok(Math.abs(G.growthAt('lfa', 'm', 24 * M, 50) - 87.1161) < 0.01, 'boys 24m height median (standing)');
+  assert.ok(Math.abs(G.growthAt('lfa', 'f', 48 * M, 50) - 102.7) < 0.1, 'girls 4y height median');
+  assert.ok(Math.abs(G.growthAt('lfa', 'm', 60 * M, 50) - 110.0) < 0.1, 'boys 5y height median');
+  assert.ok(Math.abs(G.growthAt('wfa', 'm', 60 * M, 50) - 18.3) < 0.1, 'boys 5y weight median');
+  assert.strictEqual(G.growthPercentile('wfa', 'f', 42 * M, G.growthAt('wfa', 'f', 42 * M, 50)).label, '50th');
+  assert.ok(G.growthAt('lfa', 'm', 23.9 * M, 50) > 87.5, 'length (lying down) just before 2');
   assert.strictEqual(G.growthPercentile('wfa', '', 30, 4), null, 'no sex: none');
   assert.strictEqual(G.linesCrossed(60, 20), 2);
   assert.strictEqual(G.linesCrossed(55, 30), 1, 'only the 50th');
@@ -344,4 +351,45 @@ console.log('hardening unit tests passed');
   assert.strictEqual(P.weekKey(new Date('2026-01-01T12:00')), '2026-W01');
   assert.strictEqual(P.weekKey(new Date('2027-01-01T12:00')), '2026-W53');
   console.log('usage count tests passed');
+}
+
+// Older children: age bands, Answers by age, and each child's own Today.
+{
+  const p = require.resolve('../js/store.js'); delete require.cache[p];
+  const S = require(p), G = require('../js/guide.js');
+  assert.strictEqual(G.stage(100), 'baby'); assert.strictEqual(G.stage(500), 'toddler'); assert.strictEqual(G.stage(1278), 'child');
+  assert.deepStrictEqual(G.sleepFor(1278).totalH, [10, 13], '3–5 years: 10–13 hours');
+  assert.deepStrictEqual(G.sleepFor(800).totalH, [11, 14]);
+  assert.strictEqual(G.nextNap(1278, Date.now() - HOUR), null, 'no nap window from 3');
+  assert.ok(G.nextNap(800, Date.now() - HOUR), 'toddlers still nap');
+  assert.match(G.feverCheck(38.5, 1278).text, /more than 3 days/);
+  assert.match(G.feverCheck(38.5, 400).text, /24 hours/);
+  const ids = (d) => G.questionsFor(d).map(q => q.id);
+  assert.ok(ids(20).includes('cry') && !ids(20).includes('potty'));
+  assert.ok(ids(1278).includes('potty') && ids(1278).includes('tantrum') && !ids(1278).includes('cry') && !ids(1278).includes('spit'));
+  assert.ok(G.MILESTONES.some(g => g.months === 60), 'milestones to 5 years');
+  assert.ok(G.cryReasons({ days: 1278, now: Date.now(), awakeSinceMs: 5 * HOUR, feedingType: 'breast' }).length, 'crying helper copes without wake windows');
+
+  // Before v28 one Today served every child: it becomes each existing child's own.
+  S.set({ babies: [{ id: 'a', name: 'Miel', birth: '2026-10-01' }, { id: 'b', name: 'Bea', birth: '2023-04-20' }], settings: { quickLog: ['feed', 'sleep'], todayHidden: ['milk'] } });
+  assert.deepStrictEqual(S.prefs('a').quickLog, ['feed', 'sleep']);
+  assert.deepStrictEqual(S.prefs('b').todayHidden, ['milk']);
+  assert.deepStrictEqual(S.get().settings.quickLog, [], 'the shared list is cleared');
+  S.prefs('b').quickLog = ['solids'];
+  assert.deepStrictEqual(S.prefs('a').quickLog, ['feed', 'sleep'], 'changing one child leaves the other');
+  const c = S.addBaby({ name: 'New', birth: '2026-10-01' });
+  assert.deepStrictEqual(S.prefs(c.id).quickLog, [], 'a new child starts from the age defaults');
+  assert.strictEqual(S.prefs(c.id).todayHidden, null);
+  S.removeBaby(c.id);
+  assert.ok(!S.get().settings.today[c.id], 'removing a child drops its Today');
+
+  // Reminders that don't fit older children stay quiet.
+  const t0 = Date.now();
+  S.set({ babies: [{ id: 'k', name: 'Bea', birth: '2023-04-20', feeding: 'breast' }], activeBaby: 'k', settings: { diaperRemind: true } });
+  S.addEvent({ type: 'feed', time: t0 - 6 * HOUR, data: { kind: 'bottle', amountMl: 200 } });
+  S.addEvent({ type: 'sleep', time: t0 - 10 * HOUR, end: t0 - 3 * HOUR, data: {} });
+  S.addEvent({ type: 'diaper', time: t0 - 4 * HOUR, data: { wet: true, where: 'potty' } });
+  const kinds = S.reminders(t0).map(r => r.kind);
+  assert.ok(!kinds.includes('feed') && !kinds.includes('nap') && !kinds.includes('diaper'), 'no feed, nap or diaper reminders for a 3-year-old: ' + kinds);
+  console.log('older children tests passed');
 }

@@ -68,7 +68,8 @@
     { upTo: 183, label: '4–6 months',  breast: [5, 7],  formula: [4, 6],  intervalH: 4,   ml: [120, 210], note: 'Watch for readiness for solids around 6 months: sitting with support, good head control, interest in food.' },
     { upTo: 274, label: '6–9 months',  breast: [4, 6],  formula: [3, 5],  intervalH: 4,   ml: [180, 240], note: 'Milk is still the main food; solids are for practice. Offer water sips with meals.' },
     { upTo: 366, label: '9–12 months', breast: [3, 5],  formula: [3, 4],  intervalH: 4.5, ml: [180, 240], note: 'Three meals a day plus milk feeds.' },
-    { upTo: Infinity, label: '12 months +', breast: [2, 4], formula: [0, 3], intervalH: 5, ml: [0, 0], note: 'Whole cow’s milk can replace formula from 12 months (about 16–24 oz / 480–720 ml a day).' }
+    { upTo: 730, label: '12–24 months', breast: [2, 4], formula: [0, 3], intervalH: 5, ml: [0, 0], note: 'Three meals and one or two snacks a day. Whole cow’s milk can replace formula from 12 months (about 16–24 oz / 480–720 ml a day).' },
+    { upTo: Infinity, label: '2 years +', breast: [0, 3], formula: [0, 0], intervalH: 5, ml: [0, 0], note: 'Three meals and one or two snacks a day. About 2 cups (16–20 oz / 480–600 ml) of milk a day is plenty, and water for thirst.' }
   ];
 
   function feedingFor(days, feedingType) {
@@ -99,7 +100,8 @@
   /* ---------- Sleep ----------
      Total sleep per 24h (NSF / AAP) and typical wake windows —
      how long a baby can comfortably stay awake between sleeps.
-     Wake windows are rough guides; every baby is different. */
+     Wake windows are rough guides; every baby is different. From 3 years
+     naps are optional, so there are no wake windows (wake: null). */
   var SLEEP = [
     { upTo: 28,  label: 'Newborn',     totalH: [14, 17], wake: [35, 60],   naps: '4–8',  note: 'Sleep comes in 2–4 hour pieces around the clock. Days and nights are mixed up — that is normal.' },
     { upTo: 84,  label: '1–3 months',  totalH: [14, 17], wake: [60, 90],   naps: '4–5',  note: 'The first longer night stretch (4–6h) often shows up now.' },
@@ -107,7 +109,10 @@
     { upTo: 213, label: '4–7 months',  totalH: [12, 16], wake: [120, 180], naps: '3',    note: 'Many babies can sleep a 6–8 hour stretch at night by now.' },
     { upTo: 305, label: '7–10 months', totalH: [12, 16], wake: [150, 210], naps: '2–3',  note: 'Separation anxiety can cause night waking; keep the routine predictable.' },
     { upTo: 426, label: '10–14 months',totalH: [11, 14], wake: [180, 240], naps: '2',    note: 'Most babies drop to two naps.' },
-    { upTo: Infinity, label: '14 months +', totalH: [11, 14], wake: [240, 360], naps: '1–2', note: 'The move to one nap usually happens between 14 and 18 months.' }
+    { upTo: 548, label: '14–18 months', totalH: [11, 14], wake: [240, 360], naps: '1–2', note: 'The move to one nap usually happens between 14 and 18 months.' },
+    { upTo: 1096, label: '18 months–3 years', totalH: [11, 14], wake: [300, 360], naps: '1', note: 'One afternoon nap of 1–3 hours is typical. A steady bedtime routine (bath, brush teeth, book, bed) helps more than anything.' },
+    { upTo: 2192, label: '3–5 years', totalH: [10, 13], wake: null, naps: '0–1', note: 'Many children drop their nap between 3 and 5. A quiet rest time still helps; aim for 10–13 hours in 24 hours, counting any nap.' },
+    { upTo: Infinity, label: '6 years +', totalH: [9, 12], wake: null, naps: '0', note: 'School-age children need 9–12 hours of sleep a night.' }
   ];
 
   function sleepFor(days) { return band(SLEEP, days); }
@@ -133,9 +138,12 @@
     } else if (days < 183) {
       if (tempC >= 38.9) return { level: 'urgent', title: 'High fever', text: 'At 3–6 months, call your pediatrician for 38.9 °C / 102 °F or higher, or any fever with other symptoms.' };
       if (tempC >= 38) return { level: 'warn', title: 'Fever', text: 'Call your pediatrician to check in — at 3–6 months they want to hear about fevers, especially with fussiness, poor feeding, or fewer wet diapers.' };
-    } else {
+    } else if (days < 730) {
       if (tempC >= 40) return { level: 'urgent', title: 'Very high fever', text: '40 °C / 104 °F or higher — call your pediatrician now.' };
       if (tempC >= 38) return { level: 'warn', title: 'Fever', text: 'Watch how baby is acting more than the number. Call your doctor if the fever lasts over 24 hours (under age 2), or if baby is hard to wake, not drinking, or has fewer wet diapers.' };
+    } else {
+      if (tempC >= 40) return { level: 'urgent', title: 'Very high fever', text: '40 °C / 104 °F or higher — call your pediatrician now.' };
+      if (tempC >= 38) return { level: 'warn', title: 'Fever', text: 'Watch how your child is acting more than the number: fever itself helps fight infection. Call your doctor if it lasts more than 3 days, or if your child is hard to wake, not drinking, peeing much less, or seems very unwell.' };
     }
     if (tempC >= 37.5) return { level: 'ok', title: 'Slightly warm', text: 'Not a fever yet (fever is 38.0 °C / 100.4 °F). Remove a layer and re-check in 30 minutes.' };
     return { level: 'ok', title: 'Normal temperature', text: 'Normal is roughly 36.5–37.5 °C / 97.7–99.5 °F.' };
@@ -198,7 +206,11 @@
     { months: 12, items: ['Plays games with you, like pat-a-cake', 'Waves “bye-bye”', 'Calls a parent “mama”, “dada” or another special name', 'Understands “no”', 'Puts something in a container', 'Pulls up to stand', 'Walks holding on to furniture', 'Picks things up between thumb and pointer finger'] },
     { months: 15, items: ['Copies other children while playing', 'Shows you an object they like', 'Tries to say one or two words besides “mama” or “dada”', 'Points to ask for something', 'Takes a few steps on their own', 'Uses fingers to feed themselves'] },
     { months: 18, items: ['Moves away from you, but looks to make sure you are close', 'Points to show you something interesting', 'Tries to say three or more words besides “mama” or “dada”', 'Follows one-step directions', 'Walks without holding on', 'Drinks from a cup without a lid', 'Tries to use a spoon'] },
-    { months: 24, items: ['Notices when others are hurt or upset', 'Points to things in a book when you ask', 'Says at least two words together, like “more milk”', 'Points to at least two body parts', 'Kicks a ball', 'Runs', 'Eats with a spoon'] }
+    { months: 24, items: ['Notices when others are hurt or upset', 'Points to things in a book when you ask', 'Says at least two words together, like “more milk”', 'Points to at least two body parts', 'Kicks a ball', 'Runs', 'Eats with a spoon'] },
+    { months: 30, items: ['Plays next to other children and sometimes plays with them', 'Shows you what they can do by saying “Look at me!”', 'Follows simple routines when told, like helping pick up toys', 'Says about 50 words', 'Says two or more words together, with one action word, like “Doggie run”', 'Names things in a book when you point and ask', 'Says words like “I”, “me” or “we”', 'Uses things to pretend, like feeding a block to a doll', 'Follows two-step instructions, like “Put the toy down and close the door”', 'Knows at least one colour', 'Uses hands to twist things, like doorknobs or lids', 'Takes some clothes off by themselves', 'Jumps off the ground with both feet', 'Turns book pages one at a time'] },
+    { months: 36, items: ['Calms down within 10 minutes after you leave, like at a childcare drop-off', 'Notices other children and joins them to play', 'Talks with you in conversation with at least two back-and-forth exchanges', 'Asks “who”, “what”, “where” or “why” questions', 'Says what is happening in a picture or book when asked', 'Says their first name when asked', 'Talks well enough for others to understand most of the time', 'Draws a circle when you show how', 'Avoids touching hot objects, like a stove, when you warn them', 'Strings items together, like large beads or macaroni', 'Puts on some clothes by themselves, like loose pants or a jacket', 'Uses a fork'] },
+    { months: 48, items: ['Pretends to be something else during play (teacher, superhero, dog)', 'Asks to go play with children if none are around', 'Comforts others who are hurt or sad', 'Avoids danger, like not jumping from tall heights at the playground', 'Likes to be a “helper”', 'Changes behaviour based on where they are (church, library, playground)', 'Says sentences with four or more words', 'Says some words from a song, story or nursery rhyme', 'Talks about at least one thing that happened during the day', 'Answers simple questions like “What is a coat for?”', 'Names a few colours of items', 'Tells what comes next in a well-known story', 'Draws a person with three or more body parts', 'Catches a large ball most of the time', 'Serves themselves food or pours water, with an adult watching', 'Unbuttons some buttons', 'Holds a crayon or pencil between fingers and thumb (not a fist)'] },
+    { months: 60, items: ['Follows rules or takes turns when playing games with other children', 'Sings, dances or acts for you', 'Does simple chores at home, like matching socks or clearing the table', 'Tells a story they heard or made up, with at least two events', 'Answers simple questions about a book or story after you read it', 'Keeps a conversation going with more than three back-and-forth exchanges', 'Uses or recognises simple rhymes (bat–cat, ball–tall)', 'Counts to 10', 'Names some numbers between 1 and 5 when you point to them', 'Uses words about time, like “yesterday”, “tomorrow”, “morning” or “night”', 'Pays attention for 5 to 10 minutes during activities', 'Writes some letters in their name', 'Names some letters when you point to them', 'Buttons some buttons', 'Hops on one foot'] }
   ];
 
   /* ---------- Vaccination schedules ----------
@@ -320,7 +332,7 @@
     else out.push({ id: 'diaper', score: Math.round(Math.min(85, (sinceDiaper / 180) * 60)), icon: '🧷', title: 'Wet or dirty diaper?', why: 'Last change ' + fmtDur(sinceDiaper) + ' ago.' });
 
     // Tiredness against the wake window.
-    if (ctx.awakeSinceMs != null) {
+    if (ctx.awakeSinceMs != null && sleep.wake) {
       var awake = ctx.awakeSinceMs / MIN;
       var maxW = sleep.wake[1];
       var t = Math.round(Math.min(95, (awake / maxW) * 75));
@@ -357,8 +369,8 @@
   /* ---------- Sleep suggestion ----------
      Given when baby woke up, when is the next nap likely? */
   function nextNap(days, wokeAt, now) {
-    if (!wokeAt) return null;
     var s = sleepFor(days);
+    if (!wokeAt || !s.wake) return null;
     var from = wokeAt + s.wake[0] * MIN, to = wokeAt + s.wake[1] * MIN;
     var n = now || Date.now();
     var state = n < from ? 'early' : n <= to ? 'window' : 'over';
@@ -384,17 +396,31 @@
   /* ---------- Answers to the most-searched baby questions ----------
      Each one points at the tool in the app that answers it for
      *your* baby, plus a short evidence-based summary. */
+  // `from`/`to`: the ages in days a question is shown for (Answers lists what fits the child).
   var QUESTIONS = [
-    { id: 'cry',     icon: '😭', q: 'Why is my baby crying?',                 tool: 'cry' },
-    { id: 'sleep',   icon: '🌙', q: 'How can I help my baby sleep better?',   tool: 'sleep' },
-    { id: 'enough',  icon: '🍼', q: 'Is my baby eating enough?',              tool: 'enough' },
-    { id: 'howmuch', icon: '⏱️', q: 'How often and how much should my baby eat?', tool: 'howmuch' },
-    { id: 'poop',    icon: '💩', q: 'Is my baby’s poop normal?',              tool: 'poop' },
-    { id: 'fever',   icon: '🌡️', q: 'Does my baby have a fever? When do I call the doctor?', tool: 'fever' },
-    { id: 'miles',   icon: '⭐', q: 'When will my baby roll over, sit up, crawl and walk?', tool: 'milestones' },
-    { id: 'spit',    icon: '🤧', q: 'Why does my baby spit up, get hiccups, or sound stuffy?', tool: 'spit' },
-    { id: 'teeth',   icon: '🦷', q: 'Is my baby teething? How can I help?',    tool: 'teeth' }
+    { id: 'cry',     icon: '😭', q: 'Why is my baby crying?',                 tool: 'cry', to: 548 },
+    { id: 'tantrum', icon: '😤', q: 'Tantrums and big feelings: what helps?', tool: 'tantrum', from: 365 },
+    { id: 'sick',    icon: '🤒', q: 'Colds, coughs, vomiting: when to see the doctor?', tool: 'sick', from: 183 },
+    { id: 'sleep',   icon: '🌙', q: 'How can I help my baby sleep better?',   tool: 'sleep', to: 365 },
+    { id: 'sleepk',  icon: '🌙', q: 'How can I help my child sleep better?',  tool: 'sleep', from: 365 },
+    { id: 'enough',  icon: '🍼', q: 'Is my baby eating enough?',              tool: 'enough', to: 365 },
+    { id: 'howmuch', icon: '⏱️', q: 'How often and how much should my baby eat?', tool: 'howmuch', to: 548 },
+    { id: 'eating',  icon: '🍽️', q: 'Picky eating: is my child eating enough?', tool: 'eating', from: 365 },
+    { id: 'poop',    icon: '💩', q: 'Is my baby’s poop normal?',              tool: 'poop', to: 730 },
+    { id: 'potty',   icon: '🚽', q: 'When and how do we start potty training?', tool: 'potty', from: 548 },
+    { id: 'fever',   icon: '🌡️', q: 'Does my baby have a fever? When do I call the doctor?', tool: 'fever', to: 365 },
+    { id: 'feverk',  icon: '🌡️', q: 'Fever: when do I call the doctor?',     tool: 'fever', from: 365 },
+    { id: 'miles',   icon: '⭐', q: 'When will my baby roll over, sit up, crawl and walk?', tool: 'milestones', to: 365 },
+    { id: 'milesk',  icon: '⭐', q: 'What should my child be doing by now?',  tool: 'milestones', from: 365 },
+    { id: 'spit',    icon: '🤧', q: 'Why does my baby spit up, get hiccups, or sound stuffy?', tool: 'spit', to: 365 },
+    { id: 'teeth',   icon: '🦷', q: 'Is my baby teething? How can I help?',    tool: 'teeth', from: 91, to: 1096 }
   ];
+  function questionsFor(days) { return QUESTIONS.filter(function (q) { return (q.from == null || days >= q.from) && (q.to == null || days < q.to); }); }
+
+  /* ---------- Life stage ----------
+     baby (under 1), toddler (1 to 3) or child (3 and up). Picks the Today
+     buttons and sections a parent starts with; they can change them. */
+  function stage(days) { return days < 365 ? 'baby' : days < 1096 ? 'toddler' : 'child'; }
 
   /* ---------- Bottle pace ----------
      A paced bottle feed usually takes about 10–20 minutes. Much longer
@@ -448,24 +474,32 @@
     return ['room', 'fridge', 'freezer', 'cooler'].filter(function (w) { return w !== m.where; });
   }
 
-  /* ---------- Growth percentiles (WHO Child Growth Standards, 0–24 months) ----------
-     L, M, S by completed month for boys (m) and girls (f), from the WHO tables
-     as published by CDC/NCHS (WHO-*-for-age-Percentiles.csv). Ages between
-     months are interpolated. Same charts pediatricians use for under-2s.
+  /* ---------- Growth percentiles (WHO Child Growth Standards, 0–5 years) ----------
+     L, M, S by completed month for boys (m) and girls (f). Birth to 24 months
+     from the WHO tables as published by CDC/NCHS (WHO-*-for-age-Percentiles.csv);
+     25 to 60 months from WHO's own day-by-day tables (the anthro package's
+     weianthro, lenanthro and hcanthro), read at each month's exact age, which
+     reproduces WHO's monthly tables. Ages between months are interpolated.
      wfa = weight (kg), lfa = length (cm), hcfa = head circumference (cm). */
   var WHO_GROWTH = {
     wfa: {
-      m: [[0.3487, 3.3464, 0.14602], [0.2297, 4.4709, 0.13395], [0.197, 5.5675, 0.12385], [0.1738, 6.3762, 0.11727], [0.1553, 7.0023, 0.11316], [0.1395, 7.5105, 0.1108], [0.1257, 7.934, 0.10958], [0.1134, 8.297, 0.10902], [0.1021, 8.6151, 0.10882], [0.0917, 8.9014, 0.10881], [0.082, 9.1649, 0.10891], [0.073, 9.4122, 0.10906], [0.0644, 9.6479, 0.10925], [0.0563, 9.8749, 0.10949], [0.0487, 10.0953, 0.10976], [0.0413, 10.3108, 0.11007], [0.0343, 10.5228, 0.11041], [0.0275, 10.7319, 0.11079], [0.0211, 10.9385, 0.11119], [0.0148, 11.143, 0.11164], [0.0087, 11.3462, 0.11211], [0.0029, 11.5486, 0.11261], [-0.0028, 11.7504, 0.11314], [-0.0083, 11.9514, 0.11369], [-0.0137, 12.1515, 0.11426]],
-      f: [[0.3809, 3.2322, 0.14171], [0.1714, 4.1873, 0.13724], [0.0962, 5.1282, 0.13], [0.0402, 5.8458, 0.12619], [-0.005, 6.4237, 0.12402], [-0.043, 6.8985, 0.12274], [-0.0756, 7.297, 0.12204], [-0.1039, 7.6422, 0.12178], [-0.1288, 7.9487, 0.12181], [-0.1507, 8.2254, 0.12199], [-0.17, 8.48, 0.12223], [-0.1872, 8.7192, 0.12247], [-0.2024, 8.9481, 0.12268], [-0.2158, 9.1699, 0.12283], [-0.2278, 9.387, 0.12294], [-0.2384, 9.6008, 0.12299], [-0.2478, 9.8124, 0.12303], [-0.2562, 10.0226, 0.12306], [-0.2637, 10.2315, 0.12309], [-0.2703, 10.4393, 0.12315], [-0.2762, 10.6464, 0.12323], [-0.2815, 10.8534, 0.12335], [-0.2862, 11.0608, 0.1235], [-0.2903, 11.2688, 0.12369], [-0.2941, 11.4775, 0.1239]]
+      m: [[0.3487, 3.3464, 0.14602], [0.2297, 4.4709, 0.13395], [0.197, 5.5675, 0.12385], [0.1738, 6.3762, 0.11727], [0.1553, 7.0023, 0.11316], [0.1395, 7.5105, 0.1108], [0.1257, 7.934, 0.10958], [0.1134, 8.297, 0.10902], [0.1021, 8.6151, 0.10882], [0.0917, 8.9014, 0.10881], [0.082, 9.1649, 0.10891], [0.073, 9.4122, 0.10906], [0.0644, 9.6479, 0.10925], [0.0563, 9.8749, 0.10949], [0.0487, 10.0953, 0.10976], [0.0413, 10.3108, 0.11007], [0.0343, 10.5228, 0.11041], [0.0275, 10.7319, 0.11079], [0.0211, 10.9385, 0.11119], [0.0148, 11.143, 0.11164], [0.0087, 11.3462, 0.11211], [0.0029, 11.5486, 0.11261], [-0.0028, 11.7504, 0.11314], [-0.0083, 11.9514, 0.11369], [-0.0137, 12.1515, 0.11426], [-0.01889, 12.35019, 0.11485], [-0.02397, 12.5466, 0.11544], [-0.02888, 12.74012, 0.11604], [-0.03375, 12.93035, 0.11664], [-0.03847, 13.11689, 0.11722], [-0.04311, 13.30004, 0.11781], [-0.04761, 13.47982, 0.11839], [-0.052, 13.6567, 0.11896], [-0.05639, 13.83095, 0.11953], [-0.06067, 14.0031, 0.12008], [-0.06483, 14.17365, 0.12063], [-0.06888, 14.3429, 0.12116], [-0.07292, 14.51125, 0.12168], [-0.07686, 14.67904, 0.1222], [-0.08081, 14.84654, 0.12271], [-0.08455, 15.01395, 0.12322], [-0.08829, 15.18126, 0.12373], [-0.09204, 15.34856, 0.12425], [-0.09568, 15.51577, 0.12478], [-0.09925, 15.68287, 0.12532], [-0.10277, 15.84968, 0.12586], [-0.10631, 16.01629, 0.12642], [-0.10976, 16.18269, 0.127], [-0.1131, 16.3489, 0.12759], [-0.11644, 16.51501, 0.12819], [-0.11979, 16.68111, 0.12881], [-0.12303, 16.84712, 0.12943], [-0.12627, 17.01315, 0.13006], [-0.12942, 17.17923, 0.13068], [-0.13256, 17.34524, 0.13132], [-0.13561, 17.51104, 0.13196], [-0.13875, 17.67675, 0.13261], [-0.14169, 17.84216, 0.13325], [-0.14474, 18.00732, 0.1339], [-0.14768, 18.17219, 0.13454], [-0.15063, 18.33655, 0.13518]],
+      f: [[0.3809, 3.2322, 0.14171], [0.1714, 4.1873, 0.13724], [0.0962, 5.1282, 0.13], [0.0402, 5.8458, 0.12619], [-0.005, 6.4237, 0.12402], [-0.043, 6.8985, 0.12274], [-0.0756, 7.297, 0.12204], [-0.1039, 7.6422, 0.12178], [-0.1288, 7.9487, 0.12181], [-0.1507, 8.2254, 0.12199], [-0.17, 8.48, 0.12223], [-0.1872, 8.7192, 0.12247], [-0.2024, 8.9481, 0.12268], [-0.2158, 9.1699, 0.12283], [-0.2278, 9.387, 0.12294], [-0.2384, 9.6008, 0.12299], [-0.2478, 9.8124, 0.12303], [-0.2562, 10.0226, 0.12306], [-0.2637, 10.2315, 0.12309], [-0.2703, 10.4393, 0.12315], [-0.2762, 10.6464, 0.12323], [-0.2815, 10.8534, 0.12335], [-0.2862, 11.0608, 0.1235], [-0.2903, 11.2688, 0.12369], [-0.2941, 11.4775, 0.1239], [-0.29749, 11.68637, 0.12414], [-0.30054, 11.89475, 0.12441], [-0.30328, 12.10154, 0.12472], [-0.30573, 12.30588, 0.12506], [-0.308, 12.50727, 0.12545], [-0.3101, 12.7055, 0.12587], [-0.312, 12.90054, 0.12633], [-0.3138, 13.093, 0.12683], [-0.3155, 13.28366, 0.12737], [-0.3171, 13.47312, 0.12794], [-0.31863, 13.66184, 0.12855], [-0.3201, 13.85025, 0.1292], [-0.3216, 14.03846, 0.12987], [-0.32296, 14.22648, 0.13059], [-0.32431, 14.41399, 0.13134], [-0.3257, 14.601, 0.13212], [-0.327, 14.78732, 0.13294], [-0.32834, 14.97269, 0.13376], [-0.3296, 15.15728, 0.1346], [-0.33093, 15.341, 0.13545], [-0.3322, 15.52402, 0.1363], [-0.33351, 15.70635, 0.13715], [-0.3348, 15.88822, 0.138], [-0.3361, 16.0697, 0.13884], [-0.3374, 16.25108, 0.13968], [-0.3387, 16.43225, 0.14051], [-0.34003, 16.61328, 0.14133], [-0.34137, 16.7942, 0.14213], [-0.3427, 16.97481, 0.14293], [-0.344, 17.15509, 0.14371], [-0.34531, 17.33476, 0.14448], [-0.34665, 17.51365, 0.14525], [-0.3479, 17.69163, 0.146], [-0.34924, 17.86857, 0.14675], [-0.3505, 18.04451, 0.14749], [-0.3518, 18.21933, 0.14822]]
     },
     lfa: {
       m: [[1, 49.8842, 0.03795], [1, 54.7244, 0.03557], [1, 58.4249, 0.03424], [1, 61.4292, 0.03328], [1, 63.886, 0.03257], [1, 65.9026, 0.03204], [1, 67.6236, 0.03165], [1, 69.1645, 0.03139], [1, 70.5994, 0.03124], [1, 71.9687, 0.03117], [1, 73.2812, 0.03118], [1, 74.5388, 0.03125], [1, 75.7488, 0.03137], [1, 76.9186, 0.03154], [1, 78.0497, 0.03174], [1, 79.1458, 0.03197], [1, 80.2113, 0.03222], [1, 81.2487, 0.0325], [1, 82.2587, 0.03279], [1, 83.2418, 0.0331], [1, 84.1996, 0.03342], [1, 85.1348, 0.03376], [1, 86.0477, 0.0341], [1, 86.941, 0.03445], [1, 87.8161, 0.03479]],
       f: [[1, 49.1477, 0.0379], [1, 53.6872, 0.0364], [1, 57.0673, 0.03568], [1, 59.8029, 0.0352], [1, 62.0899, 0.03486], [1, 64.0301, 0.03463], [1, 65.7311, 0.03448], [1, 67.2873, 0.03441], [1, 68.7498, 0.0344], [1, 70.1435, 0.03444], [1, 71.4818, 0.03452], [1, 72.771, 0.03464], [1, 74.015, 0.03479], [1, 75.2176, 0.03496], [1, 76.3817, 0.03514], [1, 77.5099, 0.03534], [1, 78.6055, 0.03555], [1, 79.671, 0.03576], [1, 80.7079, 0.03598], [1, 81.7182, 0.0362], [1, 82.7036, 0.03643], [1, 83.6654, 0.03666], [1, 84.604, 0.03688], [1, 85.5202, 0.03711], [1, 86.4153, 0.03734]]
     },
     hcfa: {
-      m: [[1, 34.4618, 0.03686], [1, 37.2759, 0.03133], [1, 39.1285, 0.02997], [1, 40.5135, 0.02918], [1, 41.6317, 0.02868], [1, 42.5576, 0.02837], [1, 43.3306, 0.02817], [1, 43.9803, 0.02804], [1, 44.53, 0.02796], [1, 44.9998, 0.02792], [1, 45.4051, 0.0279], [1, 45.7573, 0.02789], [1, 46.0661, 0.02789], [1, 46.3395, 0.02789], [1, 46.5844, 0.02791], [1, 46.806, 0.02792], [1, 47.0088, 0.02795], [1, 47.1962, 0.02797], [1, 47.3711, 0.028], [1, 47.5357, 0.02803], [1, 47.6919, 0.02806], [1, 47.8408, 0.0281], [1, 47.9833, 0.02813], [1, 48.1201, 0.02817], [1, 48.2515, 0.02821]],
-      f: [[1, 33.8787, 0.03496], [1, 36.5463, 0.0321], [1, 38.2521, 0.03168], [1, 39.5328, 0.0314], [1, 40.5817, 0.03119], [1, 41.459, 0.03102], [1, 42.1995, 0.03087], [1, 42.829, 0.03075], [1, 43.3671, 0.03063], [1, 43.83, 0.03053], [1, 44.2319, 0.03044], [1, 44.5844, 0.03035], [1, 44.8965, 0.03027], [1, 45.1752, 0.03019], [1, 45.4265, 0.03012], [1, 45.6551, 0.03006], [1, 45.865, 0.02999], [1, 46.0598, 0.02993], [1, 46.2424, 0.02987], [1, 46.4152, 0.02982], [1, 46.5801, 0.02977], [1, 46.7384, 0.02972], [1, 46.8913, 0.02967], [1, 47.0391, 0.02962], [1, 47.1822, 0.02957]]
+      m: [[1, 34.4618, 0.03686], [1, 37.2759, 0.03133], [1, 39.1285, 0.02997], [1, 40.5135, 0.02918], [1, 41.6317, 0.02868], [1, 42.5576, 0.02837], [1, 43.3306, 0.02817], [1, 43.9803, 0.02804], [1, 44.53, 0.02796], [1, 44.9998, 0.02792], [1, 45.4051, 0.0279], [1, 45.7573, 0.02789], [1, 46.0661, 0.02789], [1, 46.3395, 0.02789], [1, 46.5844, 0.02791], [1, 46.806, 0.02792], [1, 47.0088, 0.02795], [1, 47.1962, 0.02797], [1, 47.3711, 0.028], [1, 47.5357, 0.02803], [1, 47.6919, 0.02806], [1, 47.8408, 0.0281], [1, 47.9833, 0.02813], [1, 48.1201, 0.02817], [1, 48.2515, 0.02821], [1, 48.37774, 0.02825], [1, 48.49886, 0.0283], [1, 48.61509, 0.02834], [1, 48.7264, 0.02838], [1, 48.83304, 0.02843], [1, 48.93511, 0.02847], [1, 49.03274, 0.02851], [1, 49.126, 0.02855], [1, 49.21527, 0.02859], [1, 49.30075, 0.02863], [1, 49.38261, 0.02867], [1, 49.46125, 0.02871], [1, 49.53667, 0.02875], [1, 49.60924, 0.02878], [1, 49.67914, 0.02882], [1, 49.7465, 0.02886], [1, 49.81157, 0.02889], [1, 49.87449, 0.02893], [1, 49.93534, 0.02896], [1, 49.99428, 0.02899], [1, 50.05124, 0.02903], [1, 50.10641, 0.02906], [1, 50.15981, 0.02909], [1, 50.2115, 0.02912], [1, 50.26174, 0.02915], [1, 50.3105, 0.02918], [1, 50.3578, 0.02921], [1, 50.40393, 0.02924], [1, 50.44878, 0.02927], [1, 50.49258, 0.0293], [1, 50.53539, 0.02932], [1, 50.57725, 0.02935], [1, 50.61832, 0.02938], [1, 50.65869, 0.0294], [1, 50.69836, 0.02943], [1, 50.73753, 0.02945]],
+      f: [[1, 33.8787, 0.03496], [1, 36.5463, 0.0321], [1, 38.2521, 0.03168], [1, 39.5328, 0.0314], [1, 40.5817, 0.03119], [1, 41.459, 0.03102], [1, 42.1995, 0.03087], [1, 42.829, 0.03075], [1, 43.3671, 0.03063], [1, 43.83, 0.03053], [1, 44.2319, 0.03044], [1, 44.5844, 0.03035], [1, 44.8965, 0.03027], [1, 45.1752, 0.03019], [1, 45.4265, 0.03012], [1, 45.6551, 0.03006], [1, 45.865, 0.02999], [1, 46.0598, 0.02993], [1, 46.2424, 0.02987], [1, 46.4152, 0.02982], [1, 46.5801, 0.02977], [1, 46.7384, 0.02972], [1, 46.8913, 0.02967], [1, 47.0391, 0.02962], [1, 47.1822, 0.02957], [1, 47.32042, 0.02953], [1, 47.45361, 0.02949], [1, 47.58173, 0.02945], [1, 47.70448, 0.02941], [1, 47.82191, 0.02937], [1, 47.93405, 0.02933], [1, 48.04101, 0.02929], [1, 48.1432, 0.02926], [1, 48.24086, 0.02922], [1, 48.33432, 0.02919], [1, 48.42391, 0.02916], [1, 48.50992, 0.02912], [1, 48.59261, 0.02909], [1, 48.67222, 0.02906], [1, 48.74886, 0.02903], [1, 48.8228, 0.029], [1, 48.89406, 0.02897], [1, 48.96292, 0.02894], [1, 49.02939, 0.02891], [1, 49.09373, 0.02888], [1, 49.15597, 0.02886], [1, 49.21644, 0.02883], [1, 49.27507, 0.0288], [1, 49.3321, 0.02878], [1, 49.38769, 0.02875], [1, 49.44188, 0.02873], [1, 49.49473, 0.0287], [1, 49.5464, 0.02868], [1, 49.59692, 0.02866], [1, 49.6464, 0.02863], [1, 49.6947, 0.02861], [1, 49.7421, 0.02859], [1, 49.78851, 0.02856], [1, 49.83406, 0.02854], [1, 49.87884, 0.02852], [1, 49.92285, 0.0285]]
     }
+  };
+  // Standing height from 24 to 60 months (index 0 = 24 months). WHO measures children lying
+  // down until 2 and standing after, which reads about 0.7 cm shorter.
+  var WHO_HEIGHT = {
+    m: [[1, 87.1161, 0.03507], [1, 87.97197, 0.03542], [1, 88.80653, 0.03576], [1, 89.61975, 0.0361], [1, 90.412, 0.03642], [1, 91.18279, 0.03674], [1, 91.93274, 0.03704], [1, 92.66313, 0.03733], [1, 93.3753, 0.03761], [1, 94.07109, 0.03787], [1, 94.75312, 0.03812], [1, 95.42361, 0.03836], [1, 96.08352, 0.03858], [1, 96.73377, 0.03879], [1, 97.37486, 0.039], [1, 98.00729, 0.03919], [1, 98.63105, 0.03937], [1, 99.24585, 0.03954], [1, 99.85152, 0.0397], [1, 100.44854, 0.03986], [1, 101.0374, 0.04002], [1, 101.61866, 0.04017], [1, 102.19334, 0.04031], [1, 102.76246, 0.04045], [1, 103.3273, 0.04059], [1, 103.88865, 0.04073], [1, 104.44731, 0.04086], [1, 105.00412, 0.041], [1, 105.55955, 0.04113], [1, 106.11381, 0.04126], [1, 106.66681, 0.04139], [1, 107.21874, 0.04152], [1, 107.76975, 0.04165], [1, 108.31977, 0.04177], [1, 108.86885, 0.0419], [1, 109.41692, 0.04202], [1, 109.96377, 0.04214]],
+    f: [[1, 85.7154, 0.03764], [1, 86.59043, 0.03786], [1, 87.44622, 0.03808], [1, 88.283, 0.0383], [1, 89.10043, 0.03851], [1, 89.89911, 0.03872], [1, 90.67968, 0.03893], [1, 91.44305, 0.03913], [1, 92.1906, 0.03933], [1, 92.92391, 0.03952], [1, 93.64437, 0.03971], [1, 94.35322, 0.03989], [1, 95.0515, 0.04007], [1, 95.73982, 0.04024], [1, 96.41871, 0.04041], [1, 97.08846, 0.04057], [1, 97.7493, 0.04074], [1, 98.40147, 0.04089], [1, 99.04478, 0.04105], [1, 99.67952, 0.0412], [1, 100.30582, 0.04135], [1, 100.92379, 0.0415], [1, 101.53369, 0.04164], [1, 102.13598, 0.04179], [1, 102.7312, 0.04193], [1, 103.31974, 0.04206], [1, 103.90211, 0.0422], [1, 104.47858, 0.04233], [1, 105.04942, 0.04247], [1, 105.61487, 0.04259], [1, 106.17484, 0.04272], [1, 106.72953, 0.04285], [1, 107.2788, 0.04297], [1, 107.82269, 0.0431], [1, 108.3613, 0.04322], [1, 108.89482, 0.04335], [1, 109.42322, 0.04346]]
   };
   var MONTH_DAYS = 365.25 / 12;
 
@@ -473,8 +507,9 @@
     var t = WHO_GROWTH[kind] && WHO_GROWTH[kind][sex];
     if (!t || days == null || days < 0) return null;
     var m = days / MONTH_DAYS;
-    if (m > 24) return null;
-    var i = Math.min(23, Math.floor(m)), f = m - i, a = t[i], b = t[i + 1];
+    if (m > 60) return null;
+    if (kind === 'lfa' && m >= 24) { t = WHO_HEIGHT[sex]; m -= 24; }
+    var i = Math.min(t.length - 2, Math.floor(m)), f = m - i, a = t[i], b = t[i + 1];
     return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
   }
   function lmsValue(lms, z) { return lms[0] ? lms[1] * Math.pow(1 + lms[0] * lms[2] * z, 1 / lms[0]) : lms[1] * Math.exp(lms[2] * z); }
@@ -530,10 +565,10 @@
     MEDICINES: MEDICINES, medicine: medicine,
     MILESTONES: MILESTONES,
     cryReasons: cryReasons, CRY_RED_FLAGS: CRY_RED_FLAGS,
-    QUESTIONS: QUESTIONS,
+    QUESTIONS: QUESTIONS, questionsFor: questionsFor, stage: stage,
     VACCINES: VACCINES, vaccinePlan: vaccinePlan,
     bottlePace: bottlePace, MILK_WHERE: MILK_WHERE, milkExpiry: milkExpiry, milkMoves: milkMoves,
-    WHO_GROWTH: WHO_GROWTH, growthLMS: growthLMS, growthZ: growthZ, growthPercentile: growthPercentile, growthAt: growthAt, linesCrossed: linesCrossed, normalCdf: normalCdf,
+    WHO_GROWTH: WHO_GROWTH, WHO_HEIGHT: WHO_HEIGHT, growthLMS: growthLMS, growthZ: growthZ, growthPercentile: growthPercentile, growthAt: growthAt, linesCrossed: linesCrossed, normalCdf: normalCdf,
     fmtDur: fmtDur, fmtHours: fmtHours
   };
 

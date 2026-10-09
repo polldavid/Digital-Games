@@ -222,8 +222,8 @@
 
     // Today screen
     html += '<div class="section-title"><h2>Today screen</h2></div><div class="card">' +
-      row('Quick log buttons', 'Choose which buttons show on Today, and their order.', '<button class="btn btn--sm" data-action="quick-edit">Edit</button>') +
-      row('Arrange sections', 'Reorder or hide parts of Today (milk, last 24 hours, coming up…).', '<button class="btn btn--sm" data-action="sections-edit">Edit</button>') +
+      row('Quick log buttons', 'Choose which buttons show on ' + esc(S.baby().name) + '’s Today, and their order. Each child has their own.', '<button class="btn btn--sm" data-action="quick-edit">Edit</button>') +
+      row('Arrange sections', 'Reorder or hide parts of ' + esc(S.baby().name) + '’s Today (milk, last 24 hours, coming up…).', '<button class="btn btn--sm" data-action="sections-edit">Edit</button>') +
       (window.BabyMic ? BabyMic.settingsRows(row, sel) : '') + '</div>';
 
     // Units
@@ -423,6 +423,7 @@
     'log': function (n) {
       var type = n.getAttribute('data-type');
       if (type === 'solids') return F.open('feed', null, { kind: 'solids' });
+      if (type === 'potty') return F.open('diaper', null, { potty: true });
       F.open(type);
     },
     'log-solids': function () { F.open('feed', null, { kind: 'solids' }); },
@@ -432,17 +433,17 @@
       var ids = V.quickIds(S.ageDays(Date.now())).main.slice(), id = n.getAttribute('data-id'), i = ids.indexOf(id), j = i + (+n.getAttribute('data-d'));
       if (i < 0 || j < 0 || j >= ids.length) return;
       ids.splice(i, 1); ids.splice(j, 0, id);
-      S.get().settings.quickLog = ids; commit();
+      S.prefs().quickLog = ids; commit();
     },
-    'quick-reset': function () { S.get().settings.quickLog = []; commit(); h.toast('Today buttons reset'); },
+    'quick-reset': function () { S.prefs().quickLog = []; commit(); h.toast('Today buttons reset'); },
     'sections-edit': function () { h.openSheet({ title: 'Today’s sections', html: function () { return V.sectionEditor(); } }); },
     'section-move': function (n) {
       var o = V.sectionOrder(), id = n.getAttribute('data-id'), i = o.indexOf(id), j = i + (+n.getAttribute('data-d'));
       if (i < 0 || j < 0 || j >= o.length) return;
       o.splice(i, 1); o.splice(j, 0, id);
-      S.get().settings.todayOrder = o; commit();
+      S.prefs().todayOrder = o; commit();
     },
-    'section-reset': function () { var s = S.get().settings; s.todayOrder = []; s.todayHidden = []; s.milkMode = 'attention'; commit(); h.toast('Today’s sections reset'); },
+    'section-reset': function () { var p = S.prefs(); p.todayOrder = []; p.todayHidden = null; S.get().settings.milkMode = 'attention'; commit(); h.toast('Today’s sections reset'); },
     'log-vitd': function () {
       var e = S.addEvent({ type: 'med', time: Date.now(), data: { medId: 'vitd', name: 'Vitamin D drops', dose: '', intervalH: 24, maxPerDay: 1, remind: false } });
       commit(); h.toast('Vitamin D logged ☀️', { label: 'Undo', fn: function () { S.removeEvent(e.id); commit(); } });
@@ -668,8 +669,13 @@
       h.openSheet({ title: 'Emergency info', html: '<pre class="scantext scantext--big">' + esc(text) + '</pre><div class="btn-row sheet-save"><button class="btn" data-action="profile-edit">Edit details</button><button class="btn btn--primary btn--lg" data-action="share-text" data-what="emergency">📤 Share</button></div>' });
     },
     'visit-summary': function () {
-      var text = Hl.visitSummaryText();
-      h.openSheet({ title: 'Summary for the doctor', html: '<pre class="scantext">' + esc(text) + '</pre><div class="btn-row sheet-save"><button class="btn btn--primary btn--lg" data-action="share-text" data-what="visit">📤 Share or copy</button></div>' });
+      h.openSheet({ title: 'Summary for the doctor', html: function () { return Hl.summaryRangeChips(Date.now()) + '<pre class="scantext">' + esc(Hl.visitSummaryText()) + '</pre><div class="btn-row sheet-save"><button class="btn btn--primary btn--lg" data-action="share-text" data-what="visit">📤 Share or copy</button></div>'; } });
+    },
+    'summary-range': function (n) { App.ui.summaryRange = n.getAttribute('data-range'); h.renderSheet(); },
+    'vax-catchup': function () {
+      var given = S.health().vaccines.given;
+      Hl.plan(Date.now()).forEach(function (v) { if (v.status === 'overdue') given[v.key] = { date: null, note: '', unknown: true }; });
+      commit(); h.renderSheet(); h.toast('Marked as given. Add dates any time.');
     },
     'share-text': function (n) {
       var w = n.getAttribute('data-what');
@@ -771,9 +777,9 @@
       }
       S.save(); render();
     } else if (ac === 'section-toggle') {
-      var st0 = S.get().settings, hid = (st0.todayHidden || []).filter(function (x) { return x !== t.getAttribute('data-id'); });
+      var hid = V.hiddenList().filter(function (x) { return x !== t.getAttribute('data-id'); });
       if (!t.checked) hid.push(t.getAttribute('data-id'));
-      st0.todayHidden = hid; commit();
+      S.prefs().todayHidden = hid; commit();
     } else if (ac === 'milk-mode') {
       S.get().settings.milkMode = t.value; commit();
     } else if (ac === 'quick-toggle') {
@@ -783,7 +789,7 @@
         if (qids.length <= 1) { t.checked = true; h.toast('Keep at least one button on Today.'); return; }
         qids = qids.filter(function (x) { return x !== qid; });
       }
-      S.get().settings.quickLog = qids; commit();
+      S.prefs().quickLog = qids; commit();
     } else if (ac === 'vax-schedule') {
       S.health().vaccines.schedule = t.value; S.save(); h.renderSheet(); render();
     } else if (t.id === 'sound-timer') {

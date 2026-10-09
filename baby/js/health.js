@@ -71,7 +71,7 @@
     html += '<div class="section-title"><h2>Records</h2></div><div class="card"><div class="rows">' +
       '<button class="row" data-action="profile-edit"><span class="row__icon">🪪</span><div class="row__main"><div class="row__t">Health profile</div><div class="row__s">' + esc([P.blood && 'Blood type ' + P.blood, P.allergies ? 'Allergies: ' + P.allergies : 'No allergies noted', P.doctor && 'Dr. ' + P.doctor.replace(/^dr\.?\s*/i, '')].filter(Boolean).join(' · ')) + '</div></div><span class="faint">Edit ›</span></button>' +
       '<button class="row" data-action="emergency"><span class="row__icon">🆘</span><div class="row__main"><div class="row__t">Emergency info</div><div class="row__s">For a sitter, grandparent or the ER — share or show</div></div><span class="faint">›</span></button>' +
-      '<button class="row" data-action="visit-summary"><span class="row__icon">📤</span><div class="row__main"><div class="row__t">Summary for the doctor</div><div class="row__s">Last 7 days of feeds, diapers, sleep, meds, fevers, growth</div></div><span class="faint">›</span></button>' +
+      '<button class="row" data-action="visit-summary"><span class="row__icon">📤</span><div class="row__main"><div class="row__t">Summary for the doctor</div><div class="row__s">For a check-up or a sick visit: growth, illnesses, medicines, sleep, milestones</div></div><span class="faint">›</span></button>' +
       '</div></div>';
 
     html += '<div class="section-title"><h2>Documents</h2> <button class="btn--link" data-action="doc-edit">＋ Add</button></div><div class="card">';
@@ -125,12 +125,14 @@
         if (!sch) return html + '<p class="muted">Pick the schedule your pediatrician follows.</p>';
         if (sch === 'ph') html += '<p class="faint"><strong>NIP</strong> = free at health centers (DOH). <strong>PPS</strong> = extra vaccines the Philippine Pediatric Society recommends, usually given privately.</p>';
         html += '<p class="faint">Due dates count from the birthday. Your pediatrician may use different brands or timing — tap a vaccine to record the actual date.</p>';
+        var late = plan(now).filter(function (v) { return v.status === 'overdue'; });
+        if (late.length >= 3) html += '<div class="note note--info"><div class="note__t">Started Alaga after these were due?</div><div>If ' + name() + ' already had them, mark them all as given and add dates later from the vaccine card.</div><button class="btn btn--sm" data-action="vax-catchup" style="margin-top:8px">✅ Mark ' + h.plural(late.length, 'earlier vaccine') + ' as given</button></div>';
         var groups = {}, order = [];
         plan(now).forEach(function (v) { var k = v.at; if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push(v); });
         order.forEach(function (k) {
           var list = groups[k], label = +k === 0 ? 'At birth' : +k < 120 ? Math.round(k / 7) + ' weeks' : Math.round(k / 30.4) + ' months';
           html += '<div class="vaxgroup"><div class="vaxgroup__h"><span>' + label + '</span><span class="faint">' + esc(dateOnly(list[0].due)) + '</span></div>' + list.map(function (v) {
-            var pill = v.status === 'given' ? h.statusPill('ok', 'Given ' + new Date(v.given.date).toLocaleDateString([], { month: 'short', day: 'numeric' })) : v.status === 'overdue' ? h.statusPill('warn', 'Past due') : v.status === 'due' ? h.statusPill('info', 'Due soon') : '';
+            var pill = v.status === 'given' ? h.statusPill('ok', v.given.date ? 'Given ' + new Date(v.given.date).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Given') : v.status === 'overdue' ? h.statusPill('warn', 'Past due') : v.status === 'due' ? h.statusPill('info', 'Due soon') : '';
             return '<button class="row" data-action="vax-item" data-key="' + v.key + '"><span class="row__icon">' + (v.status === 'given' ? '✅' : '💉') + '</span><div class="row__main"><div class="row__t">' + esc(v.name) + (v.program ? ' <span class="tag">' + esc(v.program) + '</span>' : '') + '</div><div class="row__s">' + esc(v.note || '') + '</div></div>' + pill + '</button>';
           }).join('') + '</div>';
         });
@@ -155,7 +157,8 @@
           '<p class="muted">Usual age: ' + (v.at === 0 ? 'at birth' : v.at < 120 ? Math.round(v.at / 7) + ' weeks' : Math.round(v.at / 30.4) + ' months') + ' · due around ' + esc(dateOnly(v.due)) + (v.note ? '. ' + esc(v.note) : '') + '</p>' +
           '<label class="field"><span class="field__label">Date given</span><input class="input" type="date" name="date" max="' + h.todayISO() + '" value="' + (g.date ? isoDate(g.date) : h.todayISO()) + '" required /></label>' +
           '<label class="field"><span class="field__label">Where / brand / lot (optional)</span><input class="input" name="note" maxlength="80" value="' + esc(g.note || '') + '" placeholder="e.g. Barangay health center" /></label>' +
-          sticky((g.date ? '<button type="button" class="btn btn--danger" data-action="vax-unmark" data-key="' + esc(key) + '">Not given</button>' : '') + '<button type="submit" class="btn btn--primary btn--lg">' + (g.date ? 'Save' : 'Mark as given') + '</button>') + '</form>';
+          (g.unknown ? '<p class="faint">Marked as given without a date. Add it from the vaccine card if you have it.</p>' : '') +
+          sticky((g.date || g.unknown ? '<button type="button" class="btn btn--danger" data-action="vax-unmark" data-key="' + esc(key) + '">Not given</button>' : '') + '<button type="submit" class="btn btn--primary btn--lg">' + (g.date ? 'Save' : 'Mark as given') + '</button>') + '</form>';
       }
     });
   }
@@ -506,43 +509,121 @@
     return lines.join('\n');
   }
 
+  /* The summary for the doctor covers a period the parent picks: the last 7
+     days (a sick visit), since the last visit, or the last 6 or 12 months (a
+     check-up after a long gap). Babies default to 7 days; children from 1 year
+     to "since the last visit", since their check-ups are months apart. */
+  var RANGES = [['7', 'Last 7 days'], ['visit', 'Since last visit'], ['182', '6 months'], ['365', '12 months']];
+  function lastVisit(now) {
+    return hl().appointments.filter(function (a) { return a.done || a.at < now - 3 * HOUR; }).sort(function (x, y) { return y.at - x.at; })[0] || null;
+  }
+  function summaryRange(now) {
+    var r = App.ui.summaryRange || (S.ageDays(now) >= 365 ? 'visit' : '7');
+    var birth = new Date(S.baby().birth + 'T00:00').getTime(), from, label;
+    if (r === 'visit') {
+      var v = lastVisit(now);
+      if (v) { from = v.at; label = 'the ' + spanWords(now - v.at) + ' since the visit on ' + dateOnly(v.at); }
+      else { r = '182'; }
+    }
+    if (r !== 'visit') { var n = +r; from = S.startOfDay(now) - (n === 7 ? 7 : n) * DAY; label = n === 7 ? 'the last 7 days' : n === 182 ? 'the last 6 months' : 'the last 12 months'; }
+    if (from < birth) { from = birth; label = 'everything since birth'; }
+    return { id: App.ui.summaryRange || (S.ageDays(now) >= 365 ? 'visit' : '7'), from: from, label: label, hasVisit: !!lastVisit(now) };
+  }
+  function spanWords(ms) {
+    var d = Math.round(ms / DAY);
+    return d < 14 ? h.plural(Math.max(1, d), 'day') : d < 61 ? h.plural(Math.round(d / 7), 'week') : h.plural(Math.round(d / 30.4), 'month');
+  }
+  function summaryRangeChips(now) {
+    var cur = summaryRange(now).id;
+    return '<div class="chips" role="toolbar" aria-label="Period">' + RANGES.map(function (r) { return '<button class="chip" data-action="summary-range" data-range="' + r[0] + '" aria-pressed="' + (cur === r[0]) + '">' + r[1] + '</button>'; }).join('') + '</div>';
+  }
+
+  // Fevers as illnesses: readings of 38 °C or more within 2 days of each other are one episode.
+  function feverEpisodes(from, now) {
+    var hot = S.events({ type: 'temp', from: from }).filter(function (e) { return e.data.tempC >= 38; }), eps = [];
+    hot.forEach(function (e) {
+      var ep = eps[eps.length - 1];
+      if (ep && e.time - ep.end <= 2 * DAY) { ep.end = e.time; ep.max = Math.max(ep.max, e.data.tempC); ep.n++; }
+      else eps.push({ start: e.time, end: e.time, max: e.data.tempC, n: 1 });
+    });
+    return eps;
+  }
+
   function visitSummaryText() {
-    var b = S.baby(), H = hl(), now = Date.now(), days = S.ageDays(now);
-    var stats = window.BabyViews.dayStats(8, now).filter(function (d) { return d.start < S.startOfDay(now) && d.hasData; });
-    var avg = function (f) { return stats.length ? Math.round(stats.reduce(function (a, d) { return a + f(d); }, 0) / stats.length * 10) / 10 : null; };
-    var lines = [b.name + ' — ' + G.ageLabel(days) + ' (born ' + b.birth + ')', 'Summary for the doctor · ' + dateOnly(now), ''];
-    if (stats.length) {
-      lines.push('Daily averages over the last ' + h.plural(stats.length, 'day') + ':');
-      lines.push('• Feeds: ' + avg(function (d) { return d.feeds; }) + ' a day' + (avg(function (d) { return d.bottleMl; }) ? ' · bottles ' + h.vol(avg(function (d) { return d.bottleMl; })) + ' a day' : ''));
-      lines.push('• Wet diapers: ' + avg(function (d) { return d.wet; }) + ' · dirty: ' + avg(function (d) { return d.dirty; }));
-      lines.push('• Sleep: ' + avg(function (d) { return d.sleepMs / HOUR; }) + ' hours');
+    var b = S.baby(), H = hl(), now = Date.now(), days = S.ageDays(now), big = days >= 365;
+    var R = summaryRange(now), from = R.from, n = Math.max(1, Math.ceil((S.startOfDay(now) - S.startOfDay(from)) / DAY));
+    var stats = window.BabyViews.dayStats(Math.min(n + 1, 400), now).filter(function (d) { return d.start >= S.startOfDay(from) && d.start < S.startOfDay(now) && d.hasData; });
+    var avg = function (f, list) { list = list || stats; return list.length ? Math.round(list.reduce(function (a, d) { return a + f(d); }, 0) / list.length * 10) / 10 : null; };
+    var day = function (t) { return dateOnly(t); };
+    var lines = [b.name + ' — ' + G.ageLabel(days) + ' (born ' + b.birth + ')', 'Summary for the doctor · ' + dateOnly(now), 'Covers ' + R.label, ''];
+    if (stats.length >= 2) {
+      var head = lines.length;
+      lines.push('Daily averages over ' + h.plural(stats.length, 'logged day') + ':');
+      if (big) {
+        var mealDays = stats.filter(function (d) { return d.solids; });
+        if (mealDays.length) lines.push('• Meals and snacks: ' + avg(function (d) { return d.solids; }, mealDays) + ' a day');
+        var milkDays = stats.filter(function (d) { return d.feeds; });
+        if (milkDays.length) lines.push('• Milk feeds: ' + avg(function (d) { return d.feeds; }, milkDays) + ' a day');
+        var pDays = stats.filter(function (d) { return d.wet || d.dirty; });
+        if (pDays.length) lines.push('• Pee: ' + avg(function (d) { return d.wet; }, pDays) + ' · poop: ' + avg(function (d) { return d.dirty; }, pDays));
+      } else {
+        lines.push('• Feeds: ' + avg(function (d) { return d.feeds; }) + ' a day' + (avg(function (d) { return d.bottleMl; }) ? ' · bottles ' + h.vol(avg(function (d) { return d.bottleMl; })) + ' a day' : ''));
+        lines.push('• Wet diapers: ' + avg(function (d) { return d.wet; }) + ' · dirty: ' + avg(function (d) { return d.dirty; }));
+      }
+      var sDays = stats.filter(function (d) { return d.sleepMs; });
+      if (sDays.length) lines.push('• Sleep: ' + avg(function (d) { return d.sleepMs / HOUR; }, sDays) + ' hours');
+      if (lines.length === head + 1) lines.pop(); // nothing to average
     }
-    var g = S.events({ type: 'growth' }).filter(function (e) { return e.data.weightKg; });
-    if (g.length) {
-      var lw = g[g.length - 1];
-      lines.push('• Weight: ' + h.weight(lw.data.weightKg) + ' on ' + dateOnly(lw.time) + (b.birthWeightKg ? ' (birth ' + h.weight(b.birthWeightKg) + ')' : ''));
-    }
-    var fevers = S.events({ type: 'temp', from: now - 14 * DAY }).filter(function (e) { return e.data.tempC >= 38; });
-    if (fevers.length) lines.push('• Fevers (14 days): ' + fevers.map(function (e) { return h.temp(e.data.tempC) + ' ' + dateOnly(e.time); }).join(', '));
-    var flagged = S.events({ type: 'diaper', from: now - 14 * DAY }).filter(function (e) { return h.describe(e).flag; });
-    if (flagged.length) lines.push('• Diapers worth mentioning: ' + flagged.map(function (e) { return h.describe(e).sub + ' (' + dateOnly(e.time) + ')'; }).join('; '));
-    var meds = S.events({ type: 'med', from: now - 14 * DAY });
+
+    // Growth, with WHO percentiles to 5 years.
+    var g = S.events({ type: 'growth' }), gIn = g.filter(function (e) { return e.time >= from; }), gBefore = g.filter(function (e) { return e.time < from; }).pop();
+    var gLine = function (e) {
+      var d = e.data, pc = function (k, x) { var p = h.growthPct(k, x, e.time); return p ? ' (' + p.label + ')' : ''; };
+      return day(e.time) + ': ' + [d.weightKg && h.weight(d.weightKg) + pc('wfa', d.weightKg), d.lengthCm && h.len(d.lengthCm) + pc('lfa', d.lengthCm), d.headCm && 'head ' + h.len(d.headCm) + pc('hcfa', d.headCm)].filter(Boolean).join(' · ');
+    };
+    if (gIn.length) {
+      lines.push('', 'Growth (WHO percentile):');
+      if (gBefore) lines.push('• Before: ' + gLine(gBefore));
+      gIn.slice(-5).forEach(function (e) { lines.push('• ' + gLine(e)); });
+    } else if (g.length) lines.push('', 'Growth: last measured ' + gLine(g[g.length - 1]));
+    if (!big && b.birthWeightKg) lines.push('• Birth weight: ' + h.weight(b.birthWeightKg));
+
+    // Illnesses: fevers, medicines, prescriptions and visits in the period.
+    var eps = feverEpisodes(from, now), meds = S.events({ type: 'med', from: from });
+    var rxs = H.rx.filter(function (rx) { return rx.start >= from || (S.rxStatus(rx, now).active); });
+    var visits = H.appointments.filter(function (a) { return a.at >= from && a.at < now - 3 * HOUR; }).sort(function (x, y) { return x.at - y.at; });
+    if (eps.length || meds.length || rxs.length || visits.length) lines.push('', 'Illnesses and care:');
+    eps.forEach(function (ep) {
+      var given = {}; meds.forEach(function (e) { if (e.time >= ep.start - DAY && e.time <= ep.end + 2 * DAY) given[e.data.name || 'Medicine'] = (given[e.data.name || 'Medicine'] || 0) + 1; });
+      var gv = Object.keys(given);
+      lines.push('• Fever ' + day(ep.start) + (S.startOfDay(ep.end) !== S.startOfDay(ep.start) ? '–' + day(ep.end) : '') + ', up to ' + h.temp(ep.max) + (gv.length ? '; gave ' + gv.map(function (k) { return k + ' ×' + given[k]; }).join(', ') : ''));
+    });
+    rxs.forEach(function (rx) { lines.push('• Prescribed ' + day(rx.start) + ': ' + rx.name + (rx.strength ? ' ' + rx.strength : '') + (rx.dose ? ', ' + rx.dose : '') + (rx.durationDays ? ' for ' + h.plural(rx.durationDays, 'day') : '')); });
+    visits.forEach(function (a) { lines.push('• Visit ' + day(a.at) + ': ' + (a.title || 'Doctor’s visit') + (a.outcome ? ' — ' + a.outcome.replace(/\s+/g, ' ') : '')); });
     if (meds.length) {
-      var byName = {}; meds.forEach(function (e) { byName[e.data.name] = (byName[e.data.name] || 0) + 1; });
-      lines.push('• Medicines given (14 days): ' + Object.keys(byName).map(function (k) { return k + ' ×' + byName[k]; }).join(', '));
+      var byName = {}; meds.forEach(function (e) { var k = e.data.name || 'Medicine'; byName[k] = byName[k] || { n: 0, first: e.time, last: e.time }; byName[k].n++; byName[k].last = e.time; });
+      lines.push('• Medicines given: ' + Object.keys(byName).map(function (k) { var m = byName[k]; return k + ' ×' + m.n + (n > 14 ? ' (' + day(m.first) + (m.n > 1 ? '–' + day(m.last) : '') + ')' : ''); }).join(', '));
     }
+    var flagged = S.events({ type: 'diaper', from: from }).filter(function (e) { return h.describe(e).flag; });
+    if (flagged.length) lines.push('• ' + (big ? 'Poop' : 'Diapers') + ' worth mentioning: ' + flagged.slice(-5).map(function (e) { return h.describe(e).sub + ' (' + day(e.time) + ')'; }).join('; '));
+
+    // Development and vaccines.
+    var ms = S.events({ type: 'milestone', from: from });
+    if (ms.length) { lines.push('', 'Milestones reached:'); ms.slice(-10).forEach(function (e) { lines.push('• ' + e.data.text + ' (' + day(e.time) + ')'); }); }
     var vp = plan(now);
     if (vp.length) {
       var due = vp.filter(function (v) { return v.status === 'due' || v.status === 'overdue'; });
-      lines.push('• Vaccines: ' + vp.filter(function (v) { return v.status === 'given'; }).length + ' of ' + vp.length + ' recorded' + (due.length ? '; due: ' + due.map(function (v) { return v.name; }).join(', ') : ''));
+      var gotNow = vp.filter(function (v) { return v.given && v.given.date >= from; }).concat(H.vaccines.custom.filter(function (c) { return c.date >= from; }));
+      lines.push('', 'Vaccines: ' + vp.filter(function (v) { return v.status === 'given'; }).length + ' of ' + vp.length + ' on the schedule recorded' + (due.length ? '; due: ' + due.map(function (v) { return v.name; }).join(', ') : ''));
+      if (gotNow.length) lines.push('• Given in this period: ' + gotNow.map(function (v) { return v.name + ' (' + day(v.given ? v.given.date : v.date) + ')'; }).join(', '));
     }
-    if (H.profile.allergies) lines.push('• Allergies: ' + H.profile.allergies);
-    var notes = S.events({ type: 'note', from: now - 14 * DAY });
-    if (notes.length) { lines.push('', 'Notes:'); notes.forEach(function (e) { lines.push('• ' + e.data.text); }); }
+    if (H.profile.allergies) lines.push('Allergies: ' + H.profile.allergies);
+    var notes = S.events({ type: 'note', from: from });
+    if (notes.length) { lines.push('', 'Notes' + (notes.length > 10 ? ' (latest 10)' : '') + ':'); notes.slice(-10).forEach(function (e) { lines.push('• ' + day(e.time) + ': ' + e.data.text); }); }
     var next = H.appointments.filter(function (a) { return !a.done && a.at > now - 3 * HOUR; }).sort(function (x, y) { return x.at - y.at; })[0];
     if (next && next.questions) { lines.push('', 'Questions:'); next.questions.split(/\n+/).forEach(function (q) { if (q.trim()) lines.push('• ' + q.trim()); }); }
     lines.push('', '— from Alaga');
-    return lines.join('\n');
+    return lines.join('\n').replace(/\n{3,}/g, '\n\n');
   }
 
   window.BabyHealth = {
@@ -550,6 +631,6 @@
     apptSheet: apptSheet, rxSheet: rxSheet, readRx: readRx, startScan: startScan, pickPhoto: pickPhoto, gotPhoto: gotPhoto,
     readOnDevice: readOnDevice, syncScanForm: syncScanForm, scan: function () { return scan; }, setScanSaved: function () { if (scan) scan.status = 'saved'; },
     profileSheet: profileSheet, docSheet: docSheet, photoViewer: photoViewer,
-    emergencyText: emergencyText, visitSummaryText: visitSummaryText, monthStart: monthStart, isoDate: isoDate, fromIsoDate: fromIsoDate, plan: plan
+    emergencyText: emergencyText, visitSummaryText: visitSummaryText, summaryRangeChips: summaryRangeChips, monthStart: monthStart, isoDate: isoDate, fromIsoDate: fromIsoDate, plan: plan
   };
 })();

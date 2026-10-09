@@ -77,17 +77,19 @@
       var woke = S.awakeSince(now), nap = woke ? G.nextNap(d, woke, now) : null;
       var sleeps = S.events({ type: 'sleep', from: now - 7 * DAY }).filter(function (e) { return e.end; });
       var longest = sleeps.reduce(function (m, e) { return Math.max(m, e.end - e.time); }, 0);
-      var html = '<p class="lead">At ' + esc(G.ageLabel(d).toLowerCase()) + ' (' + esc(sl.label.toLowerCase()) + '), babies usually need <strong>' + sl.totalH[0] + '–' + sl.totalH[1] + ' hours</strong> of sleep in 24 hours, across about ' + sl.naps + ' naps, and can stay happily awake for <strong>' + sl.wake[0] + '–' + sl.wake[1] + ' minutes</strong> at a time.</p>';
+      var who = d >= 365 ? 'children' : 'babies', naps = sl.naps === '1' ? 'one nap' : sl.naps === '0' ? 'no naps' : 'about ' + sl.naps + ' naps';
+      var html = '<p class="lead">At ' + esc(G.ageLabel(d).toLowerCase()) + ' (' + esc(sl.label.toLowerCase()) + '), ' + who + ' usually need <strong>' + sl.totalH[0] + '–' + sl.totalH[1] + ' hours</strong> of sleep in 24 hours, with ' + naps +
+        (sl.wake ? ', and can stay happily awake for <strong>' + (sl.wake[0] >= 120 ? G.fmtHours(sl.wake[0] / 60).replace(' hours', '') + '–' + G.fmtHours(sl.wake[1] / 60) : sl.wake[0] + '–' + sl.wake[1] + ' minutes') + '</strong> at a time.' : '.') + '</p>';
       var status = S.isAsleep() ? h.note('ok', name() + ' is asleep', 'Sleeping since ' + h.fmtTime(S.timers().sleep.start) + '.')
         : nap ? h.note(nap.state === 'over' ? 'warn' : 'ok', nap.state === 'early' ? 'Next nap window: ' + h.fmtTime(nap.from) + '–' + h.fmtTime(nap.to) : nap.state === 'window' ? 'In the nap window now' : 'Past the wake window — may be overtired',
           'Awake since ' + h.fmtTime(woke) + '. Start winding down (dim lights, quiet, swaddle or sleep sack) a little before the window opens.')
-        : h.note('info', 'Log a sleep to get nap times', 'Once Alaga knows when ' + name() + ' last woke up, it predicts the next nap window and can remind you.');
+        : !sl.wake ? '' : h.note('info', 'Log a sleep to get nap times', 'Once Alaga knows when ' + name() + ' last woke up, it predicts the next nap window and can remind you.');
       html += status;
       html += '<div class="stats">' + '<div class="stat"><div class="stat__v">' + h.hoursStr(s.sleepMs) + '</div><div class="stat__k">Sleep, last 24h</div></div>' +
         '<div class="stat"><div class="stat__v">' + (longest ? h.durMs(longest) : '—') + '</div><div class="stat__k">Longest, 7 days</div></div>' +
         '<div class="stat"><div class="stat__v">' + sl.naps + '</div><div class="stat__k">Typical naps</div></div></div>';
       html += '<div class="prose"><p>' + esc(sl.note) + '</p>' +
-        '<h3>Safe sleep — the ABCs</h3>' + list(['<strong>Alone</strong> — own sleep space, nothing in it: no pillows, bumpers, blankets or toys.', '<strong>Back</strong> — every sleep, naps included.', '<strong>Crib</strong> — a firm, flat mattress with a fitted sheet, in your room for at least the first 6 months.', 'Avoid overheating, smoke exposure, and sleeping with baby on a sofa or armchair.']) +
+        (d >= 365 ? kidSleep() : '<h3>Safe sleep — the ABCs</h3>' + list(['<strong>Alone</strong> — own sleep space, nothing in it: no pillows, bumpers, blankets or toys.', '<strong>Back</strong> — every sleep, naps included.', '<strong>Crib</strong> — a firm, flat mattress with a fitted sheet, in your room for at least the first 6 months.', 'Avoid overheating, smoke exposure, and sleeping with baby on a sofa or armchair.']) +
         '<h3>What helps</h3>' + list([
           '<strong>Follow wake windows</strong>, not the clock — an overtired baby fights sleep harder.',
           '<strong>Light by day, dark at night.</strong> Bright daylight and normal noise for daytime feeds; dim, quiet, boring night feeds.',
@@ -95,11 +97,22 @@
           '<strong>Put down drowsy but awake</strong> sometimes, so baby practises falling asleep in the crib.',
           '<strong>White noise</strong> through the whole sleep, at low volume.',
           '<strong>“Sleeping through”</strong> usually means a 6–8 hour stretch, and often arrives between 3 and 6 months. Night feeds before then are normal and needed.'
-        ]) + '</div>';
+        ])) + '</div>';
       html += soundPlayer();
       return html;
     }
   };
+
+  function kidSleep() {
+    return '<h3>What helps</h3>' + list([
+      '<strong>The same bedtime and wake-up time</strong> every day, weekends too.',
+      '<strong>A calm 20–30 minute routine</strong>: bath, brush teeth, book, bed, in the same order every night.',
+      '<strong>No screens for an hour before bed</strong>, and none in the bedroom.',
+      '<strong>Short, boring check-ins</strong> if they call out or get up: walk them back to bed calmly.',
+      '<strong>Moving to a bed</strong> is usually between 18 months and 3½ years, often when they start climbing out of the crib.',
+      '<strong>Nightmares and night fears</strong> are common from about 3. Comfort them briefly; a dim night light can help.'
+    ]) + h.note('warn', 'Mention it to your pediatrician', 'Loud snoring most nights, pauses in breathing, or very restless sleep with daytime tiredness or behaviour problems.');
+  }
 
   TOPICS.enough = {
     title: 'Is my baby eating enough?',
@@ -167,7 +180,7 @@
       if (lt) { var f = G.feverCheck(lt.data.tempC, S.ageDays(lt.time)); html += h.note(f.level, 'Last reading: ' + h.temp(lt.data.tempC) + ' · ' + h.ago(lt.time), f.text); }
       html += '<div class="card card--flat"><div class="card__title">Quick check</div><div class="stepper"><button type="button" class="btn" data-action="step" data-target="qtemp" data-step="-0.1" aria-label="Lower">−</button><div class="stepper__v"><input class="stepper__input" id="qtemp" name="qtemp" type="number" step="0.1" inputmode="decimal" value="' + h.tempToDisplay(37.0) + '" aria-label="Temperature" /><small>' + h.tempUnit() + '</small></div><button type="button" class="btn" data-action="step" data-target="qtemp" data-step="0.1" aria-label="Higher">+</button></div><div id="qtemp-out" style="margin-top:10px"></div>' +
         '<button type="button" class="btn btn--block" data-action="log" data-type="temp" style="margin-top:10px">Log a temperature</button></div>';
-      html += '<div class="prose"><h3>Call your doctor (any age) if baby</h3>' + list(['Is hard to wake, unusually floppy, or inconsolable', 'Has trouble breathing, or a rash that doesn’t fade when you press a glass on it', 'Refuses feeds or has far fewer wet diapers', 'Has a seizure — call emergency services', 'Has a fever over 24 hours (under 2 years) or keeps getting worse']) +
+      html += '<div class="prose"><h3>Call your doctor (any age) if your child</h3>' + list(['Is hard to wake, unusually floppy, or inconsolable', 'Has trouble breathing, or a rash that doesn’t fade when you press a glass on it', 'Refuses feeds or has far fewer wet diapers', 'Has a seizure — call emergency services', 'Has a fever for more than 24 hours (under 2 years) or more than 3 days (2 years and older), or keeps getting worse']) +
         '<h3>Taking a temperature</h3>' + list(['<strong>Rectal</strong> is the most accurate under 3 months (a little petroleum jelly, ½–1 inch in).', '<strong>Armpit</strong> is fine for screening but reads lower; confirm a high reading rectally.', '<strong>Forehead / ear</strong> thermometers are less reliable in young babies (ear not under 6 months).', 'Don’t bundle up a feverish baby — light layers help them cool down.']) + '</div>';
       return html;
     },
@@ -178,17 +191,19 @@
     }
   };
 
+  function msAge(m) { return m < 24 ? m + ' months' : m % 12 ? Math.floor(m / 12) + '½ years' : m / 12 + ' years'; }
+
   TOPICS.milestones = {
     title: 'Milestones',
     html: function () {
       var d = days(), m = G.ageInMonths(d), b = S.baby(), got = b.milestones || {};
-      var html = '<p class="lead">From the CDC’s checklist — things <strong>most</strong> babies (3 in 4) do by each age. Tick them off as ' + name() + ' gets there. Every baby has their own pace; premature babies follow their adjusted age.</p>';
+      var html = '<p class="lead">From the CDC’s checklist — things <strong>most</strong> children (3 in 4) do by each age. Tick them off as ' + name() + ' gets there. Every child has their own pace; premature babies follow their adjusted age.</p>';
       var nextIdx = 0;
       for (var i = 0; i < G.MILESTONES.length; i++) if (G.MILESTONES[i].months >= m) { nextIdx = i; break; } else nextIdx = i;
       G.MILESTONES.forEach(function (g, i) {
         var done = g.items.filter(function (_, j) { return got[g.months + ':' + j]; }).length;
         var open = i === nextIdx || (i === nextIdx - 1 && done < g.items.length);
-        html += '<details class="card card--flat ms-group"' + (open ? ' open' : '') + '><summary class="ms-group__h"><span>By ' + g.months + ' months' + (i === nextIdx ? ' · <span class="faint">coming up</span>' : '') + '</span><span class="faint">' + done + ' / ' + g.items.length + '</span></summary>' +
+        html += '<details class="card card--flat ms-group"' + (open ? ' open' : '') + '><summary class="ms-group__h"><span>By ' + msAge(g.months) + (i === nextIdx ? ' · <span class="faint">coming up</span>' : '') + '</span><span class="faint">' + done + ' / ' + g.items.length + '</span></summary>' +
           g.items.map(function (it, j) { var k = g.months + ':' + j; return '<label class="check-line"><input type="checkbox" data-action-change="ms-toggle" data-key="' + k + '"' + (got[k] ? ' checked' : '') + ' /> ' + esc(it) + '</label>'; }).join('') + '</details>';
       });
       html += h.note('info', 'Act early', 'If ' + name() + ' isn’t doing some of these by the age listed, or loses skills they had, talk to your pediatrician. Checking early is always worth it.');
@@ -220,6 +235,129 @@
     }
   };
 
+  TOPICS.tantrum = {
+    title: 'Tantrums and big feelings',
+    html: function () {
+      return '<p class="lead">Tantrums are a normal part of being 1 to 4: big feelings and not yet the words to explain them. They usually peak between 2 and 3 and ease as talking gets easier.</p>' +
+        '<div class="prose"><h3>Fewer meltdowns</h3>' + list([
+          '<strong>Keep routines</strong> for meals, naps and bedtime. Hungry or tired children melt down faster.',
+          '<strong>Offer small choices</strong> (“the red cup or the blue cup?”) so they feel some control.',
+          '<strong>Warn before changes</strong>: “Five more minutes, then we go home.”',
+          '<strong>Notice the good moments</strong> and say so: “You waited so nicely.”'
+        ]) +
+        '<h3>During a tantrum</h3>' + list([
+          'Stay calm and close, and keep them safe. Move them away from anything that could hurt.',
+          'Name the feeling: “You’re angry that the park is finished.”',
+          'Don’t give in to what started it: that teaches that tantrums work.',
+          'It’s fine to ignore the screaming (not the child) while they’re safe.',
+          'Never hit or shake a child, and try not to shout back.'
+        ]) +
+        '<h3>Afterwards</h3>' + list(['A hug and move on; no long lecture.', 'Later, in a calm moment, talk about feelings with simple words.']) + '</div>' +
+        '<div class="note note--warn"><div class="note__t">Talk to your pediatrician if</div>' + list([
+          'Tantrums often last more than 15 minutes, or happen several times a day, past age 4',
+          'Your child hurts themselves or others, or holds their breath until they faint',
+          'They come with trouble sleeping, talking, or playing with other children',
+          'You feel you can’t cope'
+        ]) + '</div>' +
+        h.note('info', 'It’s OK to step away', 'When your child is somewhere safe, take a minute to breathe. Big feelings are hard for parents too.');
+    }
+  };
+
+  TOPICS.sick = {
+    title: 'Colds, coughs and tummy bugs',
+    html: function () {
+      var now = Date.now(), d = days(), lt = S.last('temp');
+      var meds = S.events({ type: 'med', from: now - 2 * DAY });
+      var html = '<p class="lead">Young children catch 6–8 colds a year, more in daycare or school. Most get better on their own in 7–10 days.</p>';
+      if (lt && now - lt.time < 3 * DAY) { var f = G.feverCheck(lt.data.tempC, S.ageDays(lt.time)); html += h.note(f.level, 'Last temperature: ' + h.temp(lt.data.tempC) + ' · ' + h.ago(lt.time), f.text); }
+      if (meds.length) html += h.note('info', 'Medicine in the last 2 days', meds.slice(-6).map(function (e) { return esc(e.data.name || 'Medicine') + ' at ' + h.fmtTime(e.time) + ' (' + h.dayLabel(e.time) + ')'; }).join(' · '));
+      html += '<div class="btn-row"><button type="button" class="btn btn--sm" data-action="log" data-type="temp">🌡️ Log temperature</button><button type="button" class="btn btn--sm" data-action="log" data-type="med">💊 Log medicine</button></div>';
+      html += '<div class="prose"><h3>Colds and coughs</h3>' + list([
+        'Plenty of fluids and rest. Saline drops and gentle suction help a stuffy nose.',
+        d >= 365 ? 'A small spoonful of honey can ease a night cough (only from age 1; never for babies).' : 'No honey before age 1.',
+        'Cough and cold medicines aren’t recommended for young children; ask your pediatrician before giving any.',
+        'Fever medicine is for comfort, not to bring the number down. Dose by weight, exactly as the label or your doctor says.'
+      ]) +
+        '<h3>Vomiting and diarrhea</h3>' + list([
+          'The main risk is dehydration. Give small sips often of oral rehydration solution (ORS, such as Oresol).',
+          'Go back to normal food once the vomiting settles; no need to wait.',
+          'Watch the pee: much less than usual, or none in 8 hours, means they need more fluid and a doctor’s check.'
+        ]) + '</div>';
+      html += '<div class="note note--urgent"><div class="note__t">Get help now for</div>' + list([
+        'Fast or hard breathing, ribs pulling in with each breath, or bluish lips',
+        'No pee in 8 hours, no tears, a very dry mouth, or very sleepy and hard to wake',
+        'Green vomit, blood in vomit or poop, or a swollen, very painful tummy',
+        'A stiff neck, a rash that doesn’t fade when you press a glass on it, or a seizure'
+      ]) + '</div>';
+      html += '<div class="note note--warn"><div class="note__t">See your doctor if</div>' + list([
+        'A fever lasts more than ' + (d < 730 ? '24 hours' : '3 days'),
+        'Ear pain, or a cough that lasts more than 3 weeks',
+        'Getting worse after a few days instead of better',
+        'Vomiting or diarrhea that lasts more than a day or two'
+      ]) + '</div>';
+      return html;
+    }
+  };
+
+  TOPICS.eating = {
+    title: 'Picky eating',
+    html: function () {
+      var now = Date.now(), meals = S.events({ type: 'feed', from: S.startOfDay(now) - 6 * DAY }).filter(function (e) { return e.data.kind === 'solids'; });
+      var foods = {}; meals.forEach(function (e) { if (e.data.food) foods[e.data.food.toLowerCase()] = 1; });
+      var html = '<p class="lead">Toddlers grow more slowly than babies, so their appetite drops, often around the first birthday. Picky eating is normal and usually passes.</p>';
+      if (meals.length) html += '<div class="stats"><div class="stat"><div class="stat__v">' + Math.round(meals.length / 7 * 10) / 10 + '</div><div class="stat__k">Meals a day, last 7 days</div></div><div class="stat"><div class="stat__v">' + Object.keys(foods).length + '</div><div class="stat__k">Different foods</div></div></div>';
+      else html += h.note('info', 'Log meals to see the week', 'Tap Meal on Today. Writing what they ate shows how varied the week was.');
+      html += '<div class="prose"><h3>What helps</h3>' + list([
+        '<strong>You decide what, when and where; ' + name() + ' decides whether and how much.</strong> Pressure usually backfires.',
+        'Three meals and one or two snacks at regular times, at the table, without screens.',
+        'Offer new foods again and again: it can take 10–15 tries before a food is accepted.',
+        'Put one food they already like on the plate next to anything new.',
+        'Small portions, about a quarter of an adult’s. They can ask for more.',
+        'About 2 cups (480 ml) of milk a day is plenty, and keep juice to a small cup or none: both fill a small tummy.',
+        'Don’t use food as a reward or a bribe.'
+      ]) +
+        '<h3>Avoid choking</h3>' + list(['Cut grapes and cherry tomatoes into quarters, and sausages lengthwise.', 'No whole nuts, popcorn or hard sweets before age 4.', 'Always sitting down to eat, with an adult nearby.']) + '</div>' +
+        '<div class="note note--warn"><div class="note__t">Talk to your pediatrician if</div>' + list([
+          'Weight drops, or the growth chart crosses lines downward',
+          'Very few foods are accepted, or whole food groups are refused',
+          'Gagging, choking or vomiting with meals, or every meal is a battle'
+        ]) + '</div>' +
+        '<button type="button" class="btn btn--block" data-action="go" data-view="log">📈 See the growth chart (History → Trends)</button>';
+      return html;
+    }
+  };
+
+  TOPICS.potty = {
+    title: 'Potty training',
+    html: function () {
+      var now = Date.now(), wk = S.events({ type: 'diaper', from: now - 7 * DAY }).filter(function (e) { return e.data.where; });
+      var hits = wk.filter(function (e) { return e.data.where === 'potty' && (e.data.wet || e.data.dirty); }).length, acc = wk.filter(function (e) { return e.data.where === 'accident'; }).length;
+      var html = '<p class="lead">Most children are ready between 18 months and 3 years, and many are dry in the daytime around 2½ to 3. Staying dry at night can take until 5 or later.</p>';
+      if (wk.length) html += '<div class="stats"><div class="stat"><div class="stat__v">' + hits + '</div><div class="stat__k">On the potty, 7 days</div></div><div class="stat"><div class="stat__v">' + acc + '</div><div class="stat__k">Accidents</div></div><div class="stat"><div class="stat__v">' + (wk.length - hits - acc) + '</div><div class="stat__k">Tries, nothing</div></div></div>';
+      html += '<button type="button" class="btn btn--block" data-action="log" data-type="potty">🚽 Log a potty trip</button>';
+      html += '<div class="prose"><h3>Signs of readiness</h3>' + list([
+        'Stays dry for 2 hours, or wakes up dry from a nap',
+        'Tells you, or shows you, when they’re peeing or pooping',
+        'Can walk to the potty, sit down, and pull pants down and up',
+        'Follows simple instructions and is curious (copies you, wants “big kid” underwear)'
+      ]) +
+        '<h3>Getting started</h3>' + list([
+          'Put a potty where they play, and let them sit on it dressed at first.',
+          'Regular tries: after waking, after meals, and before bath and bed.',
+          'Praise trying, not just success. Stay calm and matter-of-fact about accidents.',
+          'Easy clothes; move to underwear in the daytime when they’re mostly dry.',
+          'Teach wiping front to back and washing hands every time.'
+        ]) + '</div>' +
+        h.note('info', 'Setbacks are normal', 'A new baby, a move, starting school or being sick can bring accidents back. If it turns into a battle, take a break for a few weeks.') +
+        '<div class="note note--warn"><div class="note__t">Talk to your pediatrician if</div>' + list([
+          'There’s no interest or readiness by about 3½',
+          'Peeing or pooping hurts, or poop is hard and dry (constipation makes training harder)',
+          'They were dry for months and the accidents start again'
+        ]) + '</div>';
+      return html;
+    }
+  };
+
   function open(id) {
     var T = TOPICS[id];
     if (!T) return;
@@ -228,8 +366,8 @@
 
   function view() {
     var b = S.baby();
-    return '<h1 class="h1">Answers</h1><p class="lead">The questions new parents search for most — answered with ' + esc(b.name) + '’s own log wherever we can.</p>' +
-      '<div class="qcards">' + G.QUESTIONS.map(function (q) {
+    return '<h1 class="h1">Answers</h1><p class="lead">The questions parents search for most at ' + esc(G.ageLabel(days()).toLowerCase()) + ' — answered with ' + esc(b.name) + '’s own log wherever we can.</p>' +
+      '<div class="qcards">' + G.questionsFor(days()).map(function (q) {
         return '<button class="qcard" data-action="help" data-topic="' + q.tool + '"><span class="qcard__icon">' + q.icon + '</span><span class="qcard__q">' + esc(q.q) + '</span><span class="qcard__go">›</span></button>';
       }).join('') + '</div>' +
       '<div class="section-title"><h2>Sleep sounds</h2></div>' + soundPlayer().replace('card card--flat', 'card') +

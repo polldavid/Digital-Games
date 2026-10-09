@@ -211,6 +211,7 @@ npm i --no-save playwright && npx playwright install chromium   # one-time
 node baby/tests/e2e.smoke.js        # main flows in Chromium at iPhone size (HEADED=1 to watch)
 node baby/tests/voice.test.js       # voice phrases → entries
 node baby/tests/e2e.bottle.js       # bottle timer and pace
+node baby/tests/e2e.kids.js         # older children: own Today per child, potty, Answers by age, growth to 5, check-up summary
 node baby/tests/e2e.milk.js         # milk storage: pump → fridge → freeze → thaw → feed → leftover
 SYNC_URL=http://127.0.0.1:8788 node baby/tests/e2e.copies.js   # two copies open on one phone never lose entries
 node baby/tests/e2e.ping.js         # the anonymous usage count: once a day, nothing when off
