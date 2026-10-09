@@ -89,12 +89,12 @@ assert.strictEqual(cream.stock.count, null, 'stock not tracked unless given');
 // sliding-scale insulin: refused until charts are valid AND confirmed from the doctor's instructions
 const chart = { context: 'any', rows: [{ from: 70, to: 150, units: 0 }, { from: 151, to: 250, units: 4 }] };
 const insIn = { elderId: mama.id, name: 'Insulin glargine', form: 'insulin-pen', dose: { amount: 4, unit: 'units' }, insulin: { mode: 'scale', charts: [chart], needles: 10 } };
-assert.deepStrictEqual(S.saveMed(insIn).error, { field: 'chartConfirmed', error: 'not-confirmed' });
+assert.deepStrictEqual(S.saveMed(insIn).error, { field: 'charts', error: 'not-confirmed' });
 assert.strictEqual(S.saveMed(Object.assign({}, insIn, { insulin: { mode: 'scale', charts: [] } })).error.error, 'no-chart');
 const badChart = { context: 'any', rows: [{ from: 70, to: 150, units: 0 }, { from: 140, to: 250, units: 4 }] };
 assert.strictEqual(S.saveMed(Object.assign({}, insIn, { insulin: { mode: 'scale', charts: [badChart], chartConfirmed: true } })).error.error, 'bad-chart');
 assert.strictEqual(S.saveMed(Object.assign({}, insIn, { insulin: { mode: 'guess' } })).error.error, 'bad-mode');
-const insulin = S.saveMed(Object.assign({}, insIn, { insulin: Object.assign({}, insIn.insulin, { chartConfirmed: true }), stock: { count: 300 } }), 'Poll').med;
+const insulin = S.saveMed(Object.assign({}, insIn, { stock: { count: 300 } }), 'Poll', { confirmChart: true }).med;
 assert.ok(insulin.id);
 // editing an existing med updates it in place
 S.saveMed(Object.assign({}, losartan, { purpose: 'for blood pressure' }), 'Ate');
@@ -178,5 +178,76 @@ assert.ok(S.save());
 const S2 = K.create({ storage: mem }); S2.load();
 assert.strictEqual(S2.find('meds', losartan.id).stock.count, 14);
 assert.strictEqual(S2.list('elders').length, 2);
+
+/* ---------- review fixes ---------- */
+{
+  clockNow = at(2026, 10, 10, 7, 0);
+  const R = K.create({ storage: memStorage(), now: clock }); R.load();
+  const p = R.addElder({ name: 'Papa' });
+  const tab = R.saveMed({ elderId: p.id, name: 'Metformin', form: 'tablet', dose: { amount: 1, unit: 'tablet' }, stock: { count: 20 } }).med;
+  const s1 = R.saveSchedule({ medId: tab.id, rule: rule({ start: '2026-10-10', times: ['08:00'] }) }).schedule;
+  const k8 = p.id + '@2026-10-10T08:00';
+  const dose8 = () => R.list('doses', (d) => d.slotKey === k8)[0];
+  // C2: undo gives back exactly what was taken; re-confirming with other units adjusts by the difference
+  R.recordDose({ medId: tab.id, scheduleId: s1.id, slotKey: k8, status: 'taken', units: 0.5 });
+  R.recordDose({ medId: tab.id, scheduleId: s1.id, slotKey: k8, status: 'skipped' });
+  assert.strictEqual(R.find('meds', tab.id).stock.count, 20, 'half a tablet undone gives back half');
+  R.recordDose({ medId: tab.id, scheduleId: s1.id, slotKey: k8, status: 'taken', units: 1 });
+  R.recordDose({ medId: tab.id, scheduleId: s1.id, slotKey: k8, status: 'taken', units: 2 });
+  assert.strictEqual(R.find('meds', tab.id).stock.count, 18, 're-confirming with 2 takes one more');
+  assert.strictEqual(dose8().units, 2);
+  R.recordDose({ medId: tab.id, scheduleId: s1.id, slotKey: k8, status: 'skipped' });
+  assert.strictEqual(R.find('meds', tab.id).stock.count, 20);
+  assert.strictEqual(dose8().units, null, 'a skipped dose records no units');
+  // I2: only known statuses; a taken dose cannot be snoozed back to due
+  assert.strictEqual(R.recordDose({ medId: tab.id, slotKey: k8, status: 'tken' }), null);
+  R.recordDose({ medId: tab.id, scheduleId: s1.id, slotKey: k8, status: 'taken' });
+  assert.strictEqual(R.recordDose({ medId: tab.id, slotKey: k8, status: 'snoozed' }), null);
+  assert.strictEqual(dose8().status, 'taken');
+  assert.strictEqual(R.find('meds', tab.id).stock.count, 19);
+  // I3: editing a med never resets stock (or needles) from the form
+  R.saveMed(Object.assign({}, tab, { purpose: 'para sa sugar', stock: undefined }));
+  assert.strictEqual(R.find('meds', tab.id).stock.count, 19, 'a form without stock keeps the count');
+  R.saveMed(Object.assign({}, tab, { stock: { count: 20, lowDays: 5 } }));
+  assert.deepStrictEqual([R.find('meds', tab.id).stock.count, R.find('meds', tab.id).stock.lowDays], [19, 5], 'stale count ignored, settings kept');
+  assert.ok(R.setStockCount(tab.id, 30, 'Poll'));
+  assert.strictEqual(R.find('meds', tab.id).stock.count, 30, 'counting the pills is its own action');
+  assert.strictEqual(R.setStockCount(tab.id, -1), null);
+  // I6: a schedule's own dose is shown and used
+  const s2 = R.saveSchedule({ medId: tab.id, rule: rule({ start: '2026-10-10', times: ['21:00'] }), dose: { amount: 2, unit: 'tablet' } }).schedule;
+  const tl = R.timeline(p.id, at(2026, 10, 10), at(2026, 10, 11), at(2026, 10, 10, 7));
+  assert.deepStrictEqual(tl[1].items[0].dose, { amount: 2, unit: 'tablet' });
+  R.recordDose({ medId: tab.id, scheduleId: s2.id, slotKey: p.id + '@2026-10-10T21:00', status: 'taken' });
+  assert.strictEqual(R.find('meds', tab.id).stock.count, 28);
+  // I1: moving a schedule's time mid-day keeps the taken dose visible and flags the moved slot
+  clockNow = at(2026, 10, 10, 8, 20);
+  R.saveSchedule(Object.assign({}, s1, { rule: rule({ start: '2026-10-10', times: ['09:00'] }) }));
+  const tl2 = R.timeline(p.id, at(2026, 10, 10), at(2026, 10, 11), at(2026, 10, 10, 9, 40));
+  const t8 = tl2.find((s) => s.slotKey === k8), t9 = tl2.find((s) => s.slotKey === p.id + '@2026-10-10T09:00');
+  assert.ok(t8 && t8.orphan && t8.items[0].status === 'taken', 'the 08:00 dose is still shown as taken');
+  assert.deepStrictEqual(tl2.map((s) => s.slotKey), [k8, p.id + '@2026-10-10T09:00', p.id + '@2026-10-10T21:00'], 'sorted by time');
+  assert.strictEqual(t9.items[0].takenEarlier, true, 'the moved slot knows this dose was already taken today');
+  assert.ok(!tl2[2].items[0].takenEarlier, 'the evening schedule is not affected');
+  // I7: sliding-scale insulin needs no placeholder dose, but units must be given when taken
+  const chart = { context: 'any', rows: [{ from: 70, to: 300, units: 4 }] };
+  const ins = R.saveMed({ elderId: p.id, name: 'Insulin', form: 'insulin-pen', dose: { unit: 'units' }, insulin: { mode: 'scale', charts: [chart], needles: 10 }, stock: { count: 300 } }, 'Poll', { confirmChart: true }).med;
+  assert.ok(ins, 'no placeholder dose amount needed');
+  assert.strictEqual(R.recordDose({ medId: ins.id, slotKey: 'x', status: 'taken' }), null, 'units must be given');
+  R.recordDose({ medId: ins.id, slotKey: 'x', status: 'taken', units: 6 });
+  assert.deepStrictEqual([R.find('meds', ins.id).stock.count, R.find('meds', ins.id).insulin.needles], [294, 9]);
+  R.recordDose({ medId: ins.id, slotKey: 'x', status: 'skipped' });
+  assert.deepStrictEqual([R.find('meds', ins.id).stock.count, R.find('meds', ins.id).insulin.needles], [300, 10], 'insulin and the needle given back');
+  // I4: a changed chart needs a fresh confirmation; an unchanged one does not
+  const cur = R.find('meds', ins.id);
+  assert.ok(R.saveMed(Object.assign({}, cur, { purpose: 'para sa sugar' })).med, 'unchanged chart saves');
+  const edited = JSON.parse(JSON.stringify(cur)); edited.insulin.charts[0].rows[0].units = 40;
+  assert.deepStrictEqual(R.saveMed(edited).error, { field: 'charts', error: 'not-confirmed' });
+  assert.strictEqual(R.find('meds', ins.id).insulin.charts[0].rows[0].units, 4);
+  assert.ok(R.saveMed(edited, 'Ate', { confirmChart: true }).med);
+  assert.strictEqual(R.find('meds', ins.id).insulin.chartConfirmedBy, 'Ate');
+  // I5: duplicate chart contexts refused
+  const dup = JSON.parse(JSON.stringify(R.find('meds', ins.id))); dup.insulin.charts.push(chart);
+  assert.strictEqual(R.saveMed(dup, 'Poll', { confirmChart: true }).error.error, 'bad-chart');
+}
 
 console.log('store.test.js ok');

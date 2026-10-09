@@ -33,11 +33,27 @@ assert.strictEqual(Sc.lookup(charts, 250, 'before-meal').row.units, 6);
 assert.deepStrictEqual(Sc.lookup(charts, 320, 'before-meal'), { outside: true, chart: meal });
 assert.deepStrictEqual(Sc.lookup(charts, 60, 'before-meal'), { outside: true, chart: meal });
 assert.deepStrictEqual(Sc.lookup(charts, NaN, 'before-meal'), { outside: true, chart: meal });
+// a fasting reading uses the before-meal chart (fasting = before breakfast)
+assert.strictEqual(Sc.lookup(charts, 185, 'fasting').row.units, 4);
 // no chart for this context and no 'any' chart
-assert.deepStrictEqual(Sc.lookup(charts, 185, 'fasting'), { noChart: true });
+assert.deepStrictEqual(Sc.lookup(charts, 185, 'after-meal'), { noChart: true });
 // falls back to the 'any' chart
-assert.strictEqual(Sc.lookup([meal, any], 185, 'fasting').row.units, 1);
+assert.strictEqual(Sc.lookup([meal, any], 185, 'after-meal').row.units, 1);
 // an invalid chart is never used
 assert.deepStrictEqual(Sc.lookup([{ context: 'any', rows: [{ from: 70, to: 150, units: 0 }, { from: 140, to: 200, units: 4 }] }], 145, 'any'), { noChart: true });
+
+// Review C1: a fasting reading uses the before-meal chart, never silently the 'any' chart
+const anyLow = { context: 'any', rows: [{ from: 70, to: 300, units: 2 }] };
+const bm = { context: 'before-meal', rows: [{ from: 70, to: 300, units: 6 }] };
+assert.strictEqual(Sc.lookup([anyLow, bm], 185, 'fasting').row.units, 6);
+assert.strictEqual(Sc.lookup([bm], 185, 'fasting').row.units, 6);
+assert.deepStrictEqual(Sc.CONTEXTS, ['any', 'fasting', 'before-meal', 'after-meal', 'bedtime']);
+assert.deepStrictEqual(Sc.validate({ context: 'lunch', rows: bm.rows }), { row: -1, error: 'context' });
+// Review I5: duplicate contexts refused; an invalid exact-context chart never falls back to 'any'
+assert.deepStrictEqual(Sc.validateSet([anyLow, anyLow]), { chart: 1, error: 'duplicate-context' });
+assert.strictEqual(Sc.validateSet([anyLow, bm]), null);
+assert.deepStrictEqual(Sc.validateSet([]), { chart: -1, error: 'no-chart' });
+assert.deepStrictEqual(Sc.validateSet([{ context: 'any', rows: [] }]), { chart: 0, error: 'empty', row: -1 });
+assert.deepStrictEqual(Sc.lookup([anyLow, { context: 'bedtime', rows: [{ from: 70, to: 150, units: 0 }, { from: 140, to: 300, units: 4 }] }], 200, 'bedtime'), { noChart: true });
 
 console.log('scale.test.js ok');

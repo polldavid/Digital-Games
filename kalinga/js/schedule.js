@@ -30,8 +30,9 @@
   }
   function startOfDay(t) { var d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); }
   function addDays(t, n) { var d = new Date(t); d.setDate(d.getDate() + n); return d.getTime(); }
-  // Whole calendar days from a to b (both local midnights), safe across DST.
-  function daysBetween(a, b) { return Math.round((b - a) / DAY); }
+  // Whole calendar days between two 'YYYY-MM-DD' keys. Counted on the calendar,
+  // not in 24-hour blocks, so DST changes (even at midnight) never shift it.
+  function dayNumber(key) { var p = key.split('-'); return Date.UTC(+p[0], +p[1] - 1, +p[2]) / DAY; }
 
   // null when fine, else { field, error } (error is a code the UI translates).
   function validate(rule) {
@@ -55,16 +56,17 @@
     return null;
   }
 
-  // Is the rule active on the local day starting at `day` (a midnight)?
+  // Is the rule active on the local day containing `day`? Compared as calendar
+  // dates ('YYYY-MM-DD' strings), never as milliseconds.
   function activeOn(rule, day) {
-    if (rule.prn) return false;
-    var s = parseDay(rule.start);
-    if (s == null || day < s) return false;
-    if (rule.end && day > parseDay(rule.end)) return false;
+    if (rule.prn || parseDay(rule.start) == null) return false;
+    var k = dayKey(day);
+    if (k < rule.start) return false;
+    if (rule.end && k > rule.end) return false;
     var wd = rule.weekdays || [];
     if (wd.length && wd.indexOf(new Date(day).getDay()) < 0) return false;
     var n = rule.everyN || 0;
-    if (n > 1 && daysBetween(s, day) % n !== 0) return false;
+    if (n > 1 && (dayNumber(k) - dayNumber(rule.start)) % n !== 0) return false;
     return true;
   }
 
@@ -72,7 +74,11 @@
   function occurrences(rule, from, to) {
     var out = [];
     if (!rule || rule.prn || validate(rule)) return out;
-    for (var day = startOfDay(from); day < to; day = addDays(day, 1)) {
+    var f = new Date(from);
+    for (var i = 0; ; i++) {
+      // Each day built from the calendar date, so a midnight DST change can't make the loop drift.
+      var day = new Date(f.getFullYear(), f.getMonth(), f.getDate() + i).getTime();
+      if (day >= to) break;
       if (!activeOn(rule, day)) continue;
       rule.times.forEach(function (hm) {
         var p = parseHM(hm), d = new Date(day);
@@ -88,7 +94,8 @@
   // medicines due at the same minute ring together.
   //   meds:      [{ id, elderId, active }]
   //   schedules: [{ id, medId, rule, dose? }]
-  // -> [{ at, slotKey, items: [{ medId, scheduleId }] }] sorted by time.
+  // -> [{ at, slotKey, items: [{ medId, scheduleId, dose }] }] sorted by time.
+  //    dose: the schedule's own dose, or null to use the medicine's.
   function slots(elderId, meds, schedules, from, to) {
     var byMed = {}, groups = {};
     meds.forEach(function (m) { if (m.elderId === elderId && m.active !== false && !m.deleted) byMed[m.id] = m; });
@@ -97,7 +104,7 @@
       occurrences(s.rule, from, to).forEach(function (t) {
         var key = slotKey(elderId, t);
         var g = groups[key] = groups[key] || { at: t, slotKey: key, items: [] };
-        g.items.push({ medId: s.medId, scheduleId: s.id });
+        g.items.push({ medId: s.medId, scheduleId: s.id, dose: s.dose || null });
       });
     });
     return Object.keys(groups).map(function (k) { return groups[k]; }).sort(function (a, b) { return a.at - b.at; });

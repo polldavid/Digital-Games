@@ -40,11 +40,11 @@ assert.ok(V.plausible(V.template('custom', { name: 'Steps', unit: 'steps' }), 40
 
 // verdict: sugar
 assert.deepStrictEqual(V.verdict(S, 120), { level: 'ok', danger: null, alert: false });
-assert.strictEqual(V.verdict(S, 300).level, 'ok', 'at the high level is not above it');
+assert.strictEqual(V.verdict(S, 300).alert, false, 'at the high level is not above it');
 assert.strictEqual(V.verdict(S, 301).level, 'high');
 assert.strictEqual(V.verdict(S, 69).level, 'danger');
 assert.strictEqual(V.verdict(S, 69).danger.card, 'low-sugar');
-assert.strictEqual(V.verdict(S, 70).level, 'ok');
+assert.strictEqual(V.verdict(S, 70).alert, false);
 // verdict: blood pressure (either number counts)
 assert.strictEqual(V.verdict(B, { sys: 130, dia: 80 }).level, 'ok');
 assert.strictEqual(V.verdict(B, { sys: 165, dia: 85 }).level, 'high');
@@ -82,5 +82,15 @@ assert.ok(!V.streakAlert(S, [r(7, 9, 400), r(8, 9, 400), r(9, 9, 400)], now), 's
 // mmol/L
 assert.strictEqual(V.mmolToMgdl(10.3), 185);
 assert.strictEqual(V.mgdlToMmol(185), 10.3);
+
+// Review I11: outside the target range is said ("Medyo mataas") but is not an alert
+assert.deepStrictEqual(V.verdict(S, 250), { level: 'above-target', danger: null, alert: false });
+assert.strictEqual(V.verdict(S, 75).level, 'below-target');
+assert.strictEqual(V.verdict(S, 120).level, 'ok');
+assert.strictEqual(V.verdict(B, { sys: 150, dia: 95 }).level, 'above-target');
+assert.strictEqual(V.verdict(B, { sys: 130, dia: 80 }).level, 'ok');
+assert.strictEqual(V.verdict(B, { sys: 165, dia: 85 }).level, 'high', 'alert levels still win');
+assert.deepStrictEqual(V.validateType(V.template('sugar', { target: { low: 200, high: 100 } })), { field: 'target', error: 'low-above-high' });
+assert.deepStrictEqual(V.validateType(V.template('bp', { target: { high: { sys: 'x' } } })), { field: 'target', error: 'bad-level' });
 
 console.log('vitals.test.js ok');

@@ -70,4 +70,19 @@ pair('130', null);
 pair('nothing here', null);
 pair('1 2 3 4', null);
 
+// Review I10: run-together Tagalog hundreds, thousands, and refusing a hundreds-word we could not read
+num("isandaan walumpu't lima", 185);
+num('isandaan at lima', 105);
+num('isang daang walumpu', 180);
+num('dalawandaan', 200);
+num('isang libo', 1000);
+num('one thousand', 1000);
+num('isandan walumpu', null);
+// Review M1: blood pressure needs "over" (or /) between the numbers; a third number needs "pulse"
+pair('one forty no one thirty over eighty', null);
+pair('130 80', null);
+pair('my bp is 130 over 80', { sys: 130, dia: 80 });
+pair('130 over 80 72', null);
+pair('130 over 80 pulso 72', { sys: 130, dia: 80, pulse: 72 });
+
 console.log('speechnum.test.js ok (' + count + ' phrases)');

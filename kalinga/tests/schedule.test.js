@@ -64,8 +64,8 @@ const sl = K.slots('papa', meds, scheds, fri, fri + DAY);
 assert.strictEqual(sl.length, 2);
 assert.strictEqual(sl[0].at, at(2026, 10, 9, 8));
 assert.strictEqual(sl[0].slotKey, 'papa@2026-10-09T08:00');
-assert.deepStrictEqual(sl[0].items, [{ medId: 'm1', scheduleId: 's1' }, { medId: 'm2', scheduleId: 's2' }]);
-assert.deepStrictEqual(sl[1].items, [{ medId: 'm1', scheduleId: 's1' }]);
+assert.deepStrictEqual(sl[0].items, [{ medId: 'm1', scheduleId: 's1', dose: null }, { medId: 'm2', scheduleId: 's2', dose: null }]);
+assert.deepStrictEqual(sl[1].items, [{ medId: 'm1', scheduleId: 's1', dose: null }]);
 
 // partOfDay
 assert.strictEqual(K.partOfDay(at(2026, 10, 9, 8)), 'morning');

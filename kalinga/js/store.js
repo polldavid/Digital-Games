@@ -31,6 +31,8 @@
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function isInsulin(med) { return med && (med.form === 'insulin-pen' || med.form === 'insulin-vial'); }
+  function isScale(med) { return !!(isInsulin(med) && med.insulin && med.insulin.mode === 'scale'); }
+  function round2(x) { return Math.round(x * 100) / 100; }
 
   function defaults() {
     return {
@@ -148,35 +150,63 @@
     };
 
     /* ---------- Medicines ----------
-       saveMed(med, by) -> { med } | { error: { field, error } }
-       Insulin with a sliding scale is refused unless every chart is valid
-       and the caregiver confirmed it was copied from the doctor's
-       written instructions (insulin.chartConfirmed === true). */
+       saveMed(med, by, opts?) -> { med } | { error: { field, error } }
+       Sliding-scale insulin: every chart must be valid (one per context),
+       and whenever the charts are new or changed the caregiver must confirm
+       they were copied from the doctor's written instructions — passed as
+       opts.confirmChart === true, never a field that rides along on the record.
+       Editing a medicine never changes its stock count or needles: those move
+       only through doses, setStockCount() and purchases. */
     self.checkMed = function (med) {
       if (!med || !String(med.name || '').trim()) return { field: 'name', error: 'no-name' };
       if (!med.elderId || !self.find('elders', med.elderId)) return { field: 'elderId', error: 'no-elder' };
       if (FORMS.indexOf(med.form) < 0) return { field: 'form', error: 'bad-form' };
-      var d = med.dose || {};
-      if (!(d.amount > 0) || !String(d.unit || '').trim()) return { field: 'dose', error: 'bad-dose' };
+      var d = med.dose || {}, scale = isScale(med);
+      // A sliding scale has no fixed amount (the chart decides); anything else needs one.
+      if (!String(d.unit || '').trim() || (d.amount != null && !(d.amount > 0)) || (!scale && d.amount == null)) return { field: 'dose', error: 'bad-dose' };
       if (med.prn && ((med.prn.minGapMin != null && !(med.prn.minGapMin >= 0)) || (med.prn.maxPerDay != null && !(med.prn.maxPerDay >= 0)))) return { field: 'prn', error: 'bad-limit' };
       if (isInsulin(med)) {
         var ins = med.insulin || {};
         if (ins.mode !== 'fixed' && ins.mode !== 'scale') return { field: 'insulin', error: 'bad-mode' };
         if (ins.mode === 'scale') {
-          if (!ins.charts || !ins.charts.length) return { field: 'charts', error: 'no-chart' };
-          for (var i = 0; i < ins.charts.length; i++) if (Scl.validate(ins.charts[i])) return { field: 'charts', error: 'bad-chart', chart: i, detail: Scl.validate(ins.charts[i]) };
-          if (ins.chartConfirmed !== true) return { field: 'chartConfirmed', error: 'not-confirmed' };
+          var ce = Scl.validateSet(ins.charts);
+          if (ce) return ce.error === 'no-chart' ? { field: 'charts', error: 'no-chart' } : { field: 'charts', error: 'bad-chart', chart: ce.chart, detail: ce };
         }
       }
       return null;
     };
-    self.saveMed = function (med, by) {
+    self.saveMed = function (med, by, opts) {
       var err = self.checkMed(med);
       if (err) return { error: err };
+      var old = med.id ? self.find('meds', med.id) : null;
       var m = clone(med);
       if (m.active == null) m.active = true;
-      m.stock = Object.assign({ count: null, packSize: 0, lowDays: 7 }, m.stock || {}); // count null = not tracked
-      return { med: m.id && self.find('meds', m.id) ? self.update('meds', m.id, m, by) : self.add('meds', m, by) };
+      if (old) {
+        m.stock = Object.assign({}, old.stock || {}, m.stock || {}, { count: old.stock && typeof old.stock.count === 'number' ? old.stock.count : null });
+        if (m.insulin) m.insulin.needles = old.insulin && old.insulin.needles != null ? old.insulin.needles : (m.insulin.needles != null ? m.insulin.needles : null);
+      } else {
+        m.stock = Object.assign({ count: null, packSize: 0, lowDays: 7 }, m.stock || {}); // count null = not tracked
+      }
+      if (m.insulin) delete m.insulin.chartConfirmed;
+      if (isScale(m)) {
+        var before = old && isScale(old) ? JSON.stringify(old.insulin.charts) : null;
+        if (before !== JSON.stringify(m.insulin.charts)) {
+          if (!(opts && opts.confirmChart === true)) return { error: { field: 'charts', error: 'not-confirmed' } };
+          m.insulin.chartConfirmedAt = clock();
+          m.insulin.chartConfirmedBy = by || '';
+        } else {
+          m.insulin.chartConfirmedAt = old.insulin.chartConfirmedAt;
+          m.insulin.chartConfirmedBy = old.insulin.chartConfirmedBy;
+        }
+      }
+      return { med: old ? self.update('meds', m.id, m, by) : self.add('meds', m, by) };
+    };
+
+    // The caregiver counted what is left. -> med | null
+    self.setStockCount = function (medId, count, by) {
+      var med = self.find('meds', medId);
+      if (!med || typeof count !== 'number' || !(count >= 0)) return null;
+      return self.update('meds', medId, { stock: Object.assign({}, med.stock, { count: round2(count) }) }, by);
     };
 
     // saveSchedule({ id?, medId, rule, dose? }, by) -> { schedule } | { error }
@@ -189,29 +219,42 @@
     };
 
     /* ---------- Doses ----------
-       recordDose({ elderId, medId, slotKey, dueAt, status, units, by })
-       status: 'taken' | 'skipped' | 'snoozed'. One record per (slotKey, medId);
-       as-needed doses (no slotKey) are always new. Stock goes down when a dose
-       becomes taken and back up if a taken dose is changed to skipped. */
+       recordDose({ elderId?, medId, scheduleId?, slotKey?, dueAt?, status, units?, by }) -> dose | null
+       status: 'taken' | 'skipped' | 'snoozed' (anything else is refused).
+       One record per (slotKey, medId); as-needed doses (no slotKey) are always new.
+       units when taken: given, else the schedule's dose, else the medicine's.
+       Sliding-scale insulin has no default: units must be given (null if not).
+       Stock and needles follow the change exactly: taking uses the units, a
+       re-confirm with other units adjusts by the difference, and taken ->
+       skipped gives back what was taken (and the needle). A taken dose cannot
+       go back to snoozed (a stale alarm screen must not re-open it). */
+    var STATUSES = { taken: 1, skipped: 1, snoozed: 1 };
     self.recordDose = function (d) {
       var med = self.find('meds', d.medId);
-      if (!med) return null;
-      var units = d.units != null ? d.units : med.dose.amount, now = clock();
-      var prev = d.slotKey ? self.list('doses', function (x) { return x.slotKey === d.slotKey && x.medId === d.medId; })[0] : null;
-      var wasTaken = prev && prev.status === 'taken', nowTaken = d.status === 'taken';
-      var rec;
-      if (prev) rec = self.update('doses', prev.id, { status: d.status, units: units, actedAt: now }, d.by, true);
-      else rec = self.add('doses', { elderId: d.elderId || med.elderId, medId: d.medId, slotKey: d.slotKey || null, dueAt: d.dueAt || now, status: d.status, units: units, actedAt: now }, d.by, true);
-      if (nowTaken && !wasTaken) {
-        var t = Stk.take(med, units), patch = {};
-        if (t.count != null) patch.stock = Object.assign({}, med.stock, { count: t.count });
-        if (t.needles != null) patch.insulin = Object.assign({}, med.insulin, { needles: t.needles });
-        self.update('meds', med.id, patch, d.by, true);
-      } else if (wasTaken && !nowTaken && Stk.tracked(med)) {
-        self.update('meds', med.id, { stock: Object.assign({}, med.stock, { count: Stk.restock(med, prev.units) }) }, d.by, true);
+      if (!med || !STATUSES[d.status]) return null;
+      var sch = d.scheduleId ? self.find('schedules', d.scheduleId) : null, units = null;
+      if (d.status === 'taken') {
+        units = d.units != null ? d.units : isScale(med) ? null : sch && sch.dose ? sch.dose.amount : med.dose && med.dose.amount;
+        if (typeof units !== 'number' || !(units >= 0)) return null;
       }
+      var now = clock();
+      var prev = d.slotKey ? self.list('doses', function (x) { return x.slotKey === d.slotKey && x.medId === d.medId; })[0] : null;
+      var wasTaken = !!prev && prev.status === 'taken', prevUnits = wasTaken ? prev.units || 0 : 0;
+      if (wasTaken && d.status === 'snoozed') return null;
+      var rec = prev
+        ? self.update('doses', prev.id, { status: d.status, units: units, actedAt: now, scheduleId: d.scheduleId || prev.scheduleId || null }, d.by, true)
+        : self.add('doses', { elderId: d.elderId || med.elderId, medId: d.medId, scheduleId: d.scheduleId || null, slotKey: d.slotKey || null, dueAt: d.dueAt || now, status: d.status, units: units, actedAt: now }, d.by, true);
+      var nowTaken = d.status === 'taken';
+      adjustStock(med, (nowTaken ? units : 0) - prevUnits, (nowTaken ? 1 : 0) - (wasTaken ? 1 : 0), d.by);
       return rec;
     };
+    // used: dose units to take off (negative gives back); needles: pen needles to take off.
+    function adjustStock(med, used, needles, by) {
+      var patch = {};
+      if (used && Stk.tracked(med)) patch.stock = Object.assign({}, med.stock, { count: Math.max(0, round2(med.stock.count - used)) });
+      if (needles && med.insulin && typeof med.insulin.needles === 'number') patch.insulin = Object.assign({}, med.insulin, { needles: Math.max(0, med.insulin.needles - needles) });
+      if (patch.stock || patch.insulin) self.update('meds', med.id, patch, by, true);
+    }
 
     // Times (ms) this as-needed med was taken, for schedule.prnAllowed().
     self.prnTaken = function (medId) {
@@ -221,26 +264,61 @@
     /* ---------- Today ----------
        Every slot in [from, to) with each medicine's status:
        'taken' | 'skipped' | 'unconfirmed' (past the cutoff, no answer) |
-       'due' (ringing now) | 'upcoming'. A snoozed dose counts as due. */
+       'due' (ringing now) | 'upcoming'. A snoozed dose counts as due.
+       Answered doses whose slot no longer exists (the schedule was moved or
+       removed) are still shown, as slots with orphan: true; and a slot item
+       still to answer gets takenEarlier: true when the same schedule (or, for
+       older records, the same medicine) was already taken in such a slot that
+       day — so the screen can say "already taken" instead of a second dose. */
+    function slotTime(key) {
+      var m = /@(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(key || '');
+      return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : null;
+    }
     self.timeline = function (elderId, from, to, now) {
       var elder = self.find('elders', elderId);
       if (!elder) return [];
-      var doses = {};
-      self.list('doses', function (x) { return x.elderId === elderId && x.slotKey; }).forEach(function (x) { doses[x.slotKey + '|' + x.medId] = x; });
-      return Sch.slots(elderId, self.list('meds'), self.list('schedules'), from, to).map(function (slot) {
+      var doses = {}, used = {}, orphans = {}, out;
+      var answered = self.list('doses', function (x) { return x.elderId === elderId && x.slotKey; });
+      answered.forEach(function (x) { doses[x.slotKey + '|' + x.medId] = x; });
+      out = Sch.slots(elderId, self.list('meds'), self.list('schedules'), from, to).map(function (slot) {
         var cut = Sch.cutoff(slot.at, elder.alerts);
         slot.items.forEach(function (it) {
           var d = doses[slot.slotKey + '|' + it.medId];
+          if (d) used[d.id] = 1;
           if (d && (d.status === 'taken' || d.status === 'skipped')) it.status = d.status;
           else if (now >= cut) it.status = 'unconfirmed';
           else if (now >= slot.at) it.status = 'due';
           else it.status = 'upcoming';
         });
+        return slot;
+      });
+      answered.forEach(function (x) {
+        if (used[x.id] || (x.status !== 'taken' && x.status !== 'skipped')) return;
+        var at = slotTime(x.slotKey);
+        if (at == null || at < from || at >= to) return;
+        var g = orphans[x.slotKey] = orphans[x.slotKey] || { at: at, slotKey: x.slotKey, orphan: true, items: [] };
+        g.items.push({ medId: x.medId, scheduleId: x.scheduleId || null, dose: null, status: x.status, units: x.units });
+      });
+      var extra = Object.keys(orphans).map(function (k) { return orphans[k]; });
+      out.forEach(function (slot) {
+        var day = Sch.dayKey(slot.at);
+        slot.items.forEach(function (it) {
+          if (it.status === 'taken' || it.status === 'skipped') return;
+          extra.forEach(function (o) {
+            if (Sch.dayKey(o.at) !== day) return;
+            o.items.forEach(function (oi) {
+              if (oi.status === 'taken' && (oi.scheduleId ? oi.scheduleId === it.scheduleId : oi.medId === it.medId)) it.takenEarlier = true;
+            });
+          });
+        });
+      });
+      out = out.concat(extra).sort(function (a, b) { return a.at - b.at; });
+      out.forEach(function (slot) {
         slot.status = slot.items.every(function (it) { return it.status === 'taken' || it.status === 'skipped'; }) ? 'done'
           : slot.items.some(function (it) { return it.status === 'unconfirmed'; }) ? 'unconfirmed'
           : slot.items.some(function (it) { return it.status === 'due'; }) ? 'due' : 'upcoming';
-        return slot;
       });
+      return out;
     };
 
     // Medicines running low for this elder.

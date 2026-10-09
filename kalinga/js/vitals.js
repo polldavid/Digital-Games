@@ -11,6 +11,8 @@
        name, unit,
        low, high,          // alert levels: number, or { sys, dia } for 'pair';
                            //   for 'face' only `high` (1–5, alert at or above)
+       target: { low, high }, // optional target range (same shapes): outside it the
+                           //   elder hears "Medyo mataas/mababa", but nobody is alerted
        danger: [{ when: 'below'|'atLeast', value | sys+dia, card }],
        contexts: [],       // e.g. ['fasting', 'before-meal', 'after-meal', 'bedtime']
        streakDays,         // 'face': alert after this many bad days in a row
@@ -28,14 +30,15 @@
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
   var TEMPLATES = {
-    sugar: { key: 'sugar', kind: 'number', name: 'Blood sugar', unit: 'mg/dL', low: 70, high: 300,
+    sugar: { key: 'sugar', kind: 'number', name: 'Blood sugar', unit: 'mg/dL', low: 70, high: 300, target: { low: 80, high: 180 },
       danger: [{ when: 'below', value: 70, card: 'low-sugar' }], contexts: ['fasting', 'before-meal', 'after-meal', 'bedtime'] },
     bp: { key: 'bp', kind: 'pair', name: 'Blood pressure', unit: 'mmHg', low: { sys: 90, dia: 60 }, high: { sys: 160, dia: 100 },
+      target: { low: null, high: { sys: 140, dia: 90 } },
       danger: [{ when: 'atLeast', sys: 180, dia: 120, card: 'bp-crisis' }], contexts: ['resting'] },
     weight: { key: 'weight', kind: 'number', name: 'Weight', unit: 'kg', low: null, high: null, danger: [], contexts: [] },
-    pulse: { key: 'pulse', kind: 'number', name: 'Heart rate', unit: 'bpm', low: 50, high: 110, danger: [], contexts: ['resting'] },
+    pulse: { key: 'pulse', kind: 'number', name: 'Heart rate', unit: 'bpm', low: 50, high: 110, target: { low: 60, high: 100 }, danger: [], contexts: ['resting'] },
     temp: { key: 'temp', kind: 'number', name: 'Temperature', unit: '°C', low: 35, high: 37.8, danger: [], contexts: [] },
-    spo2: { key: 'spo2', kind: 'number', name: 'Oxygen', unit: '%', low: 92, high: null,
+    spo2: { key: 'spo2', kind: 'number', name: 'Oxygen', unit: '%', low: 92, high: null, target: { low: 95, high: null },
       danger: [{ when: 'below', value: 90, card: 'low-oxygen' }], contexts: [] },
     symptom: { key: 'symptom', kind: 'face', name: 'Pain', unit: '', low: null, high: 4, danger: [], contexts: [], streakDays: 3, bodyPart: '' }
   };
@@ -75,6 +78,12 @@
       if (t.high != null && !pairOk(t.high)) return { field: 'high', error: 'bad-level' };
       if (t.low && t.high && (t.low.sys >= t.high.sys || t.low.dia >= t.high.dia)) return { field: 'high', error: 'low-above-high' };
     }
+    var tg = t.target, ok = t.kind === 'pair' ? pairOk : num;
+    if (tg) {
+      if (tg.low != null && !ok(tg.low)) return { field: 'target', error: 'bad-level' };
+      if (tg.high != null && !ok(tg.high)) return { field: 'target', error: 'bad-level' };
+      if (tg.low != null && tg.high != null && (t.kind === 'pair' ? (tg.low.sys >= tg.high.sys || tg.low.dia >= tg.high.dia) : tg.low >= tg.high)) return { field: 'target', error: 'low-above-high' };
+    }
     var d = t.danger || [];
     for (var i = 0; i < d.length; i++) {
       if (d[i].when !== 'below' && d[i].when !== 'atLeast') return { field: 'danger', error: 'bad-danger' };
@@ -98,19 +107,24 @@
     return d.when === 'below' ? v < d.value : v >= d.value;
   }
 
-  // -> { level: 'ok'|'low'|'high'|'danger', danger: <entry>|null, alert: bool }
+  // Either number of a pair counts.
+  function below(t, v, lv) { return lv != null && (t.kind === 'pair' ? (v.sys < lv.sys || v.dia < lv.dia) : v < lv); }
+  function above(t, v, lv) { return lv != null && (t.kind === 'pair' ? (v.sys > lv.sys || v.dia > lv.dia) : v > lv); }
+
+  /* -> { level, danger: <entry>|null, alert: bool }
+     level: 'danger' | 'low' | 'high'            (alert levels: the caregiver is told)
+          | 'below-target' | 'above-target'      (said to the elder, no alert)
+          | 'ok' */
   function verdict(t, v) {
-    var out = function (level, d) { return { level: level, danger: d || null, alert: level !== 'ok' }; };
+    var out = function (level, d) { return { level: level, danger: d || null, alert: level === 'danger' || level === 'low' || level === 'high' }; };
     if (t.kind === 'face') return out(v >= (t.high || 4) ? 'high' : 'ok');
     var ds = t.danger || [];
     for (var i = 0; i < ds.length; i++) if (hit(t, ds[i], v)) return out('danger', ds[i]);
-    if (t.kind === 'pair') {
-      if (t.low && (v.sys < t.low.sys || v.dia < t.low.dia)) return out('low');
-      if (t.high && (v.sys > t.high.sys || v.dia > t.high.dia)) return out('high');
-      return out('ok');
-    }
-    if (t.low != null && v < t.low) return out('low');
-    if (t.high != null && v > t.high) return out('high');
+    if (below(t, v, t.low)) return out('low');
+    if (above(t, v, t.high)) return out('high');
+    var tg = t.target || {};
+    if (above(t, v, tg.high)) return out('above-target');
+    if (below(t, v, tg.low)) return out('below-target');
     return out('ok');
   }
 
