@@ -40,7 +40,7 @@
       device: { id: uid(), mode: '', elderId: '', name: '' }, // per phone, never synced
       elders: [], conditions: [], meds: [], schedules: [], doses: [], vitalTypes: [], readings: [],
       changelog: [],
-      settings: { lang: 'tl' }
+      settings: { lang: 'tl', sugarUnit: 'mg/dL' }
     };
   }
 

@@ -23,7 +23,8 @@ assert.ok(S.save());
 assert.ok(mem.getItem(K.STORE_KEY));
 // unknown settings are dropped, missing lists filled
 const n = K.normalize({ settings: { lang: 'en', bogus: 1 }, elders: 'x' });
-assert.deepStrictEqual(n.settings, { lang: 'en' });
+assert.deepStrictEqual(n.settings, { lang: 'en', sugarUnit: 'mg/dL' });
+assert.strictEqual(K.normalize({ settings: { sugarUnit: 'mmol/L' } }).settings.sugarUnit, 'mmol/L');
 assert.deepStrictEqual(n.elders, []);
 assert.deepStrictEqual(K.normalize(null).meds, []);
 // corrupt storage starts fresh instead of crashing

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fil">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f5d55" />
+  <meta name="description" content="Kalinga — medicine reminders, readings and check-ups for elderly parents, with a caregiver in the loop. Private, ad-free, made for Filipino families." />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Kalinga" />
+  <title>Kalinga</title>
+  <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('kalinga-theme')||'light');}catch(e){}</script>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="css/kalinga.css?v=1" />
+</head>
+<body>
+  <!-- ===================== FIRST RUN ===================== -->
+  <section class="welcome" id="welcome" hidden>
+    <div class="welcome__inner">
+      <div class="welcome__mark" aria-hidden="true"><img src="icons/icon.svg" alt="" width="84" height="84" /></div>
+      <h1 class="welcome__title">Kalinga</h1>
+      <p class="welcome__sub" data-t="app.tagline"></p>
+      <form class="card form" id="welcome-form" autocomplete="off">
+        <h2 class="form__title" data-t="welcome.title"></h2>
+        <label class="field">
+          <span class="field__label" data-t="welcome.name"></span>
+          <input class="input input--lg" name="name" required maxlength="30" data-ph="welcome.namePh" />
+        </label>
+        <button class="btn btn--primary btn--block btn--lg" type="submit" data-t="welcome.start"></button>
+        <p class="fineprint" data-t="app.private"></p>
+        <p class="fineprint"><a href="privacy.html" data-t="more.privacy"></a> · <span data-t="app.beta"></span></p>
+      </form>
+      <div class="welcome__links">
+        <button class="btn btn--link" type="button" data-action="lang-toggle" data-t="welcome.lang"></button>
+        <button class="btn btn--link" type="button" data-action="restore-open" data-t="welcome.restore"></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CAREGIVER ===================== -->
+  <div class="app" id="app" hidden>
+    <header class="topbar">
+      <button class="elderchip" id="elderchip" data-action="elder-switch"></button>
+      <button class="btn btn--sm btn--soft topbar__hand" data-action="handover" id="handover-btn"></button>
+    </header>
+    <div class="banner banner--bad" id="save-warning" hidden role="alert"></div>
+    <main class="view" id="view" tabindex="-1"></main>
+    <nav class="tabbar" aria-label="Sections">
+      <button class="tab" data-action="go" data-view="today"><span aria-hidden="true">🗓️</span><b data-t="tab.today"></b></button>
+      <button class="tab" data-action="go" data-view="meds"><span aria-hidden="true">💊</span><b data-t="tab.meds"></b></button>
+      <button class="tab" data-action="go" data-view="vitals"><span aria-hidden="true">🩺</span><b data-t="tab.vitals"></b></button>
+      <button class="tab" data-action="go" data-view="more"><span aria-hidden="true">☰</span><b data-t="tab.more"></b></button>
+    </nav>
+  </div>
+
+  <!-- ===================== ELDER ===================== -->
+  <div class="elder" id="elder" hidden>
+    <main class="elder__view" id="elder-view" tabindex="-1"></main>
+  </div>
+
+  <!-- ===================== DOSE CARD (full screen) ===================== -->
+  <div class="dose" id="dose" hidden role="dialog" aria-modal="true" aria-labelledby="dose-title"></div>
+
+  <!-- ===================== SHEET ===================== -->
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheet__backdrop" data-action="sheet-close"></div>
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="sheet__head">
+        <h2 class="sheet__title" id="sheet-title"></h2>
+        <button class="iconbtn" id="sheet-close" data-action="sheet-close" aria-label="Close">✕</button>
+      </div>
+      <div class="sheet__body" id="sheet-body"></div>
+    </div>
+  </div>
+
+  <dialog class="confirm" id="confirm" aria-labelledby="confirm-title">
+    <form method="dialog">
+      <h2 class="confirm__title" id="confirm-title"></h2>
+      <p class="confirm__text" id="confirm-text"></p>
+      <div class="btn-row">
+        <button class="btn btn--lg" value="cancel" id="confirm-cancel"></button>
+        <button class="btn btn--lg btn--primary" value="ok" id="confirm-ok"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <input type="file" id="restore-file" accept="application/json,.json" hidden />
+
+  <script src="js/schedule.js?v=1"></script>
+  <script src="js/stock.js?v=1"></script>
+  <script src="js/scale.js?v=1"></script>
+  <script src="js/vitals.js?v=1"></script>
+  <script src="js/conditions.js?v=1"></script>
+  <script src="js/speechnum.js?v=1"></script>
+  <script src="js/store.js?v=1"></script>
+  <script src="js/i18n.js?v=1"></script>
+  <script src="js/files.js?v=1"></script>
+  <script src="js/ui.js?v=1"></script>
+  <script src="js/voice.js?v=1"></script>
+  <script src="js/show.js?v=1"></script>
+  <script src="js/reminders.js?v=1"></script>
+  <script src="js/elder.js?v=1"></script>
+  <script src="js/care.js?v=1"></script>
+  <script src="js/app.js?v=1"></script>
+</body>
+</html>

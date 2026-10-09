@@ -16,3 +16,6 @@ Thumbs.db
 # Scratch / test artifacts
 scratch-*
 *.tmp
+
+# Kalinga build output
+kalinga/deploy/dist/
