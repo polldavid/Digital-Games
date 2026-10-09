@@ -214,7 +214,7 @@ All records are stored and synced encrypted. Units are canonical: mg/dL, kg, °C
     - Reports the permission and autostart status for the setup checklist.
   - FCM registration and data-message handling.
   - TTS, speech recognition and the camera.
-- **Hosting:** a PWA build on Cloudflare Pages (`kalinga.pages.dev`), plus the Capacitor Android app (`com.kalinga.app` or similar; final ID decided at Play listing time). `kalinga/` is added to `_config.yml` `exclude` so GitHub Pages never publishes it.
+- **Hosting:** a PWA build on Cloudflare Pages (`kalinga-app.pages.dev`; Pages project `kalinga-app`, because `kalinga.pages.dev` is taken), plus the Capacitor Android app (`com.kalinga.app` or similar; final ID decided at Play listing time). `kalinga/` is added to `_config.yml` `exclude` so GitHub Pages never publishes it.
 
 ### 6.2 Sync (reuses Alaga's protocol and its 2026-10-07 lessons)
 - Records are encrypted on the device with the circle key (AES-GCM) before upload. The Worker and D1 store only ciphertext plus id, record type and updatedAt.
