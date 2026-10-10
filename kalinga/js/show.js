@@ -71,6 +71,10 @@
     return t('v.' + vd.level);
   }
 
+  // Every status carries a symbol as well as a colour and a word.
+  var STATUS_ICON = { taken: '✓', ok: '✓', done: '✓', takenEarlier: '✓', skipped: '✕', unconfirmed: '⚠', due: '⏰', upcoming: '🕒', high: '▲', 'above-target': '▲', low: '▼', 'below-target': '▼', danger: '⚠' };
+  function statusIcon(st) { return STATUS_ICON[st] || ''; }
+
   // Short label for caregiver badges.
   function levelWord(type, vd) { return type.kind === 'face' ? (vd.level === 'high' ? t('vs.faceHigh') : t('vs.ok')) : t('vs.' + vd.level); }
 
@@ -98,6 +102,6 @@
     FORM_ICON: FORM_ICON, FORM_UNIT: FORM_UNIT, APPLY_FORMS: APPLY_FORMS, FACES: FACES,
     isInsulin: isInsulin, isScale: isScale, amountWords: amountWords, unitWord: unitWord, amountText: amountText, medPic: medPic,
     sugarUnit: sugarUnit, vitalName: vitalName, vitalIcon: vitalIcon, unitOf: unitOf, toShown: toShown, fromShown: fromShown,
-    valueText: valueText, verdictWord: verdictWord, levelWord: levelWord, spark: spark, elderFace: elderFace
+    valueText: valueText, verdictWord: verdictWord, levelWord: levelWord, statusIcon: statusIcon, spark: spark, elderFace: elderFace
   };
 })();

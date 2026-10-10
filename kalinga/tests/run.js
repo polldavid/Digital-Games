@@ -8,7 +8,7 @@ const path = require('path');
 const vm = require('vm');
 const assert = require('assert');
 
-const TESTS = ['schedule', 'schedule.dst', 'schedule.dstmid', 'stock', 'scale', 'vitals', 'speechnum', 'conditions', 'rximport', 'store'];
+const TESTS = ['schedule', 'schedule.dst', 'schedule.dstmid', 'stock', 'scale', 'vitals', 'speechnum', 'conditions', 'rximport', 'store', 'contrast'];
 for (const t of TESTS) {
   execFileSync(process.execPath, [path.join(__dirname, t + '.test.js')], { stdio: 'inherit' });
 }

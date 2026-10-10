@@ -82,7 +82,7 @@
         var m = S().find('meds', it.medId) || { name: '—' };
         var st = it.takenEarlier && it.status !== 'taken' && it.status !== 'skipped' ? 'takenEarlier' : it.status;
         var u = it.status === 'taken' && it.units != null ? it.units : null;
-        return '<div class="slot__item"><span class="slot__name">' + esc(m.name) + (u != null && k.isScale(m) ? ' · ' + esc(u) + ' u' : '') + '</span><span class="badge badge--' + (st === 'takenEarlier' ? 'taken' : st) + '">' + esc(t('st.' + st)) + '</span></div>';
+        return '<div class="slot__item"><span class="slot__name">' + esc(m.name) + (u != null && k.isScale(m) ? ' · ' + esc(u) + ' u' : '') + '</span><span class="badge badge--' + (st === 'takenEarlier' ? 'taken' : st) + '">' + k.statusIcon(st) + ' ' + esc(t('st.' + st)) + '</span></div>';
       }).join('') +
       (!s.orphan && (s.status === 'due' || s.status === 'unconfirmed') ? '<button class="btn btn--sm btn--soft" data-action="dose-open" data-key="' + esc(s.slotKey) + '">💊 ' + esc(t('st.due')) + '</button>' : '') +
       '</div></div>';
@@ -94,7 +94,7 @@
     var series = rs.slice(-14).map(function (r) { return { at: r.at, v: type.kind === 'pair' ? r.value.sys : r.value }; });
     return '<button class="row" data-action="vital-history" data-id="' + esc(type.id) + '"><span class="pillicon" aria-hidden="true">' + k.vitalIcon(type) + '</span><span class="row__main"><span class="row__title">' + esc(k.vitalName(type)) + '</span>' +
       '<span class="row__sub" style="display:block">' + (last ? '<b>' + esc(k.valueText(type, last.value)) + '</b> · ' + esc(h.dayLabel(last.at) + ' ' + h.fmtTime(last.at)) : esc(t('dash.noReadings'))) + '</span>' +
-      (vd && vd.level !== 'ok' ? '<span class="badge badge--' + esc(vd.level) + '">' + esc(k.levelWord(type, vd)) + '</span>' : '') + '</span>' +
+      (vd && vd.level !== 'ok' ? '<span class="badge badge--' + esc(vd.level) + '">' + k.statusIcon(vd.level) + ' ' + esc(k.levelWord(type, vd)) + '</span>' : '') + '</span>' +
       '<span class="row__end">' + k.spark(series) + '</span></button>';
   }
 
@@ -344,7 +344,7 @@
         '<div class="list">' + (rs.length ? rs.map(function (r) {
           var vd = V.verdict(type, r.value);
           return '<div class="row">' + (r.photoId ? '<img class="thumb" data-photo="' + esc(r.photoId) + '" alt="" />' : '') + '<span class="row__main"><span class="row__title">' + esc(k.valueText(type, r.value)) + '</span><span class="row__sub" style="display:block">' + esc(h.dayLabel(r.at) + ' ' + h.fmtTime(r.at) + (r.context ? ' · ' + t('ctx.' + r.context) : '') + (r.by ? ' · ' + r.by : '')) + '</span></span>' +
-            (vd.level !== 'ok' ? '<span class="badge badge--' + esc(vd.level) + '">' + esc(k.levelWord(type, vd)) + '</span>' : '') +
+            (vd.level !== 'ok' ? '<span class="badge badge--' + esc(vd.level) + '">' + k.statusIcon(vd.level) + ' ' + esc(k.levelWord(type, vd)) + '</span>' : '') +
             '<button class="iconbtn" data-action="reading-remove" data-id="' + esc(r.id) + '" aria-label="' + esc(t('c.delete')) + '">🗑</button></div>';
         }).join('') : '<div class="card empty">' + esc(t('dash.noReadings')) + '</div>') + '</div>';
     } });
