@@ -209,12 +209,16 @@
       return self.update('meds', medId, { stock: Object.assign({}, med.stock, { count: round2(count) }) }, by);
     };
 
-    // saveSchedule({ id?, medId, rule, dose? }, by) -> { schedule } | { error }
+    /* saveSchedule({ id?, medId, rule, dose?, anchors? }, by) -> { schedule } | { error }
+       anchors (optional): one per rule.times entry, { meal, offset } when that time
+       follows the elder's routine (e.g. breakfast - 30), or null when set by hand. */
     self.saveSchedule = function (s, by) {
       if (!s || !self.find('meds', s.medId)) return { error: { field: 'medId', error: 'no-med' } };
       var err = Sch.validate(s.rule);
       if (err) return { error: err };
       if (s.dose && !(s.dose.amount > 0)) return { error: { field: 'dose', error: 'bad-dose' } };
+      s = clone(s);
+      if (!s.anchors || !s.rule.times || s.anchors.length !== s.rule.times.length || !s.anchors.some(Boolean)) s.anchors = null;
       return { schedule: s.id && self.find('schedules', s.id) ? self.update('schedules', s.id, s, by) : self.add('schedules', s, by) };
     };
 
@@ -319,6 +323,39 @@
           : slot.items.some(function (it) { return it.status === 'due'; }) ? 'due' : 'upcoming';
       });
       return out;
+    };
+
+    /* ---------- Routine changes ----------
+       routineShift(elderId, newRoutine) -> what WOULD move:
+         [{ scheduleId, medId, name, from: [times], to: [times], anchors }]
+       Only times linked to a meal move (anchors); hand-set times never do.
+       Nothing changes until applyRoutineShift(changes, by): the caregiver is asked first. */
+    function addMin(hm, off) {
+      var p = hm.split(':'), m = ((+p[0] * 60 + +p[1] + (off || 0)) % 1440 + 1440) % 1440;
+      return (m < 600 ? '0' : '') + Math.floor(m / 60) + ':' + (m % 60 < 10 ? '0' : '') + (m % 60);
+    }
+    self.routineShift = function (elderId, routine) {
+      var out = [];
+      self.list('meds', function (m) { return m.elderId === elderId; }).forEach(function (m) {
+        self.list('schedules', function (s) { return s.medId === m.id && s.anchors && s.rule && !s.rule.prn; }).forEach(function (s) {
+          var pairs = s.rule.times.map(function (t, i) {
+            var a = s.anchors[i];
+            return { t: a && routine && /^\d\d:\d\d$/.test(routine[a.meal] || '') ? addMin(routine[a.meal], a.offset) : t, a: a || null };
+          }).sort(function (x, y) { return x.t < y.t ? -1 : x.t > y.t ? 1 : 0; });
+          pairs = pairs.filter(function (x, i) { return !i || x.t !== pairs[i - 1].t; }); // two meals on one minute: one dose time
+          var to = pairs.map(function (x) { return x.t; });
+          if (to.join() !== s.rule.times.join()) out.push({ scheduleId: s.id, medId: m.id, name: m.name, from: s.rule.times.slice(), to: to, anchors: pairs.map(function (x) { return x.a; }) });
+        });
+      });
+      return out;
+    };
+    self.applyRoutineShift = function (changes, by) {
+      (changes || []).forEach(function (c) {
+        var s = self.find('schedules', c.scheduleId);
+        if (!s) return;
+        var rule = clone(s.rule); rule.times = c.to.slice();
+        self.saveSchedule({ id: s.id, medId: s.medId, rule: rule, dose: s.dose, anchors: c.anchors }, by);
+      });
     };
 
     // Medicines running low for this elder.

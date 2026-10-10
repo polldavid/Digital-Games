@@ -90,6 +90,13 @@ assert.deepStrictEqual(d('Mystery Drug').times, []);
 assert.deepStrictEqual(Rx.draft(met, { breakfast: '06:00', lunch: '11:30', dinner: '18:00', bedtime: '20:30' }).times, ['06:00', '11:30', '18:00']);
 assert.deepStrictEqual(Rx.draft(met, null).times, ['07:00', '12:00', '19:00'], 'default routine');
 
+// Each drafted time remembers the meal it came from (so a routine change can move it)
+assert.deepStrictEqual(d('Metformin').anchors, [{ meal: 'breakfast', offset: 0 }, { meal: 'lunch', offset: 0 }, { meal: 'dinner', offset: 0 }]);
+assert.deepStrictEqual(d('Esomeprazole').anchors, [{ meal: 'breakfast', offset: -30 }]);
+assert.deepStrictEqual(d('Gabapentin').anchors, [{ meal: 'bedtime', offset: 0 }]);
+assert.deepStrictEqual(d('Sodium alginate').anchors, []);
+assert.strictEqual(d('Metformin').anchors.length, d('Metformin').times.length);
+
 // Purpose suggestions (general drug classes; the caregiver edits them)
 assert.strictEqual(Rx.purposeFor('Metformin 500mg').tl, 'para sa sugar');
 assert.strictEqual(Rx.purposeFor('Losartan 50mg').tl, 'para sa altapresyon');

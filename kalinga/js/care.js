@@ -134,6 +134,8 @@
     d._gapH = m && m.prn && m.prn.minGapMin ? m.prn.minGapMin / 60 : null;
     d._max = m && m.prn && m.prn.maxPerDay ? m.prn.maxPerDay : null;
     d._scheduleId = sch ? sch.id : null;
+    d._anchorOf = {};
+    if (sch && sch.anchors) rule.times.forEach(function (tm, i) { if (sch.anchors[i]) d._anchorOf[tm] = sch.anchors[i]; });
     d._count = m ? null : null;
     d._confirm = false;
     d._unitTouched = !!m;
@@ -194,7 +196,8 @@
   function scheduleHtml(d) {
     var out = '<div class="box">';
     out += '<div class="field" data-err-anchor><span class="field__label">' + esc(t('med.times')) + '</span><div class="chips" id="times">' + d._times.map(function (tm, i) {
-      return '<span class="chip chip--on">' + esc(h.fmtHM(tm)) + '<button type="button" class="chip__x" data-action="time-remove" data-value="' + i + '" aria-label="' + esc(t('c.delete')) + ' ' + esc(h.fmtHM(tm)) + '">✕</button></span>';
+      var an = d._anchorOf && d._anchorOf[tm];
+      return '<span class="chip chip--on">' + esc(h.fmtHM(tm)) + (an ? ' · ' + esc(t('prof.' + an.meal)) + (an.offset ? ' ' + (an.offset > 0 ? '+' : '−') + Math.abs(an.offset) + 'm' : '') : '') + '<button type="button" class="chip__x" data-action="time-remove" data-value="' + i + '" aria-label="' + esc(t('c.delete')) + ' ' + esc(h.fmtHM(tm)) + '">✕</button></span>';
     }).join('') + '</div><input type="hidden" name="times" />' +
       '<div class="chips" style="margin-top:8px">' + ['06:00', '07:00', '08:00', '12:00', '13:00', '18:00', '20:00', '21:00'].filter(function (x) { return d._times.indexOf(x) < 0; }).map(function (x) {
         return '<button type="button" class="chip" data-action="time-add" data-value="' + x + '">+ ' + esc(h.fmtHM(x)) + '</button>';
@@ -257,7 +260,7 @@
     // An existing medicine that wasn't counted yet: the typed count starts the count.
     if (d.id && d._count != null && !isNaN(d._count) && !St.tracked(saved)) S().setStockCount(saved.id, d._count, by());
     if (rule) {
-      var sr = S().saveSchedule({ id: d._scheduleId || undefined, medId: saved.id, rule: rule }, by());
+      var sr = S().saveSchedule({ id: d._scheduleId || undefined, medId: saved.id, rule: rule, anchors: rule.times.map(function (tm) { return (d._anchorOf && d._anchorOf[tm]) || null; }) }, by());
       if (sr.error) { h.fieldError(form, 'timeCustom', I.err(sr.error)); return; }
     } else if (d._scheduleId) S().remove('schedules', d._scheduleId, by());
     App.commit();
@@ -402,7 +405,9 @@
     var routine = {};
     ['breakfast', 'lunch', 'dinner', 'bedtime'].forEach(function (k2) { routine[k2] = /^\d\d:\d\d$/.test(d._routine[k2] || '') ? d._routine[k2] : window.KalingaRxImport.ROUTINE[k2]; });
     var fields = { name: name, photoId: d.photoId || null, allergies: d.allergies || '', bloodType: d.bloodType || '', contacts: contacts, alerts: { rerings: rerings, cutoffMin: cutoff }, routine: routine };
+    var oldRoutine = !d._new && elder() ? JSON.stringify(elder().routine || {}) : null;
     var el = d._new ? S().addElder(fields, by()) : S().update('elders', elder().id, fields, by());
+    var shift = oldRoutine && oldRoutine !== JSON.stringify(routine) ? S().routineShift(el.id, routine) : [];
     var dev = S().get().device;
     dev.elderId = el.id;
     // conditions
@@ -426,6 +431,16 @@
     App.ui.view = 'today';
     App.render();
     h.toast(t('c.saved'));
+    if (shift.length) askShift(shift);
+  }
+  // The routine changed: list the medicines linked to those meals and ask before moving them.
+  function askShift(shift) {
+    var lines = shift.map(function (c) { return '• ' + c.name + ': ' + c.from.map(h.fmtHM).join(', ') + ' → ' + c.to.map(h.fmtHM).join(', '); }).join('\n');
+    h.ask({ title: t('rt.ask', { n: shift.length }), text: t('rt.text') + '\n\n' + lines, ok: t('rt.move'), cancel: t('rt.keep') }, function () {
+      S().applyRoutineShift(shift, by());
+      App.commit();
+      h.toast(t('rt.moved', { n: shift.length }));
+    });
   }
 
   /* ================= PRESCRIPTION IMPORT (PDF) =================
@@ -453,7 +468,7 @@
         return {
           ok: it.ok, sig: it.sig, dupe: dupe, on: it.ok && !dupe, name: d.name,
           purpose: d.purpose ? d.purpose[I.getLang() === 'en' ? 'en' : 'tl'] : '', form: d.form, dose: d.dose, food: d.food,
-          prn: d.prn, timesText: d.times.join(', '), count: d.count, start: start, end: window.KalingaRxImport.endDate(start, d.days), err: ''
+          prn: d.prn, timesText: d.times.join(', '), times0: d.times, anchors0: d.anchors, count: d.count, start: start, end: window.KalingaRxImport.endDate(start, d.days), err: ''
         };
       }) };
       h.renderSheet();
@@ -513,12 +528,14 @@
       var rule = it.prn ? null : { times: times, weekdays: [], everyN: 0, start: it.start, end: it.end || '', prn: false };
       var e = S().checkMed(med) || (rule && Sch.validate(rule));
       if (e) { it.err = I.err(e); bad = true; return; }
-      plans.push({ med: med, rule: rule });
+      // A time the caregiver kept stays linked to its meal; a typed-in time is set by hand.
+      var anchors = times.map(function (tm) { var i0 = (it.times0 || []).indexOf(tm); return i0 >= 0 ? it.anchors0[i0] : null; });
+      plans.push({ med: med, rule: rule, anchors: anchors });
     });
     if (bad) { h.renderSheet(); var first = h.$('#sheet .field__error'); if (first) first.scrollIntoView({ block: 'center' }); return; }
     plans.forEach(function (pl) {
       var saved = S().saveMed(pl.med, by()).med;
-      if (saved && pl.rule) S().saveSchedule({ medId: saved.id, rule: pl.rule }, by());
+      if (saved && pl.rule) S().saveSchedule({ medId: saved.id, rule: pl.rule, anchors: pl.anchors }, by());
     });
     App.commit();
     h.closeSheet();

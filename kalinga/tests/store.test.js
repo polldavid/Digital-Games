@@ -171,6 +171,34 @@ const r = S.logReading({ elderId: mama.id, vitalTypeId: sugarType.id, value: 185
 assert.deepStrictEqual([r.value, r.context, r.source, r.at], [185, 'fasting', 'voice', clockNow]);
 assert.strictEqual(S.logReading({ elderId: mama.id, vitalTypeId: 'nope', value: 1 }), null);
 
+/* ---------- routine change moves meal-linked times (only) ---------- */
+{
+  const R = K.create({ storage: memStorage(), now: clock }); R.load();
+  const e = R.addElder({ name: 'Mama' });
+  const met = R.saveMed({ elderId: e.id, name: 'Metformin', form: 'tablet', dose: { amount: 1, unit: 'tablet' } }).med;
+  const eso = R.saveMed({ elderId: e.id, name: 'Esomeprazole', form: 'tablet', dose: { amount: 1, unit: 'tablet' } }).med;
+  const vit = R.saveMed({ elderId: e.id, name: 'Vitamin', form: 'tablet', dose: { amount: 1, unit: 'tablet' } }).med;
+  const sMet = R.saveSchedule({ medId: met.id, rule: rule({ times: ['07:00', '12:00', '19:00'] }), anchors: [{ meal: 'breakfast', offset: 0 }, { meal: 'lunch', offset: 0 }, { meal: 'dinner', offset: 0 }] }).schedule;
+  R.saveSchedule({ medId: eso.id, rule: rule({ times: ['06:30'] }), anchors: [{ meal: 'breakfast', offset: -30 }] });
+  R.saveSchedule({ medId: vit.id, rule: rule({ times: ['10:00'] }) }); // set by hand: no anchors
+  assert.strictEqual(R.saveSchedule({ medId: vit.id, rule: rule({ times: ['10:00'] }), anchors: [null, null] }).schedule.anchors, null, 'mismatched anchors are dropped');
+  const newR = { breakfast: '08:00', lunch: '12:00', dinner: '19:00', bedtime: '21:00' };
+  const ch = R.routineShift(e.id, newR);
+  assert.deepStrictEqual(ch.map((c) => [c.name, c.from.join(','), c.to.join(',')]), [['Metformin', '07:00,12:00,19:00', '08:00,12:00,19:00'], ['Esomeprazole', '06:30', '07:30']]);
+  assert.deepStrictEqual(R.routineShift(e.id, { breakfast: '07:00', lunch: '12:00', dinner: '19:00', bedtime: '21:00' }), [], 'same routine: nothing to move');
+  R.applyRoutineShift(ch, 'Poll');
+  assert.deepStrictEqual(R.find('schedules', sMet.id).rule.times, ['08:00', '12:00', '19:00']);
+  assert.deepStrictEqual(R.find('schedules', sMet.id).anchors, [{ meal: 'breakfast', offset: 0 }, { meal: 'lunch', offset: 0 }, { meal: 'dinner', offset: 0 }], 'still linked after the move');
+  assert.deepStrictEqual(R.list('schedules', (x) => x.medId === eso.id)[0].rule.times, ['07:30']);
+  assert.deepStrictEqual(R.list('schedules', (x) => x.medId === vit.id)[0].rule.times, ['10:00'], 'hand-set time untouched');
+  // two meals moved onto the same minute merge instead of failing
+  const both = R.routineShift(e.id, { breakfast: '12:00', lunch: '12:00', dinner: '19:00', bedtime: '21:00' }).find((c) => c.name === 'Metformin');
+  assert.deepStrictEqual(both.to, ['12:00', '19:00']);
+  assert.strictEqual(both.anchors.length, 2);
+  // late-night offsets wrap past midnight sensibly
+  assert.deepStrictEqual(R.routineShift(e.id, { breakfast: '00:10', lunch: '12:00', dinner: '19:00', bedtime: '21:00' }).find((c) => c.name === 'Esomeprazole').to, ['23:40']);
+}
+
 /* ---------- change log cap ---------- */
 for (let i = 0; i < 600; i++) S.update('elders', mama.id, { allergies: 'a' + i }, 'Poll');
 assert.strictEqual(S.get().changelog.length, 500);

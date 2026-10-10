@@ -144,21 +144,28 @@
   function draft(item, routine) {
     var R = {}, k;
     for (k in ROUTINE) R[k] = routine && /^\d\d:\d\d$/.test(routine[k] || '') ? routine[k] : ROUTINE[k];
-    var times = [];
+    // Each time is a meal plus an offset ("before breakfast" = breakfast - 30 min), so it
+    // can follow the routine later (store.routineShift). times[i] goes with anchors[i].
+    var slots = [];
     if (item.ok && !item.prn) {
       var before = item.food === 'before' ? -30 : 0;
+      var at = function (meal, off) { slots.push({ t: hm(minutes(R[meal]) + off), a: { meal: meal, offset: off } }); };
       if (item.everyHours) {
-        for (var m = minutes(R.breakfast); m < minutes(R.breakfast) + 1440; m += item.everyHours * 60) times.push(hm(m));
+        for (var off = 0; off < 1440; off += item.everyHours * 60) at('breakfast', off);
       } else if (item.perDay === 1) {
-        times = [item.timing === 'bedtime' || item.timing === 'night' ? R.bedtime : item.timing === 'noon' ? hm(minutes(R.lunch) + before) : hm(minutes(R.breakfast) + before)];
-      } else if (item.perDay === 2) times = [hm(minutes(R.breakfast) + before), hm(minutes(R.dinner) + before)];
-      else if (item.perDay === 3) times = [hm(minutes(R.breakfast) + before), hm(minutes(R.lunch) + before), hm(minutes(R.dinner) + before)];
-      else if (item.perDay === 4) times = [hm(minutes(R.breakfast) + before), hm(minutes(R.lunch) + before), hm(minutes(R.dinner) + before), R.bedtime];
-      times = times.filter(function (x, i) { return times.indexOf(x) === i; }).sort();
+        if (item.timing === 'bedtime' || item.timing === 'night') at('bedtime', 0);
+        else if (item.timing === 'noon') at('lunch', before);
+        else at('breakfast', before);
+      } else if (item.perDay === 2) { at('breakfast', before); at('dinner', before); }
+      else if (item.perDay === 3) { at('breakfast', before); at('lunch', before); at('dinner', before); }
+      else if (item.perDay === 4) { at('breakfast', before); at('lunch', before); at('dinner', before); at('bedtime', 0); }
+      slots.sort(function (x, y) { return x.t < y.t ? -1 : x.t > y.t ? 1 : 0; });
+      slots = slots.filter(function (x, i) { return !i || x.t !== slots[i - 1].t; });
     }
+    var times = slots.map(function (x) { return x.t; }), anchors = slots.map(function (x) { return x.a; });
     return {
       name: item.name, purpose: purposeFor(item.name), form: item.form,
-      dose: { amount: item.amount, unit: item.unit }, food: item.food, times: times, days: item.days,
+      dose: { amount: item.amount, unit: item.unit }, food: item.food, times: times, anchors: anchors, days: item.days,
       prn: item.prn ? { minGapMin: item.everyHours ? item.everyHours * 60 : 0, maxPerDay: item.perDay || 0 } : null,
       count: item.qty
     };

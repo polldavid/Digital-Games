@@ -110,14 +110,41 @@ function serve() {
     await page.waitForSelector('#sheet [data-action="rx-save"]');
     assert.strictEqual(await page.locator('#sheet .box input[type=checkbox]:checked').count(), 1, 'only Esomeprazole is new');
     assert.match(await page.textContent('#sheet'), /Nasa listahan na/);
-    await tap('#sheet-close');
+    await tap('#sheet [data-action="rx-save"]'); // adds only the new one
+    await page.waitForSelector('#sheet', { state: 'hidden' });
+    assert.strictEqual(await S(() => KalingaApp.store.list('meds').length), 8);
 
-    step('profile routine moves the drafted times');
+    step('a hand-set medicine at 10:00 (not linked to a meal)');
+    await S(() => { const st = KalingaApp.store, el = st.list('elders')[0]; const m = st.saveMed({ elderId: el.id, name: 'Vitamin D', form: 'capsule', dose: { amount: 1, unit: 'capsule' } }).med; st.saveSchedule({ medId: m.id, rule: { times: ['10:00'], weekdays: [], everyN: 0, start: '2026-10-10', end: '', prn: false } }); KalingaApp.commit(); });
+
+    step('breakfast 07:00 -> 08:00: asks, lists the linked medicines, then moves only those');
     await tap('[data-action="go"][data-view="more"]');
     await tap('[data-action="profile-open"]');
-    await page.fill('#profile-form input[name=r_breakfast]', '06:00');
+    await page.fill('#profile-form input[name=r_breakfast]', '08:00');
     await tap('[data-action="profile-save"]');
-    assert.strictEqual(await S(() => KalingaApp.store.list('elders')[0].routine.breakfast), '06:00');
+    await page.waitForSelector('#confirm[open]');
+    const ask = await page.textContent('#confirm');
+    assert.match(ask, /Ilipat din ang 4 gamot\?/, 'Sylimarin, Losartan, Sitagliptin, Esomeprazole (Metformin morning time was typed by hand)');
+    assert.match(ask, /Esomeprazole 40mg: 6:30 AM → 7:30 AM/);
+    assert.doesNotMatch(ask, /Vitamin D/);
+    assert.strictEqual(await S(() => KalingaApp.store.list('elders')[0].routine.breakfast), '08:00');
+    await tap('#confirm-ok');
+    const times = await S(() => { const st = KalingaApp.store; const o = {}; st.list('meds').forEach((m) => { const s = st.list('schedules', (x) => x.medId === m.id)[0]; if (s) o[m.name.split(' ')[0]] = s.rule.times.join(','); }); return o; });
+    assert.strictEqual(times.Metformin, '06:30,12:00,18:30', 'times typed by hand on the review screen stay where they are');
+    assert.strictEqual(times.Sylimarin, '08:00,12:00,19:00');
+    assert.strictEqual(times.Losartan, '08:00');
+    assert.strictEqual(times.Esomeprazole, '07:30', 'still 30 minutes before breakfast');
+    assert.strictEqual(times.Gliclazide, '12:00', 'lunch unchanged');
+    assert.strictEqual(times.Vitamin, '10:00', 'hand-set time untouched');
+
+    step('keeping the old times is possible too');
+    await tap('[data-action="go"][data-view="more"]');
+    await tap('[data-action="profile-open"]');
+    await page.fill('#profile-form input[name=r_bedtime]', '22:00');
+    await tap('[data-action="profile-save"]');
+    await page.waitForSelector('#confirm[open]');
+    await tap('#confirm-cancel');
+    assert.strictEqual(await S(() => KalingaApp.store.list('schedules', (x) => KalingaApp.store.find('meds', x.medId).name.indexOf('Rosuvastatin') === 0)[0].rule.times.join()), '21:00');
 
     assert.deepStrictEqual(errors, [], 'page errors');
     console.log('e2e.rximport.js ok');
