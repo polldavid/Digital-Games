@@ -235,7 +235,7 @@ function serve() {
 
     step('English toggle');
     await tap('[data-action="go"][data-view="more"]');
-    await page.check('input[name=lang][value=en]', { force: true });
+    await page.click('input[name=lang][value=en] + span');
     assert.strictEqual(await S(() => KalingaApp.store.get().settings.lang), 'en');
     await tap('[data-action="go"][data-view="today"]');
     assert.match(await page.textContent('#view'), /Papa’s day/);

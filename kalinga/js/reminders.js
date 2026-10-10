@@ -128,20 +128,40 @@
     } catch (e) {}
     try { if (navigator.vibrate) navigator.vibrate([400, 200, 400]); } catch (e) {}
   }
-  /* The alarm: chime, then speak (speakFn(onDone)), pause, repeat — for up
-     to 3 minutes. The card stays on screen after the sound stops. */
+  /* One round of the alarm: four short beeps, pitched low-mid (older ears lose
+     the high notes first), with a vibration to match. */
+  var ROUND = 2000;
+  function tone() {
+    try {
+      ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+      [0, 0.28, 0.56, 0.84].forEach(function (d) {
+        var o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(), at = ctx.currentTime + d;
+        o.type = 'square'; o.frequency.value = 880;
+        f.type = 'lowpass'; f.frequency.value = 2600;
+        g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(0.45, at + 0.01);
+        g.gain.setValueAtTime(0.45, at + 0.17); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.2);
+        o.connect(f); f.connect(g); g.connect(ctx.destination); o.start(at); o.stop(at + 0.22);
+      });
+    } catch (e) {}
+    try { if (navigator.vibrate) navigator.vibrate([180, 100, 180, 100, 180, 100, 180]); } catch (e) {}
+  }
+  /* The alarm: beeping, for up to 3 minutes or until answered. With a voice
+     (speakFn(onDone) — the family's recording, or the phone's voice if chosen),
+     it plays after every third round. The card stays on screen after the sound stops. */
   function alarm(speakFn) {
     stopAlarm();
     alarms++;
-    var until = Date.now() + 3 * MIN, me = {};
+    var until = Date.now() + 3 * MIN, me = {}, n = 0;
     loop = me;
     (function round() {
-      if (loop !== me) return;
-      chime();
-      setTimeout(function () {
+      if (loop !== me || Date.now() >= until) return;
+      tone(); n++;
+      if (speakFn && n % 3 === 1) me.t = setTimeout(function () {
         if (loop !== me) return;
-        speakFn(function () { if (loop === me && Date.now() < until) me.t = setTimeout(round, 9000); });
-      }, 1200);
+        speakFn(function () { if (loop === me) me.t = setTimeout(round, 1500); });
+      }, ROUND);
+      else me.t = setTimeout(round, ROUND);
     })();
   }
   function stopAlarm() { if (loop && loop.t) clearTimeout(loop.t); loop = null; if (window.KalingaVoice) window.KalingaVoice.stop(); }

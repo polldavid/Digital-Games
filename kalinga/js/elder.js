@@ -128,7 +128,7 @@
     $dose().hidden = false;
     document.body.classList.add('sheet-open');
     renderDose();
-    if (dose.ringing) R.alarm(function (done) { speakDose(done); });
+    if (dose.ringing) R.alarm(alarmVoice());
     setTimeout(function () { var b = h.$('#dose [data-action="dose-take"]'); if (b) try { b.focus({ preventScroll: true }); } catch (e) {} }, 50);
   }
   // A re-ring while the card is still up: sound again (an early preview becomes the real card).
@@ -136,7 +136,7 @@
     if (!dose) return;
     if (dose.early || dose.phase === 'done') { var key = dose.slotKey; closeDose(); openDose(key, true); return; }
     dose.ringing = true;
-    R.alarm(function (done) { speakDose(done); });
+    R.alarm(alarmVoice());
   }
   function slotTimeOf(key) { var m = /@(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(key); return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : Date.now(); }
   function $dose() { return h.$('#dose'); }
@@ -232,6 +232,18 @@
   }
 
   function renderDose() { if (dose) { $dose().innerHTML = doseHtml(); F.hydrate($dose()); } }
+
+  /* What plays between the alarm beeps: the family's recording if there is one;
+     else the phone's voice only if the caregiver turned it on; else nothing. */
+  function doseClip() {
+    var el = elder();
+    return (el && el.voice && el.voice[Sch.partOfDay(dose.at)]) || dose.items.map(function (it) { var m = S().find('meds', it.medId); return m && m.voiceId; }).filter(Boolean)[0];
+  }
+  function alarmVoice() {
+    if (!dose) return null;
+    if (doseClip()) return function (done) { var c = dose && doseClip(); if (!c) { done(); return; } Voice.play(c, { onend: done }).catch(function () { done(); }); };
+    return S().get().settings.alarmVoice === 'tts' ? function (done) { speakDose(done); } : null;
+  }
 
   function speakDose(done) {
     if (!dose) { if (done) done(); return; }

@@ -757,6 +757,10 @@
     out += '<div class="section-title">' + esc(t('more.settings')) + '</div><div class="card form">';
     out += h.field(t('more.lang'), '<div class="seg" role="radiogroup"><label><input type="radio" name="lang" value="tl" data-action-change="set-lang"' + (lang !== 'en' ? ' checked' : '') + ' /><span>Taglish</span></label><label><input type="radio" name="lang" value="en" data-action-change="set-lang"' + (lang === 'en' ? ' checked' : '') + ' /><span>English</span></label></div>');
     out += h.field(t('more.sugarUnit'), '<div class="seg" role="radiogroup"><label><input type="radio" name="sugarUnit" value="mg/dL" data-action-change="set-sugar"' + (st.settings.sugarUnit !== 'mmol/L' ? ' checked' : '') + ' /><span>mg/dL</span></label><label><input type="radio" name="sugarUnit" value="mmol/L" data-action-change="set-sugar"' + (st.settings.sugarUnit === 'mmol/L' ? ' checked' : '') + ' /><span>mmol/L</span></label></div>');
+    var av = st.settings.alarmVoice === 'tts' ? 'tts' : 'off';
+    out += h.field(t('more.alarm'), '<div class="seg" role="radiogroup">' + [['off', t('alarm.tone')], ['tts', t('alarm.tts')]].map(function (o) {
+      return '<label><input type="radio" name="alarmVoice" value="' + o[0] + '" data-action-change="set-alarmvoice"' + (av === o[0] ? ' checked' : '') + ' /><span>' + esc(o[1]) + '</span></label>';
+    }).join('') + '</div>', esc(t('alarm.hint')));
     var ts = st.device.textSize || 'normal';
     out += h.field(t('more.textSize', { name: el ? el.name : '' }), '<div class="seg" role="radiogroup">' + [['normal', t('tx.normal')], ['large', t('tx.large')], ['xlarge', t('tx.xlarge')]].map(function (o) {
       return '<label><input type="radio" name="textSize" value="' + o[0] + '" data-action-change="set-textsize"' + (ts === o[0] ? ' checked' : '') + ' /><span>' + esc(o[1]) + '</span></label>';

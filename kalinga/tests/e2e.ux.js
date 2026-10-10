@@ -138,6 +138,26 @@ function serve() {
       document.querySelector('#dose [data-action="dose-speak"]').click(); // same playback as the alarm
       KalingaVoice.play = real; KalingaElder.closeDose(); return calls; });
     assert.deepStrictEqual(played, [clip], 'the morning alarm plays the morning recording');
+    step('the alarm: beeps; the recording between beeps; the phone voice only when chosen');
+    const ring = async () => {
+      await S(() => {
+        window.__calls = []; window.__rp = KalingaVoice.play; window.__rs = KalingaVoice.say;
+        KalingaVoice.play = (id, o) => { __calls.push('play'); setTimeout(() => o && o.onend && o.onend(), 10); return Promise.resolve(); };
+        KalingaVoice.say = (tx, o) => { __calls.push('say'); setTimeout(() => o && o.onend && o.onend(), 10); };
+        const n0 = KalingaReminders.alarmCount();
+        KalingaElder.openDose(KalingaApp.store.timeline(KalingaApp.store.list('elders')[0].id, new Date(2026, 9, 10).getTime(), new Date(2026, 9, 11).getTime(), Date.now()).find((x) => new Date(x.at).getHours() < 11).slotKey, true);
+        if (KalingaReminders.alarmCount() !== n0 + 1) throw new Error('did not ring');
+      });
+      await page.clock.runFor(2500);
+      return S(() => { KalingaElder.closeDose(); KalingaVoice.play = __rp; KalingaVoice.say = __rs; return __calls; });
+    };
+    const setVoice = (v, av) => S(([v, av]) => { const st = KalingaApp.store, el = st.list('elders')[0]; st.update('elders', el.id, { voice: v }, ''); st.get().settings.alarmVoice = av; KalingaApp.commit(); }, [v, av]);
+    assert.deepStrictEqual(await ring(), ['play'], 'with a recording: the recording, no phone voice');
+    await setVoice({}, undefined);
+    assert.deepStrictEqual(await ring(), [], 'default: the alarm sound only');
+    await setVoice({}, 'tts');
+    assert.deepStrictEqual(await ring(), ['say'], 'phone voice only when turned on');
+    await setVoice({ morning: clip }, undefined);
     await tap('.setup [data-action="test-alarm"]');
     await page.clock.runFor(61000);
     await page.waitForSelector('#sheet:not([hidden])');
@@ -147,7 +167,7 @@ function serve() {
 
     step('elder text size: Pinakamalaki, and nothing scrolls sideways at 320px');
     await tap('[data-action="go"][data-view="more"]');
-    await page.check('input[name=textSize][value=xlarge]', { force: true });
+    await page.click('input[name=textSize][value=xlarge] + span');
     await tap('#handover-btn');
     await tap('#confirm-ok');
     for (const c of '12341234') await tap('#sheet [data-action="pin-key"][data-value="' + c + '"]');

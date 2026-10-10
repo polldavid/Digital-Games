@@ -209,7 +209,7 @@
   /* ---------- Test alarm ---------- */
   function testRing() {
     var text = I.getLang() === 'en' ? 'This is a Kalinga test reminder. The medicine reminders will sound like this.' : 'Ito ay test ng paalala ng Kalinga. Ganito tutunog ang mga paalala sa gamot.';
-    R.alarm(function (done) { Voice.say(text, { onend: done }); });
+    R.alarm(st().settings.alarmVoice === 'tts' ? function (done) { Voice.say(text, { onend: done }); } : null);
     var el0 = elder();
     if (el0) { S.update('elders', el0.id, { setup: Object.assign({}, el0.setup || {}, { test: true }) }, ''); S.save(); }
     R.notify('Kalinga 🔔', text, 'test');
@@ -243,6 +243,7 @@
   });
   App.changeActions['set-lang'] = function (n) { st().settings.lang = n.value; S.save(); applyLang(); render(); };
   App.changeActions['set-textsize'] = function (n) { dev().textSize = n.value; App.commit(); };
+  App.changeActions['set-alarmvoice'] = function (n) { st().settings.alarmVoice = n.value; App.commit(); };
   App.changeActions['set-sugar'] = function (n) { st().settings.sugarUnit = n.value; App.commit(); };
   App.changeActions['set-theme'] = function (n) { setTheme(n.value); render(); };
 
