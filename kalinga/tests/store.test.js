@@ -199,6 +199,36 @@ assert.strictEqual(S.logReading({ elderId: mama.id, vitalTypeId: 'nope', value: 
   assert.deepStrictEqual(R.routineShift(e.id, { breakfast: '00:10', lunch: '12:00', dinner: '19:00', bedtime: '21:00' }).find((c) => c.name === 'Esomeprazole').to, ['23:40']);
 }
 
+/* ---------- quick refill and undoing a dose ---------- */
+{
+  const R = K.create({ storage: memStorage(), now: clock }); R.load();
+  const e = R.addElder({ name: 'Papa' });
+  const para = R.saveMed({ elderId: e.id, name: 'Paracetamol', form: 'tablet', dose: { amount: 1, unit: 'tablet' }, prn: { minGapMin: 240, maxPerDay: 4 }, stock: { count: 10 } }).med;
+  const gel = R.saveMed({ elderId: e.id, name: 'Gel', form: 'cream', dose: { amount: 1, unit: 'application' } }).med;
+  assert.strictEqual(R.addStock(para.id, 20, 'Poll').stock.count, 30, 'bought 20 more');
+  assert.strictEqual(R.addStock(gel.id, 2, 'Poll').stock.count, 2, 'buying starts the count of an untracked med');
+  assert.strictEqual(R.addStock(para.id, 0), null);
+  assert.strictEqual(R.addStock(para.id, -5), null);
+  assert.strictEqual(R.addStock('nope', 5), null);
+  // an accidental as-needed tap is undone: the tablet goes back and the dose no longer counts
+  const dose = R.recordDose({ medId: para.id, status: 'taken', by: 'Papa' });
+  assert.strictEqual(R.find('meds', para.id).stock.count, 29);
+  assert.strictEqual(R.prnTaken(para.id).length, 1);
+  assert.ok(R.undoDose(dose.id, 'Papa'));
+  assert.strictEqual(R.find('meds', para.id).stock.count, 30, 'stock given back');
+  assert.strictEqual(R.prnTaken(para.id).length, 0, 'the gap/max limit no longer counts it');
+  assert.strictEqual(R.undoDose(dose.id), false, 'already undone');
+  // insulin: the needle comes back too
+  const ins = R.saveMed({ elderId: e.id, name: 'Insulin', form: 'insulin-pen', dose: { amount: 10, unit: 'units' }, insulin: { mode: 'fixed', needles: 5 }, stock: { count: 300 } }).med;
+  const d2 = R.recordDose({ medId: ins.id, status: 'taken', by: 'Papa' });
+  R.undoDose(d2.id);
+  assert.deepStrictEqual([R.find('meds', ins.id).stock.count, R.find('meds', ins.id).insulin.needles], [300, 5]);
+  // a skipped dose undone changes no stock
+  const d3 = R.recordDose({ medId: para.id, slotKey: 'x@2026-10-10T08:00', status: 'skipped' });
+  assert.ok(R.undoDose(d3.id));
+  assert.strictEqual(R.find('meds', para.id).stock.count, 30);
+}
+
 /* ---------- change log cap ---------- */
 for (let i = 0; i < 600; i++) S.update('elders', mama.id, { allergies: 'a' + i }, 'Poll');
 assert.strictEqual(S.get().changelog.length, 500);

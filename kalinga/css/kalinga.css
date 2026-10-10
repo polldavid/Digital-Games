@@ -194,6 +194,21 @@ button.row { cursor: pointer; }
 .tab b { font-size: calc(12.5 * var(--u)); font-weight: 750; }
 .tab[aria-current="page"] { color: var(--brand); }
 .tab[aria-current="page"] b { text-decoration: underline; text-underline-offset: 4px; }
+/* links that look like text in lists (tap a medicine anywhere to open it) */
+.linkish { background: none; border: none; padding: 0; margin: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; min-height: 32px; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.row__time { color: var(--brand); font-weight: 850; }
+/* setup checklist */
+.setup { margin: 8px 0 4px; display: grid; gap: 10px; }
+.setup__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.setup__step { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 10px 12px; border-radius: var(--radius-sm); border: 1.5px solid var(--line); background: var(--card); text-align: left; cursor: pointer; }
+.setup__step--next { border: 2px solid var(--brand); background: var(--brand-soft); }
+.setup__step--done { opacity: .8; }
+.setup__num { width: 34px; height: 34px; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 850; border: 2px solid var(--line-strong); }
+.setup__step--done .setup__num { background: var(--ok); border-color: var(--ok); color: var(--on-ok); }
+.setup__step--next .setup__num { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
+/* elder text size (per phone): scales every elder screen, dose card and elder sheet */
+body.mode-elder.tx-large { --u: min(calc(1.2rem / 16), 2.4px); }
+body.mode-elder.tx-xlarge { --u: min(calc(1.4rem / 16), 2.8px); }
 .banner { margin: 10px 16px 0; padding: 12px 14px; border-radius: var(--radius-sm); font-weight: 650; }
 .banner--top { position: fixed; left: 0; right: 0; top: max(8px, env(safe-area-inset-top)); z-index: 95; font-size: calc(18 * var(--u)); box-shadow: var(--shadow); }
 .banner--bad { background: var(--bad-bg); border: 1px solid var(--bad-line); color: var(--bad); }
@@ -341,6 +356,7 @@ body.mode-elder .toast { font-size: calc(19 * var(--u)); }
 .scale-row b { font-size: calc(40 * var(--u)); color: var(--brand); }
 .dose__actions { display: grid; gap: 12px; margin-top: auto; padding: 12px 0 calc(8px + env(safe-area-inset-bottom)); position: sticky; bottom: 0; background: var(--bg); box-shadow: 0 -14px 18px -14px rgba(0,0,0,.25); }
 .dose__done { text-align: center; display: grid; gap: 18px; padding: 40px 10px; font-size: calc(28 * var(--u)); font-weight: 850; }
-.dose__done span { font-size: calc(80 * var(--u)); }
+.dose__done-icon { display: block; font-size: calc(80 * var(--u)); line-height: 1; }
+.dose__done p { margin: 0; }
 
 @media (min-width: 900px) { .view { padding-top: 16px; } }

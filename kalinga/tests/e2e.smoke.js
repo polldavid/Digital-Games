@@ -84,7 +84,7 @@ function serve() {
     assert.deepStrictEqual(kinds, ['sugar:Blood sugar', 'bp:Blood pressure', 'symptom:Pain', 'symptom:Swelling']);
 
     step('medicines: tablet twice a day with stock');
-    await tap('[data-action="med-new"]');
+    await tap('[data-action="med-add"]'); await tap('#sheet [data-action="med-new"]');
     await page.fill('#med-form input[name=name]', 'Losartan 50mg');
     await page.fill('#med-form input[name=purpose]', 'para sa altapresyon');
     await tap('[data-action="time-add"][data-value="20:00"]');
@@ -95,7 +95,7 @@ function serve() {
 
     step('medicines: a cream for the feet (no stock count)');
     await tap('[data-action="go"][data-view="meds"]');
-    await tap('[data-action="med-new"]');
+    await tap('[data-action="med-add"]'); await tap('#sheet [data-action="med-new"]');
     await page.fill('#med-form input[name=name]', 'Diclofenac gel');
     await page.selectOption('#med-form select[name=form]', 'cream');
     await page.fill('#med-form input[name=applyTo]', 'sa paa');
@@ -103,7 +103,7 @@ function serve() {
     await page.waitForSelector('#sheet', { state: 'hidden' });
 
     step('medicines: as-needed paracetamol with label limits');
-    await tap('[data-action="med-new"]');
+    await tap('[data-action="med-add"]'); await tap('#sheet [data-action="med-new"]');
     await page.fill('#med-form input[name=name]', 'Paracetamol 500mg');
     await page.fill('#med-form input[name=purpose]', 'para sa sakit');
     await tap('label:has(input[name=_when][value=prn])');
@@ -113,7 +113,7 @@ function serve() {
     await page.waitForSelector('#sheet', { state: 'hidden' });
 
     step('medicines: sliding-scale insulin is refused until the chart is confirmed');
-    await tap('[data-action="med-new"]');
+    await tap('[data-action="med-add"]'); await tap('#sheet [data-action="med-new"]');
     await page.fill('#med-form input[name=name]', 'Insulin lispro');
     await page.selectOption('#med-form select[name=form]', 'insulin-pen');
     await tap('label:has(input[name=_insMode][value=scale])');

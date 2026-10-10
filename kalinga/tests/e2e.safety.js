@@ -52,7 +52,7 @@ function serve() {
     await tap('#welcome-form button[type=submit]');
     await tap('[data-action="cond-toggle"][data-value="diabetes"]');
     await tap('[data-action="profile-save"]');
-    await tap('[data-action="med-new"]');
+    await tap('[data-action="med-add"]'); await tap('#sheet [data-action="med-new"]');
     await page.fill('#med-form input[name=name]', 'Metformin');
     await page.fill('#time-custom', '20:00'); // typed but "+ Time" not tapped
     await tap('[data-action="med-save"]');

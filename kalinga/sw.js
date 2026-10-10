@@ -6,7 +6,7 @@
    ?v= in index.html together (tests/e2e.smoke.js checks they
    match), so a new page is never paired with an old script.
    ========================================================= */
-var V = '5';
+var V = '6';
 var VERSION = 'kalinga-v' + V;
 var VERSIONED = ['css/kalinga.css',
   'js/schedule.js', 'js/stock.js', 'js/scale.js', 'js/vitals.js', 'js/conditions.js', 'js/speechnum.js', 'js/rximport.js', 'js/store.js',

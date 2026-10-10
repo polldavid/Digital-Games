@@ -50,9 +50,10 @@
   function today() {
     var el = elder(); if (!el) return '';
     var now = Date.now(), day = h.startOfDay(now), out = ['<h1>' + esc(t('dash.title', { name: el.name })) + '</h1>'];
+    out.push(setupHtml(el));
     var meds = S().list('meds', function (m) { return m.elderId === el.id; });
     if (!meds.length) {
-      out.push('<div class="card empty"><p>' + esc(t('dash.noMeds', { name: el.name })) + '</p><button class="btn btn--primary btn--lg" data-action="med-new">' + esc(t('dash.addMed')) + '</button></div>');
+      out.push('<div class="card empty"><p>' + esc(t('dash.noMeds', { name: el.name })) + '</p><button class="btn btn--primary btn--lg" data-action="med-add">' + esc(t('dash.addMed')) + '</button></div>');
     } else {
       var slots = S().timeline(el.id, day, day + DAY, now);
       out.push('<div class="list">' + (slots.length ? slots.map(function (s) { return slotHtml(s); }).join('') : '<div class="card empty">' + esc(t('el.noMeds')) + '</div>') + '</div>');
@@ -63,7 +64,8 @@
       var low = S().lowStock(el.id);
       if (low.length) out.push('<div class="section-title">' + esc(t('dash.lowStock')) + '</div><div class="list">' + low.map(function (m) {
         var d = St.daysLeft(m, S().list('schedules', function (s) { return s.medId === m.id; }));
-        return '<button class="row" data-action="med-edit" data-id="' + esc(m.id) + '">' + k.medPic(m) + '<span class="row__main"><span class="row__title">' + esc(m.name) + '</span><span class="row__sub" style="display:block">' + esc(t('med.stockNow', { n: h.num(m.stock.count) })) + '</span></span><span class="badge badge--due">' + esc(d === Infinity ? '' : t('dash.daysLeft', { n: d })) + '</span></button>';
+        return '<div class="row">' + k.medPic(m) + '<button class="row__main linkish" data-action="med-edit" data-id="' + esc(m.id) + '"><span class="row__title">' + esc(m.name) + '</span><span class="row__sub" style="display:block">' + esc(t('med.stockNow', { n: h.num(m.stock.count) })) + (d === Infinity ? '' : ' · ' + esc(t('dash.daysLeft', { n: d }))) + '</span></button>' +
+          '<button class="btn btn--sm btn--soft" data-action="refill" data-id="' + esc(m.id) + '">＋ ' + esc(t('refill.btn')) + '</button></div>';
       }).join('') + '</div>');
     }
     // readings
@@ -82,7 +84,7 @@
         var m = S().find('meds', it.medId) || { name: '—' };
         var st = it.takenEarlier && it.status !== 'taken' && it.status !== 'skipped' ? 'takenEarlier' : it.status;
         var u = it.status === 'taken' && it.units != null ? it.units : null;
-        return '<div class="slot__item"><span class="slot__name">' + esc(m.name) + (u != null && k.isScale(m) ? ' · ' + esc(u) + ' u' : '') + '</span><span class="badge badge--' + (st === 'takenEarlier' ? 'taken' : st) + '">' + k.statusIcon(st) + ' ' + esc(t('st.' + st)) + '</span></div>';
+        return '<div class="slot__item"><button class="slot__name linkish" data-action="med-edit" data-id="' + esc(it.medId) + '">' + esc(m.name) + (u != null && k.isScale(m) ? ' · ' + esc(u) + ' u' : '') + '</button><span class="badge badge--' + (st === 'takenEarlier' ? 'taken' : st) + '">' + k.statusIcon(st) + ' ' + esc(t('st.' + st)) + '</span></div>';
       }).join('') +
       (!s.orphan && (s.status === 'due' || s.status === 'unconfirmed') ? '<button class="btn btn--sm btn--soft" data-action="dose-open" data-key="' + esc(s.slotKey) + '">💊 ' + esc(t('st.due')) + '</button>' : '') +
       '</div></div>';
@@ -110,16 +112,33 @@
   function medsView() {
     var el = elder(); if (!el) return '';
     var meds = S().list('meds', function (m) { return m.elderId === el.id; }).sort(function (a, b) { return (b.active !== false) - (a.active !== false) || a.name.localeCompare(b.name); });
-    return '<h1>' + esc(t('meds.title', { name: el.name })) + '</h1><div style="margin:10px 0 14px;display:grid;gap:10px"><button class="btn btn--primary btn--lg btn--block" data-action="med-new">' + esc(t('dash.addMed')) + '</button>' +
-      '<button class="btn btn--soft btn--lg btn--block" data-action="rx-import">📄 ' + esc(t('rx.import')) + '</button></div>' +
-      (meds.length ? '<div class="list">' + meds.map(function (m) {
-        var sch = schedulesOf(m)[0], d = St.daysLeft(m, schedulesOf(m));
-        return '<button class="row" data-action="med-edit" data-id="' + esc(m.id) + '"' + (m.active === false ? ' style="opacity:.6"' : '') + '>' + k.medPic(m) +
-          '<span class="row__main"><span class="row__title">' + esc(m.name) + '</span><span class="row__sub" style="display:block">' + esc((k.isScale(m) ? t('ins.scale') : k.amountText(m)) + (m.purpose ? ' · ' + m.purpose : '')) + '</span>' +
-          '<span class="row__sub" style="display:block">' + esc(m.active === false ? t('meds.inactive') : m.prn && !sch ? t('meds.asNeeded') : ruleSummary(sch && sch.rule)) + '</span></span>' +
-          (St.tracked(m) ? '<span class="row__end"><span class="badge badge--' + (St.isLow(m, schedulesOf(m)) ? 'due' : 'upcoming') + '">' + esc(d === Infinity ? h.num(m.stock.count) + '' : t('dash.daysLeft', { n: d })) + '</span></span>' : '') + '</button>';
-      }).join('') + '</div>' : '<div class="card empty">' + esc(t('dash.noMeds', { name: el.name })) + '</div>');
+    var head = '<h1>' + esc(t('meds.title', { name: el.name })) + '</h1><div style="margin:10px 0 14px;display:grid;gap:10px"><button class="btn btn--primary btn--lg btn--block" data-action="med-add">' + esc(t('dash.addMed')) + '</button>' +
+      (meds.length && meds.some(function (m) { return m.active !== false && !m.photoId; }) ? '<button class="btn btn--soft btn--block" data-action="photo-run">📷 ' + esc(t('ph.title')) + '</button>' : '') + '</div>';
+    if (!meds.length) return head + '<div class="card empty">' + esc(t('dash.noMeds', { name: el.name })) + '</div>';
+    // Grouped by time of day: a medicine taken morning and night shows in both groups, with its time.
+    var groups = { morning: [], noon: [], afternoon: [], evening: [], prn: [], stopped: [] };
+    meds.forEach(function (m) {
+      if (m.active === false) { groups.stopped.push({ m: m }); return; }
+      var sch = schedulesOf(m)[0];
+      if (!sch || !sch.rule || sch.rule.prn) { groups.prn.push({ m: m }); return; }
+      sch.rule.times.forEach(function (tm) { var p = tm.split(':'), d0 = new Date(); d0.setHours(+p[0], +p[1], 0, 0); groups[Sch.partOfDay(d0.getTime())].push({ m: m, tm: tm }); });
+    });
+    var out = head;
+    ['morning', 'noon', 'afternoon', 'evening', 'prn', 'stopped'].forEach(function (g) {
+      if (!groups[g].length) return;
+      groups[g].sort(function (a, b) { return (a.tm || '').localeCompare(b.tm || '') || a.m.name.localeCompare(b.m.name); });
+      out += '<div class="section-title">' + esc(g === 'prn' ? t('meds.asNeeded') : g === 'stopped' ? t('meds.inactive') : t('pod.' + g)) + '</div><div class="list">' + groups[g].map(function (x) { return medRow(x.m, x.tm); }).join('') + '</div>';
+    });
+    return out;
   }
+  function medRow(m, tm) {
+    var d = St.daysLeft(m, schedulesOf(m)), sch = schedulesOf(m)[0];
+    return '<button class="row" data-action="med-edit" data-id="' + esc(m.id) + '"' + (m.active === false ? ' style="opacity:.75"' : '') + '>' + k.medPic(m) +
+      '<span class="row__main"><span class="row__title">' + (tm ? '<span class="row__time">' + esc(h.fmtHM(tm)) + '</span> ' : '') + esc(m.name) + '</span><span class="row__sub" style="display:block">' + esc((k.isScale(m) ? t('ins.scale') : k.amountText(m)) + (m.purpose ? ' · ' + m.purpose : '')) + '</span>' +
+      (!tm && m.active !== false && sch && sch.rule && !sch.rule.prn ? '<span class="row__sub" style="display:block">' + esc(ruleSummary(sch.rule)) + '</span>' : '') + '</span>' +
+      (St.tracked(m) ? '<span class="row__end"><span class="badge badge--' + (St.isLow(m, schedulesOf(m)) ? 'due' : 'upcoming') + '">' + esc(d === Infinity ? h.num(m.stock.count) + '' : t('dash.daysLeft', { n: d })) + '</span></span>' : '') + '</button>';
+  }
+
 
   function medDraft(m) {
     var el = elder(), sch = m ? schedulesOf(m)[0] : null, rule = sch && sch.rule;
@@ -405,6 +424,7 @@
     var routine = {};
     ['breakfast', 'lunch', 'dinner', 'bedtime'].forEach(function (k2) { routine[k2] = /^\d\d:\d\d$/.test(d._routine[k2] || '') ? d._routine[k2] : window.KalingaRxImport.ROUTINE[k2]; });
     var fields = { name: name, photoId: d.photoId || null, allergies: d.allergies || '', bloodType: d.bloodType || '', contacts: contacts, alerts: { rerings: rerings, cutoffMin: cutoff }, routine: routine };
+    if (!d._new && elder()) fields.setup = Object.assign({}, elder().setup || {}, { routine: true });
     var oldRoutine = !d._new && elder() ? JSON.stringify(elder().routine || {}) : null;
     var el = d._new ? S().addElder(fields, by()) : S().update('elders', elder().id, fields, by());
     var shift = oldRoutine && oldRoutine !== JSON.stringify(routine) ? S().routineShift(el.id, routine) : [];
@@ -463,9 +483,10 @@
       var start = window.KalingaRxImport.startDate(parsed.date, Date.now());
       var have = S().list('meds', function (m) { return m.elderId === el.id; }).map(function (m) { return m.name.toLowerCase(); });
       rx.patient = parsed.patient; rx.date = parsed.date; rx.phase = 'review';
-      App.ui.draft = { items: parsed.items.map(function (it) {
+      App.ui.draft = { routine: Object.assign({}, window.KalingaRxImport.ROUTINE, el.routine || {}), items: parsed.items.map(function (it) {
         var d = window.KalingaRxImport.draft(it, el.routine), dupe = have.indexOf(d.name.toLowerCase()) >= 0;
         return {
+          src: it, touched: false, days: d.days,
           ok: it.ok, sig: it.sig, dupe: dupe, on: it.ok && !dupe, name: d.name,
           purpose: d.purpose ? d.purpose[I.getLang() === 'en' ? 'en' : 'tl'] : '', form: d.form, dose: d.dose, food: d.food,
           prn: d.prn, timesText: d.times.join(', '), times0: d.times, anchors0: d.anchors, count: d.count, start: start, end: window.KalingaRxImport.endDate(start, d.days), err: ''
@@ -491,7 +512,15 @@
         '<button class="btn btn--primary btn--lg" type="submit">' + esc(t('rx.unlock')) + '</button></form>';
     }
     var d = App.ui.draft, n = d.items.filter(function (x) { return x.on; }).length;
+    // Times not typed by hand follow the routine box live.
+    d.items.forEach(function (it) {
+      if (!it.ok || it.prn || it.touched) return;
+      var dr = window.KalingaRxImport.draft(it.src, d.routine);
+      it.timesText = dr.times.join(', '); it.times0 = dr.times; it.anchors0 = dr.anchors;
+    });
     var out = '<div class="form">' + (rx.patient ? '<p style="margin:0"><b>' + esc(t('rx.for', { name: rx.patient })) + '</b>' + (rx.date ? ' · ' + esc(rx.date) : '') + '</p>' : '') +
+      '<div class="box"><div class="box__head">🕖 ' + esc(t('rx.routineBox', { name: elder().name })) + '</div><span class="field__hint">' + esc(t('rx.routineHint')) + '</span><div class="grid2">' +
+      ['breakfast', 'lunch', 'dinner', 'bedtime'].map(function (k2) { return h.field(t('prof.' + k2), '<input class="input" type="time" name="rr_' + k2 + '" value="' + v(d.routine[k2]) + '"' + bind('routine.' + k2, true) + ' />'); }).join('') + '</div></div>' +
       '<p class="note">' + esc(t('rx.reviewHint')) + '</p>';
     d.items.forEach(function (it, i) {
       var p = 'items.' + i + '.';
@@ -533,15 +562,95 @@
       plans.push({ med: med, rule: rule, anchors: anchors });
     });
     if (bad) { h.renderSheet(); var first = h.$('#sheet .field__error'); if (first) first.scrollIntoView({ block: 'center' }); return; }
+    // The routine shown on this screen becomes the elder's routine; linked medicines already listed may move (asked).
+    var routine = {};
+    ['breakfast', 'lunch', 'dinner', 'bedtime'].forEach(function (k2) { routine[k2] = /^\d\d:\d\d$/.test(d.routine[k2] || '') ? d.routine[k2] : window.KalingaRxImport.ROUTINE[k2]; });
+    var changed = JSON.stringify(el.routine || {}) !== JSON.stringify(routine);
+    var shift = changed ? S().routineShift(el.id, routine) : [];
+    S().update('elders', el.id, { routine: routine, setup: Object.assign({}, el.setup || {}, { routine: true }) }, by());
     plans.forEach(function (pl) {
       var saved = S().saveMed(pl.med, by()).med;
       if (saved && pl.rule) S().saveSchedule({ medId: saved.id, rule: pl.rule, anchors: pl.anchors }, by());
     });
     App.commit();
-    h.closeSheet();
     App.ui.view = 'meds';
     App.render();
     h.toast(t('rx.savedN', { n: plans.length }));
+    if (shift.length) { h.closeSheet(); askShift(shift); return; }
+    // Next step of the guided setup: a photo of each new pill (photos matter most for low vision).
+    openPhotos(t('ph.afterImport', { n: plans.length }));
+  }
+  document.addEventListener('input', function (e) {
+    var el = e.target && e.target.getAttribute && e.target.getAttribute('data-bind');
+    var m = el && /^items\.(\d+)\.timesText$/.exec(el);
+    if (m && App.ui.draft && App.ui.draft.items) App.ui.draft.items[+m[1]].touched = true;
+  });
+
+  /* ================= ADD-MEDICINE CHOOSER ================= */
+  function openAdd() {
+    var choice = function (action, icon, title, sub) { return '<button class="row" data-action="' + action + '"><span class="pillicon" aria-hidden="true">' + icon + '</span><span class="row__main"><span class="row__title">' + esc(title) + '</span><span class="row__sub" style="display:block">' + esc(sub) + '</span></span></button>'; };
+    h.openSheet({ title: t('add.title'), html: '<div class="list">' + choice('rx-import', '📄', t('add.pdf'), t('add.pdfSub')) + choice('med-new', '✍️', t('add.manual'), t('add.manualSub')) +
+      '<div class="row" aria-disabled="true" style="opacity:.7"><span class="pillicon" aria-hidden="true">📷</span><span class="row__main"><span class="row__title">' + esc(t('add.photo')) + '</span><span class="row__sub" style="display:block">' + esc(t('add.photoSoon')) + '</span></span></div></div>' });
+  }
+
+  /* ================= SETUP CHECKLIST ================= */
+  function setupSteps(el) {
+    var st = el.setup || {}, meds = S().list('meds', function (m) { return m.elderId === el.id && m.active !== false; });
+    return [
+      { key: 'routine', done: !!st.routine, icon: '🕖', attrs: 'data-action="profile-open"' },
+      { key: 'meds', done: meds.length > 0, icon: '💊', attrs: 'data-action="med-add"' },
+      { key: 'vitals', done: S().list('vitalTypes', function (x) { return x.elderId === el.id; }).length > 0, icon: '🩺', attrs: 'data-action="go" data-view="vitals"' },
+      { key: 'photos', done: (meds.length > 0 && meds.every(function (m) { return m.photoId; })) || !!st.photosSkipped, icon: '📷', attrs: 'data-action="photo-run"' },
+      { key: 'test', done: !!st.test, icon: '🔔', attrs: 'data-action="test-alarm"' },
+      { key: 'handover', done: !!S().get().device.pin, icon: '🤲', attrs: 'data-action="handover"' }
+    ];
+  }
+  function setupHtml(el) {
+    if (el.setup && el.setup.dismissed) return '';
+    var steps = setupSteps(el), done = steps.filter(function (s) { return s.done; }).length;
+    if (done === steps.length) return '';
+    var next = steps.filter(function (s) { return !s.done; })[0].key;
+    return '<div class="card setup"><div class="box__head"><span>' + esc(t('setup.title', { name: el.name })) + '</span><span class="badge badge--upcoming">' + done + ' / ' + steps.length + '</span></div><ol class="setup__list">' +
+      steps.map(function (s, i) {
+        return '<li><button class="setup__step' + (s.done ? ' setup__step--done' : '') + (s.key === next ? ' setup__step--next' : '') + '" ' + s.attrs + '><span class="setup__num" aria-hidden="true">' + (s.done ? '✓' : i + 1) + '</span><span class="row__main"><span class="row__title">' + s.icon + ' ' + esc(t('setup.' + s.key)) + '</span><span class="row__sub" style="display:block">' + esc(s.done ? t('setup.done') : t('setup.' + s.key + 'Sub', { name: el.name })) + '</span></span></button></li>';
+      }).join('') + '</ol><button class="btn btn--link" data-action="setup-hide">' + esc(t('setup.hide')) + '</button></div>';
+  }
+  function markSetup(patch) { var el = elder(); if (el) S().update('elders', el.id, { setup: Object.assign({}, el.setup || {}, patch) }, by()); }
+
+  /* ================= PILL PHOTOS (run-through) ================= */
+  var photoNote = '';
+  function openPhotos(note) {
+    photoNote = note || '';
+    h.openSheet({ title: '📷 ' + t('ph.title'), html: photosHtml, onclose: function () { photoNote = ''; App.render(); } });
+  }
+  function photosHtml() {
+    var el = elder(); if (!el) return '';
+    var meds = S().list('meds', function (m) { return m.elderId === el.id && m.active !== false; }).sort(function (a, b) { return (!!a.photoId - !!b.photoId) || a.name.localeCompare(b.name); });
+    var missing = meds.filter(function (m) { return !m.photoId; }).length;
+    return (photoNote ? '<p class="note note--ok" style="margin-bottom:10px">✓ ' + esc(photoNote) + '</p>' : '') + '<p class="note">' + esc(t('ph.hint', { name: el.name })) + '</p><div class="list" style="margin-top:12px">' + meds.map(function (m) {
+      return '<div class="row">' + (m.photoId ? '<img class="thumb" style="width:72px;height:72px" data-photo="' + esc(m.photoId) + '" alt="" />' : '<span class="pillicon" style="width:72px;height:72px">' + (k.FORM_ICON[m.form] || '💊') + '</span>') +
+        '<span class="row__main"><span class="row__title">' + esc(m.name) + '</span><span class="row__sub" style="display:block">' + esc(k.amountText(m)) + '</span></span>' +
+        '<label class="btn btn--sm ' + (m.photoId ? '' : 'btn--primary') + '">📷 ' + esc(m.photoId ? t('ph.change') : t('ph.take')) + '<input type="file" accept="image/*" capture="environment" data-action-change="med-photo-direct" data-id="' + esc(m.id) + '" hidden /></label></div>';
+    }).join('') + '</div><div class="btn-row sheet-save">' + (missing ? '<button class="btn btn--lg" data-action="photo-skip">' + esc(t('ph.skip')) + '</button>' : '') + '<button class="btn btn--primary btn--lg" data-action="sheet-close">' + esc(t('c.done')) + '</button></div>';
+  }
+
+  /* ================= QUICK REFILL ================= */
+  var refillId = null;
+  function openRefill(id) {
+    refillId = id;
+    h.openSheet({ title: '＋ ' + t('refill.title'), html: function () {
+      var m = S().find('meds', refillId); if (!m) return '';
+      return '<p style="margin:0 0 12px"><b>' + esc(m.name) + '</b><br>' + esc(St.tracked(m) ? t('med.stockNow', { n: h.num(m.stock.count) }) : t('refill.untracked')) + '</p>' +
+        '<div class="chips" style="margin-bottom:14px">' + [30, 60, 90].map(function (n) { return '<button class="chip" data-action="refill-add" data-value="' + n + '">＋' + n + '</button>'; }).join('') + '</div>' +
+        h.field(t('refill.custom'), '<input class="input input--lg" id="refill-n" type="number" min="1" step="1" inputmode="numeric" />') +
+        '<div class="btn-row sheet-save"><button class="btn btn--primary btn--lg" data-action="refill-custom">' + esc(t('c.save')) + '</button></div>';
+    }, onclose: function () { refillId = null; } });
+  }
+  function refill(qty) {
+    var m = qty > 0 && S().addStock(refillId, qty, by());
+    if (!m) { h.toast(t('err.bad-level')); return; }
+    App.commit(); h.closeSheet(); App.render();
+    h.toast(t('refill.done', { name: m.name, n: h.num(m.stock.count) }));
   }
   document.addEventListener('submit', function (e) {
     if (!e.target || e.target.id !== 'rx-pw-form') return;
@@ -560,6 +669,10 @@
     out += '<div class="section-title">' + esc(t('more.settings')) + '</div><div class="card form">';
     out += h.field(t('more.lang'), '<div class="seg" role="radiogroup"><label><input type="radio" name="lang" value="tl" data-action-change="set-lang"' + (lang !== 'en' ? ' checked' : '') + ' /><span>Taglish</span></label><label><input type="radio" name="lang" value="en" data-action-change="set-lang"' + (lang === 'en' ? ' checked' : '') + ' /><span>English</span></label></div>');
     out += h.field(t('more.sugarUnit'), '<div class="seg" role="radiogroup"><label><input type="radio" name="sugarUnit" value="mg/dL" data-action-change="set-sugar"' + (st.settings.sugarUnit !== 'mmol/L' ? ' checked' : '') + ' /><span>mg/dL</span></label><label><input type="radio" name="sugarUnit" value="mmol/L" data-action-change="set-sugar"' + (st.settings.sugarUnit === 'mmol/L' ? ' checked' : '') + ' /><span>mmol/L</span></label></div>');
+    var ts = st.device.textSize || 'normal';
+    out += h.field(t('more.textSize', { name: el ? el.name : '' }), '<div class="seg" role="radiogroup">' + [['normal', t('tx.normal')], ['large', t('tx.large')], ['xlarge', t('tx.xlarge')]].map(function (o) {
+      return '<label><input type="radio" name="textSize" value="' + o[0] + '" data-action-change="set-textsize"' + (ts === o[0] ? ' checked' : '') + ' /><span>' + esc(o[1]) + '</span></label>';
+    }).join('') + '</div>', esc(t('more.textSizeHint')));
     var th = App.themeChoice ? App.themeChoice() : 'light';
     out += h.field(t('more.theme'), '<div class="seg" role="radiogroup">' + [['light', t('theme.light')], ['dark', t('theme.dark')], ['auto', t('theme.auto')]].map(function (o) {
       return '<label><input type="radio" name="theme" value="' + o[0] + '" data-action-change="set-theme"' + (th === o[0] ? ' checked' : '') + ' /><span>' + esc(o[1]) + '</span></label>';
@@ -594,6 +707,13 @@
   }
   App.addActions({
     'med-new': function () { openMed(null); },
+    'med-add': openAdd,
+    'photo-run': function () { openPhotos(''); },
+    'photo-skip': function () { markSetup({ photosSkipped: true }); App.commit(); h.closeSheet(); App.render(); },
+    'setup-hide': function () { markSetup({ dismissed: true }); App.commit(); },
+    'refill': function (n) { openRefill(n.getAttribute('data-id')); },
+    'refill-add': function (n) { refill(+n.getAttribute('data-value')); },
+    'refill-custom': function () { var i = h.$('#refill-n'); refill(i ? parseFloat(i.value) : 0); },
     'med-edit': function (n) { openMed(n.getAttribute('data-id')); },
     'med-save': saveMed,
     'med-photo-remove': function () { App.ui.draft.photoId = null; h.renderSheet(); },
@@ -660,6 +780,11 @@
   });
   App.changeActions = App.changeActions || {};
   App.changeActions['med-photo'] = function (input) { draftPhoto(input, 'photoId'); };
+  App.changeActions['med-photo-direct'] = function (input) {
+    var file = input.files && input.files[0], id = input.getAttribute('data-id'); if (!file) return;
+    F.compress(file).then(function (b) { var pid = 'ph-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); return F.put(pid, b); })
+      .then(function (pid) { S().update('meds', id, { photoId: pid }, by()); App.commit(); h.renderSheet(); }).catch(function (e) { h.toast(e.message); });
+  };
   App.changeActions['rx-file'] = function (input) { var f = input.files && input.files[0]; if (f) openImport(f); };
   App.changeActions['profile-photo'] = function (input) { draftPhoto(input, 'photoId'); };
   App.changeActions['unit-touched'] = function () { if (App.ui.draft) App.ui.draft._unitTouched = true; };

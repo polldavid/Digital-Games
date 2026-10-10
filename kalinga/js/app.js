@@ -76,6 +76,9 @@
     h.$('#app').hidden = mode !== 'care';
     h.$('#elder').hidden = mode !== 'elder';
     document.body.classList.toggle('mode-elder', mode === 'elder');
+    var ts = dev().textSize || 'normal';
+    document.body.classList.toggle('tx-large', ts === 'large');
+    document.body.classList.toggle('tx-xlarge', ts === 'xlarge');
     if (mode === 'elder') { h.patch(h.$('#elder-view'), E.home()); return; }
     if (mode !== 'care') return;
     var chip = h.$('#elderchip'), chipHtml = window.KalingaApp.k.elderFace(el) + '<span class="elderchip__name">' + esc(el.name) + '</span>' + (S.list('elders').length > 1 ? ' ▾' : '');
@@ -207,8 +210,10 @@
   function testRing() {
     var text = I.getLang() === 'en' ? 'This is a Kalinga test reminder. The medicine reminders will sound like this.' : 'Ito ay test ng paalala ng Kalinga. Ganito tutunog ang mga paalala sa gamot.';
     R.alarm(function (done) { Voice.say(text, { onend: done }); });
+    var el0 = elder();
+    if (el0) { S.update('elders', el0.id, { setup: Object.assign({}, el0.setup || {}, { test: true }) }, ''); S.save(); }
     R.notify('Kalinga 🔔', text, 'test');
-    h.openSheet({ title: '🔔 Test', elder: dev().mode === 'elder', html: '<div class="dose__done"><span aria-hidden="true">🔔</span>' + esc(text) + '<button class="btn btn--primary el-btn el-btn--huge" data-action="sheet-close">' + esc(t('c.done')) + '</button></div>', onclose: R.stopAlarm });
+    h.openSheet({ title: '🔔 Test', elder: dev().mode === 'elder', html: '<div class="dose__done"><span class="dose__done-icon" aria-hidden="true">🔔</span><p>' + esc(text) + '</p></div><button class="btn btn--primary el-btn el-btn--huge btn--block" data-action="sheet-close">' + esc(t('c.done')) + '</button>', onclose: R.stopAlarm });
   }
 
   /* ---------- Actions ---------- */
@@ -237,6 +242,7 @@
     'theme-toggle': function () { setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); render(); }
   });
   App.changeActions['set-lang'] = function (n) { st().settings.lang = n.value; S.save(); applyLang(); render(); };
+  App.changeActions['set-textsize'] = function (n) { dev().textSize = n.value; App.commit(); };
   App.changeActions['set-sugar'] = function (n) { st().settings.sugarUnit = n.value; App.commit(); };
   App.changeActions['set-theme'] = function (n) { setTheme(n.value); render(); };
 

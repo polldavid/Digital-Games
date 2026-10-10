@@ -136,7 +136,7 @@
 
   function doseHtml() {
     if (!dose) return '';
-    if (dose.phase === 'done') return '<div class="dose__inner"><div class="dose__done" role="status"><span aria-hidden="true">👏</span>' + esc(dose.doneText) + '</div></div>';
+    if (dose.phase === 'done') return '<div class="dose__inner"><div class="dose__done" role="status"><span class="dose__done-icon" aria-hidden="true">👏</span><p>' + esc(dose.doneText) + '</p></div></div>';
     var meds = dose.items.map(function (it) {
       var m = S().find('meds', it.medId); if (!m) return '';
       if (it.earlier) {
@@ -504,10 +504,12 @@
     if (!m) return;
     var ok = Sch.prnAllowed(m, S().prnTaken(id), now);
     if (!ok.ok) { h.renderSheet(); return; }
-    S().recordDose({ elderId: m.elderId, medId: id, status: 'taken', by: by() });
+    var rec = S().recordDose({ elderId: m.elderId, medId: id, status: 'taken', by: by() });
     App.commit();
     h.closeSheet();
-    h.toast(t('dose.saidTaken')); Voice.say(t('dose.saidTaken'));
+    // An accidental tap can be undone for a few seconds (gives the tablet back, frees the limit).
+    h.toast(t('dose.saidTaken'), { label: t('c.undo'), fn: function () { S().undoDose(rec.id, by()); App.commit(); h.toast(t('prn.undone')); } });
+    Voice.say(t('dose.saidTaken'));
   }
 
   /* ================= Actions ================= */

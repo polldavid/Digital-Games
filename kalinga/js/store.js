@@ -209,6 +209,13 @@
       return self.update('meds', medId, { stock: Object.assign({}, med.stock, { count: round2(count) }) }, by);
     };
 
+    // A purchase or refill: adds to the count (starts counting an untracked med). -> med | null
+    self.addStock = function (medId, qty, by) {
+      var med = self.find('meds', medId);
+      if (!med || typeof qty !== 'number' || !(qty > 0)) return null;
+      return self.update('meds', medId, { stock: Object.assign({}, med.stock, { count: Stk.restock(med, qty) }) }, by);
+    };
+
     /* saveSchedule({ id?, medId, rule, dose?, anchors? }, by) -> { schedule } | { error }
        anchors (optional): one per rule.times entry, { meal, offset } when that time
        follows the elder's routine (e.g. breakfast - 30), or null when set by hand. */
@@ -259,6 +266,17 @@
       if (needles && med.insulin && typeof med.insulin.needles === 'number') patch.insulin = Object.assign({}, med.insulin, { needles: Math.max(0, med.insulin.needles - needles) });
       if (patch.stock || patch.insulin) self.update('meds', med.id, patch, by, true);
     }
+
+    /* Undo a dose recorded by mistake (e.g. an accidental as-needed tap): a taken
+       dose gives back its units and needle; the record becomes a tombstone so it
+       no longer counts for limits or the timeline. -> true | false */
+    self.undoDose = function (doseId, by) {
+      var d = self.find('doses', doseId);
+      if (!d) return false;
+      var med = self.find('meds', d.medId);
+      if (med && d.status === 'taken') adjustStock(med, -(d.units || 0), -1, by);
+      return self.remove('doses', doseId, by);
+    };
 
     // Times (ms) this as-needed med was taken, for schedule.prnAllowed().
     self.prnTaken = function (medId) {

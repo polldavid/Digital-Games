@@ -85,6 +85,8 @@ function serve() {
     await page.click('[data-bind="items.' + esoIdx + '.on"]');
     assert.match(await page.textContent('#sheet [data-action="rx-save"]'), /I-save ang 7 gamot/);
     await tap('#sheet [data-action="rx-save"]');
+    await page.waitForSelector('#sheet [data-action="photo-skip"]'); // next step: pill photos
+    await tap('#sheet [data-action="photo-skip"]');
     await page.waitForSelector('#sheet', { state: 'hidden' });
 
     step('saved: names, times, food, as-needed limit, stock and course dates');
@@ -103,7 +105,7 @@ function serve() {
     assert.match(await page.textContent('#view'), /Rosuvastatin \+ Ezetimibe/);
 
     step('importing the same prescription again (through the button): already-listed medicines start unticked');
-    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), tap('[data-action="rx-import"]')]);
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), tap('[data-action="med-add"]').then(() => tap('#sheet [data-action="rx-import"]'))]);
     await chooser.setFiles(FIXTURE);
     await page.fill('#rx-pw-form input[name=rxpw]', 'sample123');
     await tap('#rx-pw-form button[type=submit]');
@@ -111,6 +113,8 @@ function serve() {
     assert.strictEqual(await page.locator('#sheet .box input[type=checkbox]:checked').count(), 1, 'only Esomeprazole is new');
     assert.match(await page.textContent('#sheet'), /Nasa listahan na/);
     await tap('#sheet [data-action="rx-save"]'); // adds only the new one
+    await page.waitForSelector('#sheet [data-action="photo-skip"]');
+    await tap('#sheet-close');
     await page.waitForSelector('#sheet', { state: 'hidden' });
     assert.strictEqual(await S(() => KalingaApp.store.list('meds').length), 8);
 
