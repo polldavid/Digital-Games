@@ -134,7 +134,7 @@
     var meds = S().list('meds', function (m) { return m.elderId === el.id; }).sort(function (a, b) { return (b.active !== false) - (a.active !== false) || a.name.localeCompare(b.name); });
     var head = '<h1>' + esc(t('meds.title', { name: el.name })) + '</h1><div style="margin:10px 0 14px;display:grid;gap:10px"><button class="btn btn--primary btn--lg btn--block" data-action="med-add">' + esc(t('dash.addMed')) + '</button>' +
       (meds.length && meds.some(function (m) { return m.active !== false && !m.photoId; }) ? '<button class="btn btn--soft btn--block" data-action="photo-run">📷 ' + esc(t('ph.title')) + '</button>' : '') +
-      (meds.length ? '<button class="btn btn--soft btn--block" data-action="voice-run">🎙 ' + esc(t('vo.title')) + '</button>' : '') + '</div>';
+      (meds.length ? '<button class="btn btn--soft btn--block" data-action="voice-run">🎙️ ' + esc(t('vo.title')) + '</button>' : '') + '</div>';
     if (!meds.length) return head + '<div class="card empty">' + esc(t('dash.noMeds', { name: el.name })) + '</div>';
     // Grouped by time of day: a medicine taken morning and night shows in both groups, with its time.
     var groups = { morning: [], noon: [], afternoon: [], evening: [], latenight: [], prn: [], stopped: [] };
@@ -643,7 +643,7 @@
       { key: 'meds', done: meds.length > 0, icon: '💊', attrs: 'data-action="med-add"' },
       { key: 'vitals', done: S().list('vitalTypes', function (x) { return x.elderId === el.id; }).length > 0, icon: '🩺', attrs: 'data-action="go" data-view="vitals"' },
       { key: 'photos', done: (meds.length > 0 && meds.every(function (m) { return m.photoId; })) || !!st.photosSkipped, icon: '📷', attrs: 'data-action="photo-run"' },
-      { key: 'voice', done: !!(el.voice && Object.keys(el.voice).some(function (p) { return el.voice[p]; })) || !!st.voiceSkipped, icon: '🎙', attrs: 'data-action="voice-run"' },
+      { key: 'voice', done: !!(el.voice && Object.keys(el.voice).some(function (p) { return el.voice[p]; })) || !!st.voiceSkipped, icon: '🎙️', attrs: 'data-action="voice-run"' },
       { key: 'test', done: !!st.test, icon: '🔔', attrs: 'data-action="test-alarm"' },
       { key: 'handover', done: !!S().get().device.pin, icon: '🤲', attrs: 'data-action="handover"' }
     ];
@@ -684,6 +684,7 @@
      phone (IndexedDB) as elder.voice[part] = file id; included in backups. */
   var PARTS = ['morning', 'noon', 'afternoon', 'evening'], PART_ICON = { morning: '🌅', noon: '☀️', afternoon: '🌇', evening: '🌙' };
   var vrec = null; // { part, handle } while recording
+  var MIC_ICON = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>', STOP_ICON = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>';
   function partsOf(el) {
     var out = {};
     S().list('meds', function (m) { return m.elderId === el.id && m.active !== false; }).forEach(function (m) {
@@ -693,7 +694,7 @@
     });
     return out;
   }
-  function openVoice() { h.openSheet({ title: '🎙 ' + t('vo.title'), html: voiceHtml, onclose: function () { if (vrec) { Voice.cancelRecording(); vrec = null; } App.render(); } }); }
+  function openVoice() { h.openSheet({ title: '🎙️ ' + t('vo.title'), html: voiceHtml, onclose: function () { if (vrec) { Voice.cancelRecording(); vrec = null; } App.render(); } }); }
   function voiceHtml() {
     var el = elder(); if (!el) return '';
     var parts = partsOf(el), voice = el.voice || {}, any = false;
@@ -702,8 +703,8 @@
       var recHere = vrec && vrec.part === p;
       return '<div class="box voice-part"><div class="voice-part__title">' + PART_ICON[p] + ' ' + esc(t('pod.' + p)) + '</div>' +
         '<span class="field__hint">' + esc(parts[p].sort().map(h.fmtHM).join(', ')) + ' · ' + esc(t('vo.example.' + p, { name: el.name })) + '</span><div class="btn-row">' +
-        (recHere ? '<button class="btn btn--danger" data-action="voice-stop">⏹ ' + esc(t('med.stopRec').replace(/^\S+\s/, '')) + '</button>'
-          : '<button class="btn ' + (has ? '' : 'btn--primary') + '" data-action="voice-rec" data-value="' + p + '"' + (vrec ? ' disabled' : '') + '>🎙 ' + esc(has ? t('vo.redo') : t('vo.record')) + '</button>') +
+        (recHere ? '<button class="btn btn--danger" data-action="voice-stop">' + STOP_ICON + ' ' + esc(t('med.stopRec').replace(/^\S+\s/, '')) + '</button>'
+          : '<button class="btn ' + (has ? '' : 'btn--primary') + '" data-action="voice-rec" data-value="' + p + '"' + (vrec ? ' disabled' : '') + '>' + MIC_ICON + ' ' + esc(has ? t('vo.redo') : t('vo.record')) + '</button>') +
         (has && !recHere ? '<button class="btn" data-action="voice-play" data-value="' + p + '">▶ ' + esc(t('vo.play')) + '</button><button class="btn btn--ghost" data-action="voice-del" data-value="' + p + '" aria-label="' + esc(t('c.delete')) + '">✕</button>' : '') +
         '</div></div>';
     }).join('');

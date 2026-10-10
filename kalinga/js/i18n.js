@@ -142,7 +142,7 @@
     'med.lowDays': ['Paalalahanan kapag ilang araw na lang', 'Warn when this many days are left'],
     'med.voice': ['Boses na paalala', 'Voice reminder'],
     'med.voiceHint': ['I-record ang sarili mong boses: “Pa, inumin mo na ang gamot mo sa umaga.” Kung wala, babasahin ito ng phone.', 'Record your own voice: “Pa, time for your morning medicine.” Without one, the phone reads it out.'],
-    'med.record': ['🎙 I-record', '🎙 Record'],
+    'med.record': ['🎙️ I-record', '🎙️ Record'],
     'med.stopRec': ['⏹ Itigil', '⏹ Stop'],
     'med.play': ['▶ Pakinggan', '▶ Play'],
     'med.stopMed': ['Itigil ang gamot na ito', 'Stop this medicine'],
