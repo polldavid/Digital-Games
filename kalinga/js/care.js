@@ -543,7 +543,10 @@
     out += '<div class="section-title">' + esc(t('more.settings')) + '</div><div class="card form">';
     out += h.field(t('more.lang'), '<div class="seg" role="radiogroup"><label><input type="radio" name="lang" value="tl" data-action-change="set-lang"' + (lang !== 'en' ? ' checked' : '') + ' /><span>Taglish</span></label><label><input type="radio" name="lang" value="en" data-action-change="set-lang"' + (lang === 'en' ? ' checked' : '') + ' /><span>English</span></label></div>');
     out += h.field(t('more.sugarUnit'), '<div class="seg" role="radiogroup"><label><input type="radio" name="sugarUnit" value="mg/dL" data-action-change="set-sugar"' + (st.settings.sugarUnit !== 'mmol/L' ? ' checked' : '') + ' /><span>mg/dL</span></label><label><input type="radio" name="sugarUnit" value="mmol/L" data-action-change="set-sugar"' + (st.settings.sugarUnit === 'mmol/L' ? ' checked' : '') + ' /><span>mmol/L</span></label></div>');
-    out += '<label class="check"><input type="checkbox" data-action-change="set-theme"' + (document.documentElement.getAttribute('data-theme') === 'dark' ? ' checked' : '') + ' /><span>' + esc(t('more.theme')) + '</span></label>';
+    var th = App.themeChoice ? App.themeChoice() : 'light';
+    out += h.field(t('more.theme'), '<div class="seg" role="radiogroup">' + [['light', t('theme.light')], ['dark', t('theme.dark')], ['auto', t('theme.auto')]].map(function (o) {
+      return '<label><input type="radio" name="theme" value="' + o[0] + '" data-action-change="set-theme"' + (th === o[0] ? ' checked' : '') + ' /><span>' + esc(o[1]) + '</span></label>';
+    }).join('') + '</div>');
     out += '<div class="field"><span class="field__label">' + esc(t('more.notify')) + '</span>' + (perm === 'granted' ? '<span class="badge badge--ok">✓ ' + esc(t('more.notifyOk')) + '</span>' : perm === 'denied' ? '<span class="fineprint">' + esc(t('more.notifyBlocked')) + '</span>' : perm === 'unsupported' ? '<span class="fineprint">—</span>' : '<button class="btn btn--soft" data-action="notify-ask">' + esc(t('more.notifyOn')) + '</button>') + '</div>';
     out += '<button class="btn" data-action="pin-set">🔒 ' + esc(st.device.pin ? t('more.pinChange') : t('more.pinSet')) + '</button>';
     out += '<button class="btn" data-action="test-alarm">🔔 ' + esc(t('more.testAlarm')) + '</button>';

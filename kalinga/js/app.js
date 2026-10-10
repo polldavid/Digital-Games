@@ -48,6 +48,24 @@
     h.$('#sheet-close').setAttribute('aria-label', t('c.close'));
   }
 
+  /* ---------- Screen colours ----------
+     'light' (Alaga's day palette), 'dark' (night mode) or 'auto' (follow the
+     phone). Saved per phone in localStorage['kalinga-theme']; the inline script
+     in <head> applies it before the first paint. */
+  var darkQuery = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+  function themeChoice() { try { return localStorage.getItem('kalinga-theme') || 'light'; } catch (e) { return 'light'; } }
+  function applyTheme() {
+    var c = themeChoice(), th = c === 'auto' ? (darkQuery && darkQuery.matches ? 'dark' : 'light') : c;
+    document.documentElement.setAttribute('data-theme', th);
+    var meta = document.querySelector('meta[name=theme-color]');
+    if (meta) meta.setAttribute('content', th === 'dark' ? '#0e1424' : '#f6f4fb');
+    var b = h.$('#theme-btn');
+    if (b) { b.textContent = th === 'dark' ? '☀️' : '🌙'; b.setAttribute('aria-label', th === 'dark' ? t('theme.light') : t('theme.dark')); }
+  }
+  function setTheme(c) { try { localStorage.setItem('kalinga-theme', c); } catch (e) {} applyTheme(); }
+  App.themeChoice = themeChoice;
+  if (darkQuery) { var onScheme = function () { if (themeChoice() === 'auto') applyTheme(); }; if (darkQuery.addEventListener) darkQuery.addEventListener('change', onScheme); else if (darkQuery.addListener) darkQuery.addListener(onScheme); }
+
   /* ---------- Render ---------- */
   var VIEWS = { today: 'today', meds: 'meds', vitals: 'vitals', more: 'more' };
   function render() {
@@ -215,15 +233,12 @@
     'test-alarm': function () { R.setTest(60000); h.toast(t('more.testSet')); },
     'backup': backup,
     'restore-open': function () { h.$('#restore-file').click(); },
-    'erase': erase
+    'erase': erase,
+    'theme-toggle': function () { setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); render(); }
   });
   App.changeActions['set-lang'] = function (n) { st().settings.lang = n.value; S.save(); applyLang(); render(); };
   App.changeActions['set-sugar'] = function (n) { st().settings.sugarUnit = n.value; App.commit(); };
-  App.changeActions['set-theme'] = function (n) {
-    var th = n.checked ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', th);
-    try { localStorage.setItem('kalinga-theme', th); } catch (e) {}
-  };
+  App.changeActions['set-theme'] = function (n) { setTheme(n.value); render(); };
 
   document.addEventListener('click', function (e) {
     var n = e.target.closest && e.target.closest('[data-action]');
@@ -277,5 +292,6 @@
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
 
   applyLang();
+  applyTheme();
   render();
 })();
