@@ -58,7 +58,13 @@
       out.push('<div class="card empty"><p>' + esc(t('dash.noMeds', { name: el.name })) + '</p><button class="btn btn--primary btn--lg" data-action="med-add">' + esc(t('dash.addMed')) + '</button></div>');
     } else {
       var slots = S().timeline(el.id, day, day + DAY, now);
-      out.push('<div class="list">' + (slots.length ? slots.map(function (s) { return slotHtml(s); }).join('') : '<div class="card empty">' + esc(t('el.noMeds')) + '</div>') + '</div>');
+      // Earlier slots that need nothing (done, or due before the medicine was added) fold into one line,
+      // so what still needs attention stands out.
+      var quiet = slots.filter(function (s) { return (s.status === 'done' || s.status === 'before') && s.at < now; });
+      var open = slots.filter(function (s) { return quiet.indexOf(s) < 0; });
+      var nDone = quiet.filter(function (s) { return s.status === 'done'; }).length, nBefore = quiet.length - nDone;
+      if (quiet.length) out.push('<details class="slot-fold"><summary>' + esc(t('dash.fold')) + ' · ' + [nDone ? '✓ ' + t('dash.foldDone', { n: nDone }) : '', nBefore ? t('dash.foldBefore', { n: nBefore }) : ''].filter(Boolean).map(esc).join(' · ') + '</summary><div class="list">' + quiet.map(slotHtml).join('') + '</div></details>');
+      out.push('<div class="list">' + (open.length ? open.map(slotHtml).join('') : slots.length ? '' : '<div class="card empty">' + esc(t('el.noMeds')) + '</div>') + '</div>');
       // adherence: last 7 full days + today so far
       var past = S().timeline(el.id, day - 7 * DAY, now, now), total = 0, taken = 0;
       past.forEach(function (s) { s.items.forEach(function (it) { if (it.status === 'taken') { taken++; total++; } else if (it.status === 'skipped' || it.status === 'unconfirmed') total++; }); });
@@ -81,14 +87,18 @@
   }
   function slotHtml(s) {
     var mark = s.orphan ? '' : s.status;
-    return '<div class="slot' + (mark === 'due' ? ' slot--due' : mark === 'unconfirmed' ? ' slot--unconfirmed' : '') + '"><div><div class="slot__time">' + esc(h.fmtTime(s.at)) + '</div><div class="slot__part">' + esc(t('pod.' + Sch.partOfDay(s.at))) + '</div></div><div class="slot__items">' +
-      s.items.map(function (it) {
+    var sts = s.items.map(function (it) { return it.takenEarlier && it.status !== 'taken' && it.status !== 'skipped' ? 'takenEarlier' : it.status; });
+    var same = sts.every(function (x) { return x === sts[0]; });
+    var badge = function (st) { return '<span class="badge badge--' + (st === 'takenEarlier' ? 'taken' : st) + '">' + k.statusIcon(st) + ' ' + esc(t('st.' + st)) + '</span>'; };
+    return '<div class="slot' + (mark === 'due' ? ' slot--due' : mark === 'unconfirmed' ? ' slot--unconfirmed' : mark === 'before' ? ' slot--before' : '') + '"><div><div class="slot__time">' + esc(h.fmtTime(s.at)) + '</div><div class="slot__part">' + esc(t('pod.' + Sch.partOfDay(s.at))) + '</div></div><div class="slot__items">' +
+      (same ? '<div class="slot__head">' + badge(sts[0]) + (s.items.length > 1 ? '<span class="faint">' + s.items.length + ' ' + esc(t('tab.meds').toLowerCase()) + '</span>' : '') + '</div>' : '') +
+      s.items.map(function (it, i) {
         var m = S().find('meds', it.medId) || { name: '—' };
-        var st = it.takenEarlier && it.status !== 'taken' && it.status !== 'skipped' ? 'takenEarlier' : it.status;
         var u = it.status === 'taken' && it.units != null ? it.units : null;
-        return '<div class="slot__item"><button class="slot__name linkish" data-action="med-edit" data-id="' + esc(it.medId) + '">' + esc(m.name) + (u != null && k.isScale(m) ? ' · ' + esc(u) + ' u' : '') + '</button><span class="badge badge--' + (st === 'takenEarlier' ? 'taken' : st) + '">' + k.statusIcon(st) + ' ' + esc(t('st.' + st)) + '</span></div>';
+        return '<button class="slot__item" data-action="med-edit" data-id="' + esc(it.medId) + '"><span class="slot__name">' + esc(m.name) + (u != null && k.isScale(m) ? ' · ' + esc(u) + ' u' : '') + '</span>' + (same ? '' : badge(sts[i])) + '<span class="slot__chev" aria-hidden="true">›</span></button>';
       }).join('') +
-      (!s.orphan && (s.status === 'due' || s.status === 'unconfirmed') ? '<button class="btn btn--sm btn--soft" data-action="dose-open" data-key="' + esc(s.slotKey) + '">💊 ' + esc(t('st.due')) + '</button>' : '') +
+      (!s.orphan && s.status === 'due' ? '<button class="btn btn--sm btn--soft" data-action="dose-open" data-key="' + esc(s.slotKey) + '">💊 ' + esc(t('st.due')) + '</button>' : '') +
+      (!s.orphan && s.status === 'unconfirmed' ? '<button class="btn btn--sm" data-action="dose-open" data-key="' + esc(s.slotKey) + '">✍️ ' + esc(t('dash.record')) + '</button>' : '') +
       '</div></div>';
   }
   function readingsOf(type) { return S().list('readings', function (r) { return r.vitalTypeId === type.id; }).sort(function (a, b) { return a.at - b.at; }); }

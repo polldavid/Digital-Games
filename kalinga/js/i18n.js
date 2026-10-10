@@ -90,6 +90,11 @@
     'st.unconfirmed': ['Walang kumpirmasyon', 'Not confirmed'],
     'st.due': ['Oras na', 'Due now'],
     'st.upcoming': ['Mamaya', 'Later'],
+    'st.before': ['Bago na-set up', 'Before setup'],
+    'dash.record': ['I-record ang nangyari', 'Record what happened'],
+    'dash.fold': ['Mas maaga ngayong araw', 'Earlier today'],
+    'dash.foldDone': ['{n} tapos na', '{n} done'],
+    'dash.foldBefore': ['{n} bago na-set up', '{n} before setup'],
     'st.takenEarlier': ['Nainom na kanina', 'Already taken earlier'],
 
     // Medicine list + form

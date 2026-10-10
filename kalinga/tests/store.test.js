@@ -238,6 +238,32 @@ assert.strictEqual(S.logReading({ elderId: mama.id, vitalTypeId: 'nope', value: 
   assert.strictEqual(R.find('meds', para.id).stock.count, 30);
 }
 
+/* ---------- doses due before a medicine was added are "before setup", not missed ---------- */
+{
+  clockNow = at(2026, 10, 10, 21, 0);
+  const R = K.create({ storage: memStorage(), now: clock }); R.load();
+  const e = R.addElder({ name: 'Papa' });
+  const m = R.saveMed({ elderId: e.id, name: 'Aspirin', form: 'tablet', dose: { amount: 1, unit: 'tablet' } }).med;
+  R.saveSchedule({ medId: m.id, rule: rule({ start: '2026-10-10', times: ['05:30', '20:45', '22:00'] }) });
+  const day = at(2026, 10, 10), tl = R.timeline(e.id, day, day + DAY, at(2026, 10, 10, 21, 0));
+  assert.deepStrictEqual(tl.map((s) => s.items[0].status), ['before', 'due', 'upcoming'], 'added at 21:00: 05:30 was before setup; 20:45 is still in its window, so it is due');
+  assert.strictEqual(tl[0].status, 'before');
+  // later the same day, 05:30 stays "before setup" (never becomes "not confirmed")
+  assert.strictEqual(R.timeline(e.id, day, day + DAY, at(2026, 10, 10, 23, 0))[0].items[0].status, 'before');
+  // tomorrow is normal
+  const day2 = day + DAY;
+  assert.strictEqual(R.timeline(e.id, day2, day2 + DAY, at(2026, 10, 11, 7, 0))[0].items[0].status, 'unconfirmed');
+  // an answer still wins
+  R.recordDose({ medId: m.id, slotKey: e.id + '@2026-10-10T05:30', status: 'taken' });
+  assert.strictEqual(R.timeline(e.id, day, day + DAY, at(2026, 10, 10, 21, 30))[0].items[0].status, 'taken');
+  // records from before createdAt existed fall back to the change log's "add" time
+  const m2 = R.saveMed({ elderId: e.id, name: 'Old record', form: 'tablet', dose: { amount: 1, unit: 'tablet' } }).med;
+  const s2 = R.saveSchedule({ medId: m2.id, rule: rule({ start: '2026-10-10', times: ['06:00'] }) }).schedule;
+  delete R.find('schedules', s2.id).createdAt;
+  const old = R.timeline(e.id, day, day + DAY, at(2026, 10, 10, 21, 30)).find((s) => s.items.some((i) => i.medId === m2.id));
+  assert.strictEqual(old.items[0].status, 'before', 'no createdAt: the change log says it was added at 21:00');
+}
+
 /* ---------- change log cap ---------- */
 for (let i = 0; i < 600; i++) S.update('elders', mama.id, { allergies: 'a' + i }, 'Poll');
 assert.strictEqual(S.get().changelog.length, 500);

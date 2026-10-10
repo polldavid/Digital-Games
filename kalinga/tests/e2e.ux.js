@@ -87,9 +87,17 @@ function serve() {
     assert.match(meds, /Night med[\s\S]*Tuwing ilang araw: 2[\s\S]*2026-10-20/, 'every-N and the end date show');
     await S(() => { const st = KalingaApp.store; st.list('meds').filter((m) => /Methotrexate|Night med/.test(m.name)).forEach((m) => { st.list('schedules', (x) => x.medId === m.id).forEach((x) => st.remove('schedules', x.id)); st.remove('meds', m.id); }); KalingaApp.commit(); });
 
+    step('a dose due before the medicine was added: "before setup", folded, never "not confirmed"');
+    await S(() => { const st = KalingaApp.store, el = st.list('elders')[0]; const m = st.saveMed({ elderId: el.id, name: 'Early med', form: 'tablet', dose: { amount: 1, unit: 'tablet' } }).med; st.saveSchedule({ medId: m.id, rule: { times: ['05:30'], weekdays: [], everyN: 0, start: '2026-10-10', end: '', prn: false } }); KalingaApp.commit(); });
+    await tap('[data-action="go"][data-view="today"]');
+    const dash = await page.textContent('#view');
+    assert.match(dash, /Mas maaga ngayong araw · 1 bago na-set up/);
+    assert.doesNotMatch(dash, /Walang kumpirmasyon/);
+    await S(() => { const st = KalingaApp.store, m = st.list('meds').find((x) => x.name === 'Early med'); st.list('schedules', (x) => x.medId === m.id).forEach((x) => st.remove('schedules', x.id)); st.remove('meds', m.id); KalingaApp.commit(); });
+
     step('tap a medicine on the dashboard to open it');
     await tap('[data-action="go"][data-view="today"]');
-    await tap('#view .slot__name[data-action="med-edit"]');
+    await tap('#view .slot__item[data-action="med-edit"]');
     await page.waitForSelector('#med-form');
     assert.strictEqual(await page.inputValue('#med-form input[name=name]'), 'Losartan 50mg');
     await tap('#sheet-close');

@@ -141,7 +141,7 @@ legend { padding: 0; }
 }
 button.row { cursor: pointer; }
 .row__main { flex: 1; min-width: 0; }
-.row__title { font-weight: 750; overflow-wrap: anywhere; }
+.row__title { font-weight: 650; overflow-wrap: anywhere; }
 .row__sub { font-size: calc(14 * var(--u)); color: var(--text-dim); overflow-wrap: anywhere; }
 .row__end { flex: none; text-align: right; }
 .thumb { width: 52px; height: 52px; border-radius: 12px; object-fit: cover; flex: none; background: var(--bg-2); }
@@ -156,7 +156,7 @@ button.row { cursor: pointer; }
 .badge--skipped { background: var(--card-2); color: var(--text-dim); }
 .badge--unconfirmed, .badge--bad, .badge--danger, .badge--high, .badge--low { background: var(--bad-bg); color: var(--bad); }
 .badge--due, .badge--above-target, .badge--below-target { background: var(--due-bg); color: var(--due); }
-.badge--upcoming { background: var(--card-2); color: var(--text-dim); }
+.badge--upcoming, .badge--before { background: var(--card-2); color: var(--text-dim); }
 .empty { text-align: center; padding: 26px 16px; color: var(--text-dim); }
 .empty .btn { margin-top: 12px; }
 
@@ -195,7 +195,7 @@ button.row { cursor: pointer; }
 .tab[aria-current="page"] { color: var(--brand); }
 .tab[aria-current="page"] b { text-decoration: underline; text-underline-offset: 4px; }
 /* links that look like text in lists (tap a medicine anywhere to open it) */
-.linkish { background: none; border: none; padding: 0; margin: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; min-height: 32px; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.linkish { background: none; border: none; padding: 0; margin: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; min-height: 32px; }
 .row__time { color: var(--brand); font-weight: 850; }
 .row__note { color: var(--due); font-weight: 700; }
 /* setup checklist */
@@ -215,14 +215,24 @@ body.mode-elder.tx-xlarge { --u: min(calc(1.4rem / 16), 2.8px); }
 .banner--bad { background: var(--bad-bg); border: 1px solid var(--bad-line); color: var(--bad); }
 
 /* timeline */
-.slot { display: grid; grid-template-columns: 76px 1fr; gap: 12px; padding: 12px 14px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+.slot { display: grid; grid-template-columns: 92px 1fr; gap: 12px; padding: 12px 14px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
 .slot--due { border-color: var(--due-line); border-width: 2px; background: var(--due-bg); }
 .slot--unconfirmed { border-color: var(--bad-line); border-width: 2px; }
-.slot__time { font-weight: 850; font-size: calc(17 * var(--u)); }
+.slot__time { font-weight: 850; font-size: calc(17 * var(--u)); white-space: nowrap; }
 .slot__part { font-size: calc(12.5 * var(--u)); color: var(--text-faint); }
 .slot__items { display: grid; gap: 6px; }
-.slot__item { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.slot__name { font-weight: 650; overflow-wrap: anywhere; }
+.slot__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.slot__item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 6px 0; background: none; border: none; border-top: 1px solid var(--line); font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.slot__item:first-of-type { border-top: none; }
+.slot__chev { margin-left: auto; color: var(--text-faint); font-size: calc(22 * var(--u)); line-height: 1; padding-left: 4px; }
+.slot--before { opacity: .85; }
+.slot-fold { margin-bottom: 10px; }
+.slot-fold > summary { cursor: pointer; min-height: 48px; display: flex; align-items: center; padding: 10px 14px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); font-weight: 650; color: var(--text-dim); list-style-position: inside; }
+.slot-fold[open] > summary { margin-bottom: 10px; }
+.slot-fold > summary::-webkit-details-marker { display: none; }
+.slot-fold > summary::after { content: '▾'; margin-left: auto; padding-left: 10px; color: var(--text-faint); font-size: calc(20 * var(--u)); }
+.slot-fold[open] > summary::after { content: '▴'; }
+.slot__name { font-weight: 550; overflow-wrap: anywhere; }
 .stat { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .stat__big { font-size: calc(30 * var(--u)); font-weight: 850; }
 .vtile { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; }

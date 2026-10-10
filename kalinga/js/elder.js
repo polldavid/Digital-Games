@@ -31,7 +31,8 @@
   /* ================= HOME ================= */
   function dayInfo(el, now) {
     var day = h.startOfDay(now);
-    var slots = S().timeline(el.id, day, day + DAY, now).filter(function (s) { return !s.orphan; });
+    // Doses due before a medicine was added don't concern the elder: not shown.
+    var slots = S().timeline(el.id, day, day + DAY, now).filter(function (s) { return !s.orphan && s.status !== 'before'; });
     var open = slots.filter(function (s) { return s.items.some(function (it) { return (it.status === 'due' || it.status === 'unconfirmed') && !it.takenEarlier; }); });
     var next = slots.filter(function (s) { return s.status === 'upcoming'; })[0] || null;
     return { slots: slots, open: open, next: next };

@@ -72,7 +72,7 @@
   }
 
   // Every status carries a symbol as well as a colour and a word.
-  var STATUS_ICON = { taken: '✓', ok: '✓', done: '✓', takenEarlier: '✓', skipped: '✕', unconfirmed: '⚠', due: '⏰', upcoming: '🕒', high: '▲', 'above-target': '▲', low: '▼', 'below-target': '▼', danger: '⚠' };
+  var STATUS_ICON = { taken: '✓', ok: '✓', done: '✓', takenEarlier: '✓', skipped: '✕', unconfirmed: '⚠', due: '⏰', upcoming: '🕒', before: '–', high: '▲', 'above-target': '▲', low: '▼', 'below-target': '▼', danger: '⚠' };
   function statusIcon(st) { return STATUS_ICON[st] || ''; }
 
   // Short label for caregiver badges.

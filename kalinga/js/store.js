@@ -114,6 +114,7 @@
       if (KINDS.indexOf(kind) < 0) throw new Error('unknown kind ' + kind);
       var rec = clone(obj || {});
       rec.id = rec.id || uid();
+      rec.createdAt = rec.createdAt || clock();
       rec.updatedAt = clock();
       rec.by = by || '';
       delete rec.deleted;
@@ -286,7 +287,9 @@
     /* ---------- Today ----------
        Every slot in [from, to) with each medicine's status:
        'taken' | 'skipped' | 'unconfirmed' (past the cutoff, no answer) |
-       'due' (ringing now) | 'upcoming'. A snoozed dose counts as due.
+       'due' (ringing now) | 'upcoming' | 'before' (due and over before the
+       schedule existed: nobody could have confirmed it, so it isn't counted
+       or rung). A snoozed dose counts as due.
        Answered doses whose slot no longer exists (the schedule was moved or
        removed) are still shown, as slots with orphan: true; and a slot item
        still to answer gets takenEarlier: true when the same schedule (or, for
@@ -301,6 +304,13 @@
       if (!elder) return [];
       var doses = {}, used = {}, orphans = {}, out;
       var answered = self.list('doses', function (x) { return x.elderId === elderId && x.slotKey; });
+      // When each schedule started to exist (older records: the change log's "add" entry).
+      var born = {};
+      self.list('schedules').forEach(function (sc) {
+        var t0 = sc.createdAt;
+        if (!t0) st.changelog.forEach(function (c) { if (!t0 && c.recordId === sc.id && c.action === 'add') t0 = c.at; });
+        born[sc.id] = t0 || 0;
+      });
       answered.forEach(function (x) { doses[x.slotKey + '|' + x.medId] = x; });
       out = Sch.slots(elderId, self.list('meds'), self.list('schedules'), from, to).map(function (slot) {
         var cut = Sch.cutoff(slot.at, elder.alerts);
@@ -308,6 +318,7 @@
           var d = doses[slot.slotKey + '|' + it.medId];
           if (d) used[d.id] = 1;
           if (d && (d.status === 'taken' || d.status === 'skipped')) it.status = d.status;
+          else if (born[it.scheduleId] && cut <= born[it.scheduleId]) it.status = 'before';
           else if (now >= cut) it.status = 'unconfirmed';
           else if (now >= slot.at) it.status = 'due';
           else it.status = 'upcoming';
@@ -336,7 +347,8 @@
       });
       out = out.concat(extra).sort(function (a, b) { return a.at - b.at; });
       out.forEach(function (slot) {
-        slot.status = slot.items.every(function (it) { return it.status === 'taken' || it.status === 'skipped'; }) ? 'done'
+        slot.status = slot.items.every(function (it) { return it.status === 'before'; }) ? 'before'
+          : slot.items.every(function (it) { return it.status === 'taken' || it.status === 'skipped' || it.status === 'before'; }) ? 'done'
           : slot.items.some(function (it) { return it.status === 'unconfirmed'; }) ? 'unconfirmed'
           : slot.items.some(function (it) { return it.status === 'due'; }) ? 'due' : 'upcoming';
       });
