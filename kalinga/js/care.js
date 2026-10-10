@@ -133,7 +133,8 @@
     var el = elder(); if (!el) return '';
     var meds = S().list('meds', function (m) { return m.elderId === el.id; }).sort(function (a, b) { return (b.active !== false) - (a.active !== false) || a.name.localeCompare(b.name); });
     var head = '<h1>' + esc(t('meds.title', { name: el.name })) + '</h1><div style="margin:10px 0 14px;display:grid;gap:10px"><button class="btn btn--primary btn--lg btn--block" data-action="med-add">' + esc(t('dash.addMed')) + '</button>' +
-      (meds.length && meds.some(function (m) { return m.active !== false && !m.photoId; }) ? '<button class="btn btn--soft btn--block" data-action="photo-run">📷 ' + esc(t('ph.title')) + '</button>' : '') + '</div>';
+      (meds.length && meds.some(function (m) { return m.active !== false && !m.photoId; }) ? '<button class="btn btn--soft btn--block" data-action="photo-run">📷 ' + esc(t('ph.title')) + '</button>' : '') +
+      (meds.length ? '<button class="btn btn--soft btn--block" data-action="voice-run">🎙 ' + esc(t('vo.title')) + '</button>' : '') + '</div>';
     if (!meds.length) return head + '<div class="card empty">' + esc(t('dash.noMeds', { name: el.name })) + '</div>';
     // Grouped by time of day: a medicine taken morning and night shows in both groups, with its time.
     var groups = { morning: [], noon: [], afternoon: [], evening: [], latenight: [], prn: [], stopped: [] };
@@ -642,6 +643,7 @@
       { key: 'meds', done: meds.length > 0, icon: '💊', attrs: 'data-action="med-add"' },
       { key: 'vitals', done: S().list('vitalTypes', function (x) { return x.elderId === el.id; }).length > 0, icon: '🩺', attrs: 'data-action="go" data-view="vitals"' },
       { key: 'photos', done: (meds.length > 0 && meds.every(function (m) { return m.photoId; })) || !!st.photosSkipped, icon: '📷', attrs: 'data-action="photo-run"' },
+      { key: 'voice', done: !!(el.voice && Object.keys(el.voice).some(function (p) { return el.voice[p]; })) || !!st.voiceSkipped, icon: '🎙', attrs: 'data-action="voice-run"' },
       { key: 'test', done: !!st.test, icon: '🔔', attrs: 'data-action="test-alarm"' },
       { key: 'handover', done: !!S().get().device.pin, icon: '🤲', attrs: 'data-action="handover"' }
     ];
@@ -674,6 +676,49 @@
         '<span class="row__main"><span class="row__title">' + esc(m.name) + '</span><span class="row__sub" style="display:block">' + esc(k.amountText(m)) + '</span></span>' +
         '<label class="btn btn--sm ' + (m.photoId ? '' : 'btn--primary') + '">📷 ' + esc(m.photoId ? t('ph.change') : t('ph.take')) + '<input type="file" accept="image/*" capture="environment" data-action-change="med-photo-direct" data-id="' + esc(m.id) + '" hidden /></label></div>';
     }).join('') + '</div><div class="btn-row sheet-save">' + (missing ? '<button class="btn btn--lg" data-action="photo-skip">' + esc(t('ph.skip')) + '</button>' : '') + '<button class="btn btn--primary btn--lg" data-action="sheet-close">' + esc(t('c.done')) + '</button></div>';
+  }
+
+  /* ================= VOICE RECORDINGS (one per part of the day) =================
+     The caregiver's own voice ("Pa, gamot mo sa umaga 💊") plays when any dose in
+     that part of the day rings, before the phone reads the medicines. Stored on this
+     phone (IndexedDB) as elder.voice[part] = file id; included in backups. */
+  var PARTS = ['morning', 'noon', 'afternoon', 'evening'], PART_ICON = { morning: '🌅', noon: '☀️', afternoon: '🌇', evening: '🌙' };
+  var vrec = null; // { part, handle } while recording
+  function partsOf(el) {
+    var out = {};
+    S().list('meds', function (m) { return m.elderId === el.id && m.active !== false; }).forEach(function (m) {
+      S().list('schedules', function (x) { return x.medId === m.id && x.rule && !x.rule.prn; }).forEach(function (x) {
+        x.rule.times.forEach(function (tm) { var p = tm.split(':'), d0 = new Date(); d0.setHours(+p[0], +p[1], 0, 0); var part = Sch.partOfDay(d0.getTime()); (out[part] = out[part] || []).indexOf(tm) < 0 && out[part].push(tm); });
+      });
+    });
+    return out;
+  }
+  function openVoice() { h.openSheet({ title: '🎙 ' + t('vo.title'), html: voiceHtml, onclose: function () { if (vrec) { Voice.cancelRecording(); vrec = null; } App.render(); } }); }
+  function voiceHtml() {
+    var el = elder(); if (!el) return '';
+    var parts = partsOf(el), voice = el.voice || {}, any = false;
+    var rows = PARTS.filter(function (p) { return parts[p]; }).map(function (p) {
+      var has = !!voice[p]; if (has) any = true;
+      var recHere = vrec && vrec.part === p;
+      return '<div class="box voice-part"><div class="voice-part__title">' + PART_ICON[p] + ' ' + esc(t('pod.' + p)) + '</div>' +
+        '<span class="field__hint">' + esc(parts[p].sort().map(h.fmtHM).join(', ')) + ' · ' + esc(t('vo.example.' + p, { name: el.name })) + '</span><div class="btn-row">' +
+        (recHere ? '<button class="btn btn--danger" data-action="voice-stop">⏹ ' + esc(t('med.stopRec').replace(/^\S+\s/, '')) + '</button>'
+          : '<button class="btn ' + (has ? '' : 'btn--primary') + '" data-action="voice-rec" data-value="' + p + '"' + (vrec ? ' disabled' : '') + '>🎙 ' + esc(has ? t('vo.redo') : t('vo.record')) + '</button>') +
+        (has && !recHere ? '<button class="btn" data-action="voice-play" data-value="' + p + '">▶ ' + esc(t('vo.play')) + '</button><button class="btn btn--ghost" data-action="voice-del" data-value="' + p + '" aria-label="' + esc(t('c.delete')) + '">✕</button>' : '') +
+        '</div></div>';
+    }).join('');
+    if (!rows) return '<div class="card empty"><p>' + esc(t('dash.noMeds', { name: el.name })) + '</p><button class="btn btn--primary btn--lg" data-action="med-add">' + esc(t('dash.addMed')) + '</button></div>';
+    return '<p class="note">' + esc(t('vo.hint', { name: el.name })) + '</p><div style="display:grid;gap:12px;margin-top:12px">' + rows + '</div>' +
+      (Voice.canRecord() ? '' : '<p class="note note--bad">' + esc(t('vo.noMic')) + '</p>') +
+      '<div class="btn-row sheet-save">' + (any ? '' : '<button class="btn btn--lg" data-action="voice-skip">' + esc(t('ph.skip')) + '</button>') + '<button class="btn btn--primary btn--lg" data-action="sheet-close">' + esc(t('c.done')) + '</button></div>';
+  }
+  function setVoice(part, id) {
+    var el = elder(); if (!el) return;
+    var v = Object.assign({}, el.voice || {}), old = v[part];
+    if (id) v[part] = id; else delete v[part];
+    S().update('elders', el.id, { voice: v }, by());
+    App.commit();
+    if (old && old !== id) F.remove(old).catch(function () {});
   }
 
   /* ================= QUICK REFILL ================= */
@@ -751,6 +796,19 @@
     'med-new': function () { openMed(null); },
     'med-add': openAdd,
     'photo-run': function () { openPhotos(''); },
+    'voice-run': openVoice,
+    'voice-rec': function (n) {
+      var part = n.getAttribute('data-value');
+      Voice.record().then(function (handle) { vrec = { part: part, handle: handle }; h.renderSheet(); }).catch(function () { h.toast(t('rd.micBlocked')); });
+    },
+    'voice-stop': function () {
+      if (!vrec) return;
+      var r = vrec; vrec = null;
+      r.handle.stop().then(function (id) { setVoice(r.part, id); h.renderSheet(); Voice.play(id).catch(function () {}); }).catch(function () { h.renderSheet(); });
+    },
+    'voice-play': function (n) { var el = elder(), id = el && el.voice && el.voice[n.getAttribute('data-value')]; if (id) Voice.play(id).catch(function () {}); },
+    'voice-del': function (n) { var part = n.getAttribute('data-value'); h.ask({ title: t('vo.delAsk'), ok: t('c.delete'), danger: true }, function () { setVoice(part, null); h.renderSheet(); }); },
+    'voice-skip': function () { markSetup({ voiceSkipped: true }); App.commit(); h.closeSheet(); App.render(); },
     'photo-skip': function () { markSetup({ photosSkipped: true }); App.commit(); h.closeSheet(); App.render(); },
     'setup-hide': function () { markSetup({ dismissed: true }); App.commit(); },
     'refill': function (n) { openRefill(n.getAttribute('data-id')); },

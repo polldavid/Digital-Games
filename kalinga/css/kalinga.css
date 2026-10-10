@@ -197,6 +197,7 @@ button.row { cursor: pointer; }
 /* links that look like text in lists (tap a medicine anywhere to open it) */
 .linkish { background: none; border: none; padding: 0; margin: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; min-height: 32px; }
 .row__time { color: var(--brand); font-weight: 850; }
+.voice-part__title { font-weight: 850; font-size: calc(18 * var(--u)); }
 .row__note { color: var(--due); font-weight: 700; }
 /* setup checklist */
 .setup { margin: 8px 0 4px; display: grid; gap: 10px; }

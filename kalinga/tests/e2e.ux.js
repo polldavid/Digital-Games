@@ -28,8 +28,8 @@ function serve() {
 (async () => {
   const server = await serve();
   const base = 'http://localhost:' + server.address().port + '/';
-  const browser = await chromium.launch({ headless: !process.env.HEADED });
-  const ctx = await browser.newContext({ ...devices['Pixel 7'], timezoneId: 'Asia/Manila', locale: 'en-PH', serviceWorkers: 'block' });
+  const browser = await chromium.launch({ headless: !process.env.HEADED, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
+  const ctx = await browser.newContext({ ...devices['Pixel 7'], timezoneId: 'Asia/Manila', locale: 'en-PH', serviceWorkers: 'block', permissions: ['microphone'] });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -49,11 +49,11 @@ function serve() {
 
     step('setup checklist: nothing ticked by just saving the welcome profile; routine first');
     await page.waitForSelector('.setup');
-    assert.strictEqual(await setup(), '0 / 6');
+    assert.strictEqual(await setup(), '0 / 7');
     assert.match(await page.textContent('.setup__step--next'), /Oras ng kain at tulog/);
     await tap('.setup [data-action="profile-open"]');
     await tap('[data-action="profile-save"]');
-    assert.strictEqual(await setup(), '1 / 6', 'saving the routine from the checklist ticks it');
+    assert.strictEqual(await setup(), '1 / 7', 'saving the routine from the checklist ticks it');
     assert.match(await page.textContent('.setup__step--next'), /Mga gamot/);
 
     step('one "Add medicine" button opens the chooser (PDF, type it in, photo soon)');
@@ -69,7 +69,7 @@ function serve() {
     await tap('[data-action="med-save"]');
     await page.waitForSelector('#sheet', { state: 'hidden' });
     await S(() => { const st = KalingaApp.store, el = st.list('elders')[0]; st.saveMed({ elderId: el.id, name: 'Paracetamol 500mg', form: 'tablet', dose: { amount: 1, unit: 'tablet' }, prn: { minGapMin: 240, maxPerDay: 4 }, stock: { count: 10 } }); KalingaApp.commit(); });
-    assert.strictEqual(await setup(), '2 / 6');
+    assert.strictEqual(await setup(), '2 / 7');
 
     step('medicines grouped by time of day; weekly and late-night doses are clear');
     await S(() => { const st = KalingaApp.store, el = st.list('elders')[0];
@@ -119,12 +119,30 @@ function serve() {
     step('checklist: vitals, test alarm, then hand over');
     await S(() => { const st = KalingaApp.store, el = st.list('elders')[0]; st.add('vitalTypes', Object.assign(KalingaVitals.template('sugar'), { elderId: el.id })); KalingaApp.commit(); });
     await tap('[data-action="go"][data-view="today"]');
-    assert.strictEqual(await setup(), '4 / 6');
+    assert.strictEqual(await setup(), '4 / 7');
+    step('voice: one recording per part of the day, from the checklist; played when that time rings');
+    await tap('.setup [data-action="voice-run"]');
+    assert.deepStrictEqual(await page.$$eval('#sheet .voice-part__title', (n) => n.map((x) => x.textContent.trim().replace(/^\S+\s/, ''))), ['Umaga', 'Gabi'], 'only the parts of the day that have medicines');
+    await tap('#sheet [data-action="voice-rec"][data-value="morning"]');
+    await page.waitForSelector('#sheet [data-action="voice-stop"]');
+    await page.waitForTimeout(400);
+    await tap('#sheet [data-action="voice-stop"]');
+    await page.waitForFunction(() => { const e = KalingaApp.store.list('elders')[0]; return e.voice && e.voice.morning; });
+    assert.ok(await page.$('#sheet [data-action="voice-play"][data-value="morning"]'), 'can listen to it');
+    await tap('#sheet [data-action="sheet-close"].btn');
+    assert.strictEqual(await setup(), '5 / 7');
+    const clip = await S(() => KalingaApp.store.list('elders')[0].voice.morning);
+    const played = await S(() => {
+      KalingaElder.openDose(KalingaApp.store.timeline(KalingaApp.store.list('elders')[0].id, new Date(2026, 9, 10).getTime(), new Date(2026, 9, 11).getTime(), Date.now()).find((x) => new Date(x.at).getHours() < 11).slotKey, false);
+      const calls = [], real = KalingaVoice.play; KalingaVoice.play = (id) => { calls.push(id); return Promise.resolve(); };
+      document.querySelector('#dose [data-action="dose-speak"]').click(); // same playback as the alarm
+      KalingaVoice.play = real; KalingaElder.closeDose(); return calls; });
+    assert.deepStrictEqual(played, [clip], 'the morning alarm plays the morning recording');
     await tap('.setup [data-action="test-alarm"]');
     await page.clock.runFor(61000);
     await page.waitForSelector('#sheet:not([hidden])');
     await tap('#sheet .el-btn[data-action="sheet-close"]');
-    assert.strictEqual(await setup(), '5 / 6');
+    assert.strictEqual(await setup(), '6 / 7');
     assert.ok(await page.$('.setup .setup__step--next[data-action="handover"]'), 'only the hand-over is left');
 
     step('elder text size: Pinakamalaki, and nothing scrolls sideways at 320px');

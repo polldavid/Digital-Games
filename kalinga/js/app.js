@@ -159,7 +159,7 @@
   /* ---------- Backup ---------- */
   function fileIds() {
     var ids = [];
-    S.get().elders.forEach(function (e) { if (e.photoId) ids.push(e.photoId); });
+    S.get().elders.forEach(function (e) { if (e.photoId) ids.push(e.photoId); Object.keys(e.voice || {}).forEach(function (p) { if (e.voice[p]) ids.push(e.voice[p]); }); });
     S.get().meds.forEach(function (m) { if (m.photoId) ids.push(m.photoId); if (m.voiceId) ids.push(m.voiceId); });
     S.get().readings.forEach(function (r) { if (r.photoId) ids.push(r.photoId); });
     return ids;

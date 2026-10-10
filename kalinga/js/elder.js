@@ -240,7 +240,9 @@
       return t('dose.speechItem', { amount: u != null ? k.amountText(m, u) : 'insulin', med: m.name, purpose: m.purpose || '' }).replace(/, \.$/, '.');
     }).join(' ');
     var text = t('dose.speech', { name: el ? el.name : '', list: list });
-    var clip = dose.items.map(function (it) { var m = S().find('meds', it.medId); return m && m.voiceId; }).filter(Boolean)[0];
+    // The family's recording for this part of the day first; else a medicine's own clip; else the phone's voice.
+    var partClip = el && el.voice && el.voice[Sch.partOfDay(dose.at)];
+    var clip = partClip || dose.items.map(function (it) { var m = S().find('meds', it.medId); return m && m.voiceId; }).filter(Boolean)[0];
     if (clip) Voice.play(clip, { onend: function () { Voice.say(list, { onend: done }); } }).catch(function () { Voice.say(text, { onend: done }); });
     else Voice.say(text, { onend: done });
   }
