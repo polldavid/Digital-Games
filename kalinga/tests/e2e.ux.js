@@ -47,9 +47,13 @@ function serve() {
     await tap('#welcome-form button[type=submit]');
     await tap('[data-action="profile-save"]');
 
-    step('setup checklist: routine done, medicines next');
+    step('setup checklist: nothing ticked by just saving the welcome profile; routine first');
     await page.waitForSelector('.setup');
-    assert.strictEqual(await setup(), '1 / 6');
+    assert.strictEqual(await setup(), '0 / 6');
+    assert.match(await page.textContent('.setup__step--next'), /Oras ng kain at tulog/);
+    await tap('.setup [data-action="profile-open"]');
+    await tap('[data-action="profile-save"]');
+    assert.strictEqual(await setup(), '1 / 6', 'saving the routine from the checklist ticks it');
     assert.match(await page.textContent('.setup__step--next'), /Mga gamot/);
 
     step('one "Add medicine" button opens the chooser (PDF, type it in, photo soon)');
@@ -67,11 +71,21 @@ function serve() {
     await S(() => { const st = KalingaApp.store, el = st.list('elders')[0]; st.saveMed({ elderId: el.id, name: 'Paracetamol 500mg', form: 'tablet', dose: { amount: 1, unit: 'tablet' }, prn: { minGapMin: 240, maxPerDay: 4 }, stock: { count: 10 } }); KalingaApp.commit(); });
     assert.strictEqual(await setup(), '2 / 6');
 
-    step('medicines grouped by time of day');
+    step('medicines grouped by time of day; weekly and late-night doses are clear');
+    await S(() => { const st = KalingaApp.store, el = st.list('elders')[0];
+      const w = st.saveMed({ elderId: el.id, name: 'Methotrexate 2.5mg', form: 'tablet', dose: { amount: 4, unit: 'tablet' } }).med;
+      st.saveSchedule({ medId: w.id, rule: { times: ['08:00'], weekdays: [1], everyN: 0, start: '2026-10-10', end: '', prn: false } });
+      const n = st.saveMed({ elderId: el.id, name: 'Night med', form: 'tablet', dose: { amount: 1, unit: 'tablet' } }).med;
+      st.saveSchedule({ medId: n.id, rule: { times: ['02:00'], weekdays: [], everyN: 2, start: '2026-10-10', end: '2026-10-20', prn: false } });
+      KalingaApp.commit(); });
     await tap('[data-action="go"][data-view="meds"]');
     const titles = await page.$$eval('#view .section-title', (n) => n.map((x) => x.textContent));
-    assert.deepStrictEqual(titles, ['Umaga', 'Gabi', 'Kung kailangan lang']);
-    assert.match(await page.textContent('#view'), /8:00 PM Losartan 50mg/);
+    assert.deepStrictEqual(titles, ['Umaga', 'Gabi', 'Hatinggabi / madaling-araw', 'Kung kailangan lang'], 'late-night doses get their own group, after evening');
+    const meds = await page.textContent('#view');
+    assert.match(meds, /8:00 PM Losartan 50mg/);
+    assert.match(meds, /Methotrexate 2\.5mg[\s\S]*Lun/, 'a weekly medicine shows its day');
+    assert.match(meds, /Night med[\s\S]*Tuwing ilang araw: 2[\s\S]*2026-10-20/, 'every-N and the end date show');
+    await S(() => { const st = KalingaApp.store; st.list('meds').filter((m) => /Methotrexate|Night med/.test(m.name)).forEach((m) => { st.list('schedules', (x) => x.medId === m.id).forEach((x) => st.remove('schedules', x.id)); st.remove('meds', m.id); }); KalingaApp.commit(); });
 
     step('tap a medicine on the dashboard to open it');
     await tap('[data-action="go"][data-view="today"]');
@@ -103,6 +117,7 @@ function serve() {
     await page.waitForSelector('#sheet:not([hidden])');
     await tap('#sheet .el-btn[data-action="sheet-close"]');
     assert.strictEqual(await setup(), '5 / 6');
+    assert.ok(await page.$('.setup .setup__step--next[data-action="handover"]'), 'only the hand-over is left');
 
     step('elder text size: Pinakamalaki, and nothing scrolls sideways at 320px');
     await tap('[data-action="go"][data-view="more"]');
@@ -116,14 +131,37 @@ function serve() {
     assert.ok(await S(() => document.documentElement.scrollWidth) <= 320, 'no sideways scroll at the largest text');
     await page.setViewportSize({ width: 412, height: 915 });
 
-    step('as-needed dose: an accidental tap can be undone');
+    step('pain faces fit a 320px screen at the largest text');
+    await S(() => { const st = KalingaApp.store, el = st.list('elders')[0]; st.add('vitalTypes', Object.assign(KalingaVitals.template('symptom', { name: 'Pain' }), { elderId: el.id })); KalingaApp.commit(); });
+    await page.setViewportSize({ width: 320, height: 640 });
+    await tap('[data-action="measure-open"]');
+    await tap('#sheet [data-action="rd-start"]:has-text("Sakit / kirot")');
+    assert.ok(await S(() => document.querySelector('#sheet-body').scrollWidth) <= 320, 'faces do not scroll sideways');
+    const lastFace = await S(() => { const r = document.querySelector('#sheet [data-action="rd-face"][data-value="5"]').getBoundingClientRect(); return r.right; });
+    assert.ok(lastFace <= 320, 'the worst-pain face is on screen');
+    await tap('#sheet-close');
+
+    step('dose card at the largest text on a small phone: the first pill is visible above the buttons');
+    await S(() => KalingaElder.openDose(KalingaApp.store.timeline(KalingaApp.store.list('elders')[0].id, new Date(2026, 9, 10).getTime(), new Date(2026, 9, 11).getTime(), Date.now()).find((s) => s.items.length).slotKey, false));
+    const vis = await S(() => { const m = document.querySelector('#dose .dmed'), a = document.querySelector('#dose .dose__actions'); const r = m.getBoundingClientRect(), ra = a.getBoundingClientRect(); return { medBottom: r.bottom, actionsTop: ra.top, vh: innerHeight }; });
+    assert.ok(vis.medBottom <= vis.actionsTop + 1 && vis.medBottom <= vis.vh, 'first medicine not hidden behind the action buttons ' + JSON.stringify(vis));
+    await S(() => KalingaElder.closeDose());
+    await page.setViewportSize({ width: 412, height: 915 });
+
+    step('as-needed dose: "taken" screen, and undo needs a clear yes');
     await tap('[data-action="prn-open"]');
     await tap('#sheet [data-action="prn-take"]');
-    await page.waitForSelector('#toasts button');
+    await page.waitForSelector('#sheet [data-action="prn-undo"]');
     assert.strictEqual(await S(() => KalingaApp.store.list('meds').find((m) => m.name.indexOf('Paracetamol') === 0).stock.count), 9);
-    await tap('#toasts button');
+    await tap('#sheet [data-action="prn-undo"]');
+    await page.waitForSelector('#confirm[open]');
+    assert.match(await page.textContent('#confirm'), /Paracetamol/);
+    await tap('#confirm-ok');
     assert.strictEqual(await S(() => KalingaApp.store.list('meds').find((m) => m.name.indexOf('Paracetamol') === 0).stock.count), 10, 'tablet back');
     assert.strictEqual(await S(() => KalingaApp.store.prnTaken(KalingaApp.store.list('meds').find((m) => m.name.indexOf('Paracetamol') === 0).id).length), 0, 'limit freed');
+
+    assert.match(await page.textContent('#sheet'), /Iinom ako ngayon/, 'back to the list, can take one again');
+    await tap('#sheet-close');
 
     step('back in caregiver mode: setup complete, the checklist is gone');
     await tap('[data-action="pin-open"]');

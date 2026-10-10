@@ -485,10 +485,17 @@
   /* ================= MEDICINE WHEN NEEDED ================= */
   function openPrn() {
     var el = elder(); if (!el) return;
-    h.openSheet({ elder: true, title: t('prn.title'), html: prnHtml });
+    prnDone = null;
+    h.openSheet({ elder: true, title: t('prn.title'), html: prnHtml, onclose: function () { prnDone = null; App.render(); } });
   }
+  var prnDone = null; // { doseId, name } right after "Iinom ako ngayon"
   function prnHtml() {
     var el = elder(), now = Date.now();
+    if (prnDone) {
+      return '<div class="dose__done" role="status"><span class="dose__done-icon" aria-hidden="true">👏</span><p>' + esc(t('prn.takenNow', { name: prnDone.name })) + '</p></div>' +
+        '<div style="display:grid;gap:12px"><button class="btn btn--primary el-btn el-btn--huge" data-action="sheet-close">' + esc(t('c.done')) + '</button>' +
+        '<button class="btn el-btn" data-action="prn-undo">' + esc(t('prn.notTaken')) + '</button></div>';
+    }
     var meds = S().list('meds', function (m) { return m.elderId === el.id && m.active !== false && m.prn && isPrnOnly(m); });
     return '<div class="el-choices">' + meds.map(function (m) {
       var taken = S().prnTaken(m.id), last = taken.length ? Math.max.apply(null, taken) : null, ok = Sch.prnAllowed(m, taken, now);
@@ -505,10 +512,11 @@
     var ok = Sch.prnAllowed(m, S().prnTaken(id), now);
     if (!ok.ok) { h.renderSheet(); return; }
     var rec = S().recordDose({ elderId: m.elderId, medId: id, status: 'taken', by: by() });
+    if (!rec) return;
     App.commit();
-    h.closeSheet();
-    // An accidental tap can be undone for a few seconds (gives the tablet back, frees the limit).
-    h.toast(t('dose.saidTaken'), { label: t('c.undo'), fn: function () { S().undoDose(rec.id, by()); App.commit(); h.toast(t('prn.undone')); } });
+    // A clear "taken" screen; undoing an accidental tap is a separate, confirmed choice.
+    prnDone = { doseId: rec.id, name: m.name };
+    h.renderSheet();
     Voice.say(t('dose.saidTaken'));
   }
 
@@ -560,7 +568,18 @@
     'rd-face-save': function () { if (rd.value) saveReading('tap'); },
     'rd-done': function () { h.closeSheet(); App.render(); },
     'prn-open': openPrn,
-    'prn-take': function (n) { takePrn(n.getAttribute('data-id')); }
+    'prn-take': function (n) { takePrn(n.getAttribute('data-id')); },
+    'prn-undo': function () {
+      if (!prnDone) return;
+      var p = prnDone;
+      h.ask({ title: t('prn.undoAsk', { name: p.name }), text: t('prn.undoText'), ok: t('prn.undoYes'), cancel: t('c.no') }, function () {
+        S().undoDose(p.doseId, by());
+        App.commit();
+        prnDone = null;
+        h.renderSheet();
+        Voice.say(t('prn.undone'));
+      });
+    }
   });
   App.changeActions = App.changeActions || {};
   App.changeActions['rd-photo'] = function (input) {

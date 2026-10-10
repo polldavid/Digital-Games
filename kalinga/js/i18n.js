@@ -457,6 +457,12 @@
     'refill.custom': ['Ilan ang nadagdag', 'How many were added'],
     'refill.untracked': ['Hindi pa binibilang — magsisimula ang bilang dito.', 'Not counted yet — counting starts now.'],
     'refill.done': ['{name}: {n} na ngayon', '{name}: {n} now'],
+    'prn.takenNow': ['Naitala: uminom ka ng {name}.', 'Recorded: you took {name}.'],
+    'prn.notTaken': ['Mali — hindi ko ininom', 'Mistake — I didn’t take it'],
+    'prn.undoAsk': ['Hindi mo ininom ang {name}?', 'You didn’t take {name}?'],
+    'prn.undoText': ['Buburahin ang naitala at ibabalik ang tableta sa bilang.', 'The record is removed and the tablet goes back in the count.'],
+    'prn.undoYes': ['Oo, hindi ko ininom', 'Yes, I didn’t take it'],
+    'pod.latenight': ['Hatinggabi / madaling-araw', 'Late night'],
     'prn.undone': ['Na-undo', 'Undone'],
     // Elder text size
     'more.textSize': ['Laki ng letra sa screen ni {name}', 'Text size on {name}’s screen'],

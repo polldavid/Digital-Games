@@ -171,6 +171,14 @@
     };
   }
 
+  /* Meal links for the times actually being saved, worked out against the FINAL
+     routine: a time equal to what the routine gives keeps its meal; any other
+     time (typed by hand) gets null, so a later routine change never moves it. */
+  function anchorsFor(item, routine, times) {
+    var d = draft(item, routine);
+    return (times || []).map(function (tm) { var i = d.times.indexOf(tm); return i >= 0 ? d.anchors[i] : null; });
+  }
+
   /* ---------- Purpose suggestions ----------
      General drug classes, shown as a suggestion the caregiver can change. */
   var PURPOSES = [
@@ -201,7 +209,7 @@
     return (day(today) - day(rxDate)) / DAY <= 30 ? rxDate : today;
   }
 
-  var api = { parse: parse, draft: draft, purposeFor: purposeFor, endDate: endDate, startDate: startDate, ROUTINE: ROUTINE };
+  var api = { parse: parse, draft: draft, anchorsFor: anchorsFor, purposeFor: purposeFor, endDate: endDate, startDate: startDate, ROUTINE: ROUTINE };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.KalingaRxImport = api;
 })(this);

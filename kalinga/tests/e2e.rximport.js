@@ -79,6 +79,14 @@ function serve() {
     assert.match(await page.inputValue('[data-bind="items.0.timesText"]'), /^07:00, 12:00, 19:00$/);
     assert.strictEqual(await page.inputValue('[data-bind="items.0.purpose"]'), 'para sa sugar');
 
+    step('routine box: typing keeps focus; times follow on change');
+    await page.focus('#sheet input[name=rr_lunch]');
+    await page.keyboard.press('ArrowUp');
+    assert.strictEqual(await S(() => document.activeElement && document.activeElement.name), 'rr_lunch', 'focus stays in the field while typing');
+    await page.fill('#sheet input[name=rr_lunch]', '12:00');
+    await page.dispatchEvent('#sheet input[name=rr_lunch]', 'change');
+    assert.match(await page.inputValue('[data-bind="items.0.timesText"]'), /^07:00, 12:00, 19:00$/);
+
     step('the caregiver edits: Metformin times, and leaves out Esomeprazole');
     await page.fill('[data-bind="items.0.timesText"]', '06:30, 12:00, 18:30');
     const esoIdx = await S(() => KalingaApp.ui.draft.items.findIndex((x) => x.name.indexOf('Esomeprazole') === 0));
@@ -148,6 +156,7 @@ function serve() {
     await tap('[data-action="profile-save"]');
     await page.waitForSelector('#confirm[open]');
     await tap('#confirm-cancel');
+    assert.deepStrictEqual(await S(() => KalingaApp.store.routineShift(KalingaApp.store.list('elders')[0].id, KalingaApp.store.list('elders')[0].routine)), [], '"Huwag" detaches those times: never proposed again');
     assert.strictEqual(await S(() => KalingaApp.store.list('schedules', (x) => KalingaApp.store.find('meds', x.medId).name.indexOf('Rosuvastatin') === 0)[0].rule.times.join()), '21:00');
 
     assert.deepStrictEqual(errors, [], 'page errors');

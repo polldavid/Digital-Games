@@ -33,15 +33,17 @@
     for (var i = 0; i < p.length - 1; i++) { if (o[p[i]] == null) o[p[i]] = /^\d+$/.test(p[i + 1]) ? [] : {}; o = o[p[i]]; }
     o[p[p.length - 1]] = v;
   }
-  function bound(el) {
+  function bound(el, ev) {
     var d = App.ui.draft; if (!d) return;
     var v = el.type === 'checkbox' ? el.checked : el.value;
     if (el.getAttribute('data-num') != null && el.type !== 'checkbox') v = el.value === '' ? null : parseFloat(el.value);
     setPath(d, el.getAttribute('data-bind'), v);
-    if (el.hasAttribute('data-rerender')) h.renderSheet();
+    // Re-render only when a value is committed (change), never while typing (input):
+    // replacing the field mid-typing loses focus and closes time pickers.
+    if (el.hasAttribute('data-rerender') && ev && ev.type === 'change') h.renderSheet();
   }
-  document.addEventListener('input', function (e) { var el = e.target.closest && e.target.closest('[data-bind]'); if (el && el.type !== 'radio' && el.tagName !== 'SELECT') bound(el); });
-  document.addEventListener('change', function (e) { var el = e.target.closest && e.target.closest('[data-bind]'); if (el) bound(el); });
+  document.addEventListener('input', function (e) { var el = e.target.closest && e.target.closest('[data-bind]'); if (el && el.type !== 'radio' && el.tagName !== 'SELECT') bound(el, e); });
+  document.addEventListener('change', function (e) { var el = e.target.closest && e.target.closest('[data-bind]'); if (el) bound(el, e); });
   function bind(path, rerender) { return ' data-bind="' + path + '"' + (rerender ? ' data-rerender' : ''); }
   function numBind(path, rerender) { return bind(path, rerender) + ' data-num'; }
   function v(x) { return x == null ? '' : esc(x); }
@@ -108,6 +110,14 @@
     var days = (rule.weekdays || []).length ? rule.weekdays.map(function (d) { return WEEKDAYS()[d]; }).join(' ') : rule.everyN > 1 ? t('med.everyN') + ': ' + rule.everyN : t('meds.everyDay');
     return times + ' · ' + days + (rule.end ? ' → ' + rule.end : '');
   }
+  // What a single time can't say: which days, every how many days, until when ('' when daily with no end).
+  function ruleNote(rule) {
+    var parts = [];
+    if ((rule.weekdays || []).length) parts.push('📅 ' + rule.weekdays.map(function (d) { return WEEKDAYS()[d]; }).join(' '));
+    else if (rule.everyN > 1) parts.push('📅 ' + t('med.everyN') + ': ' + rule.everyN);
+    if (rule.end) parts.push(t('rx.until') + ' ' + rule.end);
+    return parts.join(' · ');
+  }
   function WEEKDAYS() { return I.getLang() === 'en' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] : ['Lin', 'Lun', 'Mar', 'Miy', 'Huw', 'Biy', 'Sab']; }
   function medsView() {
     var el = elder(); if (!el) return '';
@@ -116,15 +126,15 @@
       (meds.length && meds.some(function (m) { return m.active !== false && !m.photoId; }) ? '<button class="btn btn--soft btn--block" data-action="photo-run">📷 ' + esc(t('ph.title')) + '</button>' : '') + '</div>';
     if (!meds.length) return head + '<div class="card empty">' + esc(t('dash.noMeds', { name: el.name })) + '</div>';
     // Grouped by time of day: a medicine taken morning and night shows in both groups, with its time.
-    var groups = { morning: [], noon: [], afternoon: [], evening: [], prn: [], stopped: [] };
+    var groups = { morning: [], noon: [], afternoon: [], evening: [], latenight: [], prn: [], stopped: [] };
     meds.forEach(function (m) {
       if (m.active === false) { groups.stopped.push({ m: m }); return; }
       var sch = schedulesOf(m)[0];
       if (!sch || !sch.rule || sch.rule.prn) { groups.prn.push({ m: m }); return; }
-      sch.rule.times.forEach(function (tm) { var p = tm.split(':'), d0 = new Date(); d0.setHours(+p[0], +p[1], 0, 0); groups[Sch.partOfDay(d0.getTime())].push({ m: m, tm: tm }); });
+      sch.rule.times.forEach(function (tm) { var hh = +tm.split(':')[0], p = tm.split(':'), d0 = new Date(); d0.setHours(+p[0], +p[1], 0, 0); groups[hh < 4 ? 'latenight' : Sch.partOfDay(d0.getTime())].push({ m: m, tm: tm, rule: sch.rule }); });
     });
     var out = head;
-    ['morning', 'noon', 'afternoon', 'evening', 'prn', 'stopped'].forEach(function (g) {
+    ['morning', 'noon', 'afternoon', 'evening', 'latenight', 'prn', 'stopped'].forEach(function (g) {
       if (!groups[g].length) return;
       groups[g].sort(function (a, b) { return (a.tm || '').localeCompare(b.tm || '') || a.m.name.localeCompare(b.m.name); });
       out += '<div class="section-title">' + esc(g === 'prn' ? t('meds.asNeeded') : g === 'stopped' ? t('meds.inactive') : t('pod.' + g)) + '</div><div class="list">' + groups[g].map(function (x) { return medRow(x.m, x.tm); }).join('') + '</div>';
@@ -135,7 +145,7 @@
     var d = St.daysLeft(m, schedulesOf(m)), sch = schedulesOf(m)[0];
     return '<button class="row" data-action="med-edit" data-id="' + esc(m.id) + '"' + (m.active === false ? ' style="opacity:.75"' : '') + '>' + k.medPic(m) +
       '<span class="row__main"><span class="row__title">' + (tm ? '<span class="row__time">' + esc(h.fmtHM(tm)) + '</span> ' : '') + esc(m.name) + '</span><span class="row__sub" style="display:block">' + esc((k.isScale(m) ? t('ins.scale') : k.amountText(m)) + (m.purpose ? ' · ' + m.purpose : '')) + '</span>' +
-      (!tm && m.active !== false && sch && sch.rule && !sch.rule.prn ? '<span class="row__sub" style="display:block">' + esc(ruleSummary(sch.rule)) + '</span>' : '') + '</span>' +
+      (m.active !== false && sch && sch.rule && !sch.rule.prn && (!tm || ruleNote(sch.rule)) ? '<span class="row__sub row__note" style="display:block">' + esc(tm ? ruleNote(sch.rule) : ruleSummary(sch.rule)) + '</span>' : '') + '</span>' +
       (St.tracked(m) ? '<span class="row__end"><span class="badge badge--' + (St.isLow(m, schedulesOf(m)) ? 'due' : 'upcoming') + '">' + esc(d === Infinity ? h.num(m.stock.count) + '' : t('dash.daysLeft', { n: d })) + '</span></span>' : '') + '</button>';
   }
 
@@ -370,7 +380,7 @@
   }
 
   /* ================= PROFILE + CONDITIONS ================= */
-  function openProfile(isNew) {
+  function openProfile(isNew, fromSetup) {
     var el = isNew ? null : elder();
     var conds = el ? S().list('conditions', function (c) { return c.elderId === el.id; }) : [];
     App.ui.draft = {
@@ -380,7 +390,7 @@
       _routine: Object.assign({}, window.KalingaRxImport.ROUTINE, (el && el.routine) || {}),
       _conds: conds.filter(function (c) { return c.libraryKey; }).map(function (c) { return c.libraryKey; }),
       _custom: conds.filter(function (c) { return !c.libraryKey; }).map(function (c) { return c.name; }),
-      _untick: {}
+      _untick: {}, _fromSetup: !!fromSetup
     };
     h.openSheet({ title: el ? t('prof.title', { name: el.name }) : t('welcome.title'), html: profileHtml, onclose: function () { App.ui.draft = null; } });
   }
@@ -424,7 +434,7 @@
     var routine = {};
     ['breakfast', 'lunch', 'dinner', 'bedtime'].forEach(function (k2) { routine[k2] = /^\d\d:\d\d$/.test(d._routine[k2] || '') ? d._routine[k2] : window.KalingaRxImport.ROUTINE[k2]; });
     var fields = { name: name, photoId: d.photoId || null, allergies: d.allergies || '', bloodType: d.bloodType || '', contacts: contacts, alerts: { rerings: rerings, cutoffMin: cutoff }, routine: routine };
-    if (!d._new && elder()) fields.setup = Object.assign({}, elder().setup || {}, { routine: true });
+    if (!d._new && elder() && (d._fromSetup || JSON.stringify(elder().routine || {}) !== JSON.stringify(routine))) fields.setup = Object.assign({}, elder().setup || {}, { routine: true });
     var oldRoutine = !d._new && elder() ? JSON.stringify(elder().routine || {}) : null;
     var el = d._new ? S().addElder(fields, by()) : S().update('elders', elder().id, fields, by());
     var shift = oldRoutine && oldRoutine !== JSON.stringify(routine) ? S().routineShift(el.id, routine) : [];
@@ -454,12 +464,15 @@
     if (shift.length) askShift(shift);
   }
   // The routine changed: list the medicines linked to those meals and ask before moving them.
-  function askShift(shift) {
+  function askShift(shift, then) {
     var lines = shift.map(function (c) { return '• ' + c.name + ': ' + c.from.map(h.fmtHM).join(', ') + ' → ' + c.to.map(h.fmtHM).join(', '); }).join('\n');
-    h.ask({ title: t('rt.ask', { n: shift.length }), text: t('rt.text') + '\n\n' + lines, ok: t('rt.move'), cancel: t('rt.keep') }, function () {
+    h.ask({ title: t('rt.ask', { n: shift.length }), text: t('rt.text') + '\n\n' + lines, ok: t('rt.move'), cancel: t('rt.keep'),
+      // "Huwag": keep the times, and stop linking them so they're not proposed again
+      onNo: function () { S().detachShift(shift, by()); App.commit(); if (then) then(); } }, function () {
       S().applyRoutineShift(shift, by());
       App.commit();
       h.toast(t('rt.moved', { n: shift.length }));
+      if (then) then();
     });
   }
 
@@ -512,15 +525,10 @@
         '<button class="btn btn--primary btn--lg" type="submit">' + esc(t('rx.unlock')) + '</button></form>';
     }
     var d = App.ui.draft, n = d.items.filter(function (x) { return x.on; }).length;
-    // Times not typed by hand follow the routine box live.
-    d.items.forEach(function (it) {
-      if (!it.ok || it.prn || it.touched) return;
-      var dr = window.KalingaRxImport.draft(it.src, d.routine);
-      it.timesText = dr.times.join(', '); it.times0 = dr.times; it.anchors0 = dr.anchors;
-    });
+    followRoutine(d);
     var out = '<div class="form">' + (rx.patient ? '<p style="margin:0"><b>' + esc(t('rx.for', { name: rx.patient })) + '</b>' + (rx.date ? ' · ' + esc(rx.date) : '') + '</p>' : '') +
       '<div class="box"><div class="box__head">🕖 ' + esc(t('rx.routineBox', { name: elder().name })) + '</div><span class="field__hint">' + esc(t('rx.routineHint')) + '</span><div class="grid2">' +
-      ['breakfast', 'lunch', 'dinner', 'bedtime'].map(function (k2) { return h.field(t('prof.' + k2), '<input class="input" type="time" name="rr_' + k2 + '" value="' + v(d.routine[k2]) + '"' + bind('routine.' + k2, true) + ' />'); }).join('') + '</div></div>' +
+      ['breakfast', 'lunch', 'dinner', 'bedtime'].map(function (k2) { return h.field(t('prof.' + k2), '<input class="input" type="time" name="rr_' + k2 + '" value="' + v(d.routine[k2]) + '"' + bind('routine.' + k2) + ' />'); }).join('') + '</div></div>' +
       '<p class="note">' + esc(t('rx.reviewHint')) + '</p>';
     d.items.forEach(function (it, i) {
       var p = 'items.' + i + '.';
@@ -557,8 +565,9 @@
       var rule = it.prn ? null : { times: times, weekdays: [], everyN: 0, start: it.start, end: it.end || '', prn: false };
       var e = S().checkMed(med) || (rule && Sch.validate(rule));
       if (e) { it.err = I.err(e); bad = true; return; }
-      // A time the caregiver kept stays linked to its meal; a typed-in time is set by hand.
-      var anchors = times.map(function (tm) { var i0 = (it.times0 || []).indexOf(tm); return i0 >= 0 ? it.anchors0[i0] : null; });
+      // Meal links for the saved times, against the routine being saved: a time typed by hand
+      // that doesn't match a meal is not linked, so a later routine change never moves it.
+      var anchors = window.KalingaRxImport.anchorsFor(it.src, d.routine, times);
       plans.push({ med: med, rule: rule, anchors: anchors });
     });
     if (bad) { h.renderSheet(); var first = h.$('#sheet .field__error'); if (first) first.scrollIntoView({ block: 'center' }); return; }
@@ -576,14 +585,36 @@
     App.ui.view = 'meds';
     App.render();
     h.toast(t('rx.savedN', { n: plans.length }));
-    if (shift.length) { h.closeSheet(); askShift(shift); return; }
+    h.closeSheet();
+    var photos = function () { openPhotos(t('ph.afterImport', { n: plans.length })); };
     // Next step of the guided setup: a photo of each new pill (photos matter most for low vision).
-    openPhotos(t('ph.afterImport', { n: plans.length }));
+    if (shift.length) askShift(shift, photos); else photos();
+  }
+  // Times not typed by hand follow the routine box.
+  function followRoutine(d) {
+    d.items.forEach(function (it) {
+      if (!it.ok || it.prn || it.touched) return;
+      it.timesText = window.KalingaRxImport.draft(it.src, d.routine).times.join(', ');
+    });
   }
   document.addEventListener('input', function (e) {
     var el = e.target && e.target.getAttribute && e.target.getAttribute('data-bind');
     var m = el && /^items\.(\d+)\.timesText$/.exec(el);
     if (m && App.ui.draft && App.ui.draft.items) App.ui.draft.items[+m[1]].touched = true;
+  });
+  // A routine time changed: update the medicines' time fields in place. Re-rendering the
+  // sheet here would take the focus (and a time picker) away from the field being edited.
+  ['input', 'change'].forEach(function (type) {
+    document.addEventListener(type, function (e) {
+      var b = e.target && e.target.getAttribute && e.target.getAttribute('data-bind');
+      var d = App.ui.draft;
+      if (!b || !/^routine\./.test(b) || !d || !d.items) return;
+      followRoutine(d);
+      d.items.forEach(function (it, i) {
+        var inp = h.$('#sheet [data-bind="items.' + i + '.timesText"]');
+        if (inp && !it.touched) inp.value = it.timesText;
+      });
+    });
   });
 
   /* ================= ADD-MEDICINE CHOOSER ================= */
@@ -597,7 +628,7 @@
   function setupSteps(el) {
     var st = el.setup || {}, meds = S().list('meds', function (m) { return m.elderId === el.id && m.active !== false; });
     return [
-      { key: 'routine', done: !!st.routine, icon: '🕖', attrs: 'data-action="profile-open"' },
+      { key: 'routine', done: !!st.routine, icon: '🕖', attrs: 'data-action="profile-open" data-value="setup"' },
       { key: 'meds', done: meds.length > 0, icon: '💊', attrs: 'data-action="med-add"' },
       { key: 'vitals', done: S().list('vitalTypes', function (x) { return x.elderId === el.id; }).length > 0, icon: '🩺', attrs: 'data-action="go" data-view="vitals"' },
       { key: 'photos', done: (meds.length > 0 && meds.every(function (m) { return m.photoId; })) || !!st.photosSkipped, icon: '📷', attrs: 'data-action="photo-run"' },
@@ -627,6 +658,7 @@
     var el = elder(); if (!el) return '';
     var meds = S().list('meds', function (m) { return m.elderId === el.id && m.active !== false; }).sort(function (a, b) { return (!!a.photoId - !!b.photoId) || a.name.localeCompare(b.name); });
     var missing = meds.filter(function (m) { return !m.photoId; }).length;
+    if (!meds.length) return '<div class="card empty"><p>' + esc(t('dash.noMeds', { name: el.name })) + '</p><button class="btn btn--primary btn--lg" data-action="med-add">' + esc(t('dash.addMed')) + '</button></div>';
     return (photoNote ? '<p class="note note--ok" style="margin-bottom:10px">✓ ' + esc(photoNote) + '</p>' : '') + '<p class="note">' + esc(t('ph.hint', { name: el.name })) + '</p><div class="list" style="margin-top:12px">' + meds.map(function (m) {
       return '<div class="row">' + (m.photoId ? '<img class="thumb" style="width:72px;height:72px" data-photo="' + esc(m.photoId) + '" alt="" />' : '<span class="pillicon" style="width:72px;height:72px">' + (k.FORM_ICON[m.form] || '💊') + '</span>') +
         '<span class="row__main"><span class="row__title">' + esc(m.name) + '</span><span class="row__sub" style="display:block">' + esc(k.amountText(m)) + '</span></span>' +
@@ -766,7 +798,7 @@
       var id = n.getAttribute('data-id');
       h.ask({ title: t('c.delete') + '?', ok: t('c.delete'), danger: true }, function () { S().remove('readings', id, by()); App.commit(); h.renderSheet(); App.render(); });
     },
-    'profile-open': function () { openProfile(false); },
+    'profile-open': function (n) { openProfile(false, n.getAttribute('data-value') === 'setup'); },
     'profile-save': saveProfile,
     'cond-toggle': function (n) { var c = App.ui.draft._conds, x = n.getAttribute('data-value'), i = c.indexOf(x); if (i >= 0) c.splice(i, 1); else c.push(x); h.renderSheet(); },
     'cond-custom-add': function () { var inp = h.$('#cond-custom'), x = inp && inp.value.trim(); if (x && App.ui.draft._custom.indexOf(x) < 0) { App.ui.draft._custom.push(x); h.renderSheet(); } },

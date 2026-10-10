@@ -191,6 +191,15 @@ assert.strictEqual(S.logReading({ elderId: mama.id, vitalTypeId: 'nope', value: 
   assert.deepStrictEqual(R.find('schedules', sMet.id).anchors, [{ meal: 'breakfast', offset: 0 }, { meal: 'lunch', offset: 0 }, { meal: 'dinner', offset: 0 }], 'still linked after the move');
   assert.deepStrictEqual(R.list('schedules', (x) => x.medId === eso.id)[0].rule.times, ['07:30']);
   assert.deepStrictEqual(R.list('schedules', (x) => x.medId === vit.id)[0].rule.times, ['10:00'], 'hand-set time untouched');
+  // "Huwag" (keep the old times): those times are detached, so they are never proposed again
+  const keep = R.routineShift(e.id, { breakfast: '09:00', lunch: '12:00', dinner: '19:00', bedtime: '21:00' });
+  R.detachShift(keep, 'Poll');
+  assert.deepStrictEqual(R.find('schedules', sMet.id).rule.times, ['08:00', '12:00', '19:00'], 'times unchanged');
+  assert.deepStrictEqual(R.find('schedules', sMet.id).anchors, [null, { meal: 'lunch', offset: 0 }, { meal: 'dinner', offset: 0 }], 'only the time that would have moved is detached');
+  assert.deepStrictEqual(R.routineShift(e.id, { breakfast: '09:00', lunch: '12:00', dinner: '19:00', bedtime: '21:00' }), [], 'not proposed again');
+  // re-link for the checks below
+  R.saveSchedule(Object.assign({}, R.find('schedules', sMet.id), { anchors: [{ meal: 'breakfast', offset: 0 }, { meal: 'lunch', offset: 0 }, { meal: 'dinner', offset: 0 }] }));
+  R.list('schedules', (x) => x.medId === eso.id).forEach((s) => R.saveSchedule(Object.assign({}, s, { rule: Object.assign({}, s.rule, { times: ['07:30'] }), anchors: [{ meal: 'breakfast', offset: -30 }] })));
   // two meals moved onto the same minute merge instead of failing
   const both = R.routineShift(e.id, { breakfast: '12:00', lunch: '12:00', dinner: '19:00', bedtime: '21:00' }).find((c) => c.name === 'Metformin');
   assert.deepStrictEqual(both.to, ['12:00', '19:00']);

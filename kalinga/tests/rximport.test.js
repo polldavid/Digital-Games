@@ -97,6 +97,14 @@ assert.deepStrictEqual(d('Gabapentin').anchors, [{ meal: 'bedtime', offset: 0 }]
 assert.deepStrictEqual(d('Sodium alginate').anchors, []);
 assert.strictEqual(d('Metformin').anchors.length, d('Metformin').times.length);
 
+// anchorsFor: meal links for the times actually saved, against the FINAL routine.
+// A time typed by hand that no longer matches a meal is not linked (it must never move later).
+const r8 = { breakfast: '08:00', lunch: '12:00', dinner: '19:00', bedtime: '21:00' };
+assert.deepStrictEqual(Rx.anchorsFor(by('Metformin'), r8, ['07:00', '12:00', '19:00']), [null, { meal: 'lunch', offset: 0 }, { meal: 'dinner', offset: 0 }]);
+assert.deepStrictEqual(Rx.anchorsFor(by('Metformin'), r8, ['08:00', '12:00', '19:00']), [{ meal: 'breakfast', offset: 0 }, { meal: 'lunch', offset: 0 }, { meal: 'dinner', offset: 0 }]);
+assert.deepStrictEqual(Rx.anchorsFor(by('Esomeprazole'), r8, ['07:30']), [{ meal: 'breakfast', offset: -30 }]);
+assert.deepStrictEqual(Rx.anchorsFor(by('Metformin'), r8, ['10:00']), [null]);
+
 // Purpose suggestions (general drug classes; the caregiver edits them)
 assert.strictEqual(Rx.purposeFor('Metformin 500mg').tl, 'para sa sugar');
 assert.strictEqual(Rx.purposeFor('Losartan 50mg').tl, 'para sa altapresyon');

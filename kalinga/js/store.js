@@ -376,6 +376,23 @@
       });
     };
 
+    /* The caregiver chose to keep the old times ("Huwag"): the times that would
+       have moved stop following the routine (anchor -> null), so they are not
+       proposed again; times that would not have moved stay linked. */
+    self.detachShift = function (changes, by) {
+      (changes || []).forEach(function (c) {
+        var s = self.find('schedules', c.scheduleId);
+        if (!s || !s.anchors) return;
+        var moved = {};
+        c.anchors.forEach(function (a, i) { if (a) moved[JSON.stringify(a)] = c.to[i]; });
+        var anchors = s.rule.times.map(function (tm, i) {
+          var a = s.anchors[i];
+          return a && moved[JSON.stringify(a)] != null && moved[JSON.stringify(a)] !== tm ? null : a;
+        });
+        self.saveSchedule({ id: s.id, medId: s.medId, rule: s.rule, dose: s.dose, anchors: anchors }, by);
+      });
+    };
+
     // Medicines running low for this elder.
     self.lowStock = function (elderId) {
       return self.list('meds', function (m) { return m.elderId === elderId && m.active !== false; }).filter(function (m) {

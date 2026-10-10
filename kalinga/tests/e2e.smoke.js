@@ -192,6 +192,8 @@ function serve() {
     step('as-needed: taken once, then "wait" until the gap passes');
     await tap('[data-action="prn-open"]');
     await tap('#sheet [data-action="prn-take"]');
+    await page.waitForSelector('#sheet [data-action="prn-undo"]'); // the "taken" screen
+    await tap('#sheet .el-btn[data-action="sheet-close"]');
     await page.waitForSelector('#sheet', { state: 'hidden' });
     await tap('[data-action="prn-open"]');
     assert.match(await page.textContent('#sheet'), /Hintayin muna hanggang/);

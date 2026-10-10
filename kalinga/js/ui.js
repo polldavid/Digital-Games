@@ -121,7 +121,7 @@
       done = true;
       form.onsubmit = dlg.oncancel = dlg.onclose = null;
       if (dlg.open) dlg.close();
-      if (yes) onYes();
+      if (yes) onYes(); else if (opts.onNo) opts.onNo();
     }
     form.onsubmit = function (e) { e.preventDefault(); var s = e.submitter || document.activeElement; finish(!!(s && s.value === 'ok')); };
     dlg.oncancel = function (e) { e.preventDefault(); finish(false); };

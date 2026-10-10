@@ -78,3 +78,28 @@ Deferred minors:
 - An as-needed dose is one tap with no undo.
 - The maskable icon isn't precached.
 - The chart editor is mg/dL only.
+
+## UX + accessibility round (2026-10-10, branch kalinga-ux)
+
+**Built:**
+- Colours meet WCAG 2.2 AA with AAA text, pinned by `tests/contrast.test.js`.
+- An add-medicine chooser, a setup checklist, routine times on the import screen, and the pill-photo run-through.
+- Elder text size, medicines grouped by time of day, tap-to-open, quick refill, and as-needed undo.
+
+**Review fixes, all pinned by `tests/e2e.ux.js`, `e2e.rximport.js` and unit tests:**
+- The routine box no longer steals focus.
+- Meal links are computed against the final routine (`rximport.anchorsFor`).
+- "Huwag" detaches times so they aren't re-proposed (`store.detachShift`).
+- The grouped list shows weekly, every-N and end dates, with a late-night group.
+- At large text sizes the dose-card buttons scroll with the card.
+- The faces fit 320px.
+- As-needed undo is a confirmed choice on the "taken" screen, not a toast.
+- The routine step is ticked only when set.
+- The photo step works with no medicines.
+- The alarm card has a visible focus ring.
+
+**Deferred minors:**
+- Undo can give back more than was deducted when stock was already at 0.
+- The refill chips ignore pack size and units.
+- `.row` and `.setup__step` borders are under 3:1. Text labels identify them, so this still passes WCAG.
+- Existing elders see the checklist again.

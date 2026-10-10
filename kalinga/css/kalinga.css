@@ -197,6 +197,7 @@ button.row { cursor: pointer; }
 /* links that look like text in lists (tap a medicine anywhere to open it) */
 .linkish { background: none; border: none; padding: 0; margin: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; min-height: 32px; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
 .row__time { color: var(--brand); font-weight: 850; }
+.row__note { color: var(--due); font-weight: 700; }
 /* setup checklist */
 .setup { margin: 8px 0 4px; display: grid; gap: 10px; }
 .setup__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -312,9 +313,10 @@ body.mode-elder .toast { font-size: calc(19 * var(--u)); }
 .readback { text-align: center; display: grid; gap: 16px; }
 .readback__num { font-size: calc(64 * var(--u)); font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
 .readback__unit { font-size: calc(22 * var(--u)); color: var(--text-dim); }
-.faces { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.faces { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .face { display: grid; justify-items: center; gap: 6px; padding: 10px 4px; border-radius: 20px; border: 2px solid var(--line-strong); background: var(--card); cursor: pointer; font-size: calc(17 * var(--u)); font-weight: 700; min-height: 120px; align-content: center; }
-.face span { font-size: calc(46 * var(--u)); line-height: 1; }
+.face span { font-size: min(calc(46 * var(--u)), 13vw); line-height: 1; }
+.face { overflow-wrap: anywhere; padding-left: 2px; padding-right: 2px; }
 .face--on { border-color: var(--brand); background: var(--brand-soft); }
 .verdict { border-radius: 26px; padding: 22px; text-align: center; display: grid; gap: 10px; border: 2px solid var(--line); }
 .verdict__val { font-size: calc(52 * var(--u)); font-weight: 900; line-height: 1.05; }
@@ -332,6 +334,7 @@ body.mode-elder .toast { font-size: calc(19 * var(--u)); }
 .dose__inner { max-width: 640px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; gap: 14px; padding: max(18px, env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom)); }
 .dose__head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 24px; background: var(--alarm); color: #fff; }
 .dose__head h2 { flex: 1; font-size: calc(30 * var(--u)); font-weight: 900; }
+.dose__head .speakbtn:focus-visible { outline-color: #ffffff; }
 .dose__head .speakbtn { border-color: rgba(255,255,255,.6); background: rgba(255,255,255,.15); color: #fff; }
 .dose__hint { margin: 0 4px; color: var(--text-dim); font-size: calc(24 * var(--u)); }
 .dose__meds { display: grid; gap: 12px; }
@@ -355,6 +358,7 @@ body.mode-elder .toast { font-size: calc(19 * var(--u)); }
 .scale-row { font-size: calc(24 * var(--u)); font-weight: 850; }
 .scale-row b { font-size: calc(40 * var(--u)); color: var(--brand); }
 .dose__actions { display: grid; gap: 12px; margin-top: auto; padding: 12px 0 calc(8px + env(safe-area-inset-bottom)); position: sticky; bottom: 0; background: var(--bg); box-shadow: 0 -14px 18px -14px rgba(0,0,0,.25); }
+body.tx-large .dose__actions, body.tx-xlarge .dose__actions { position: static; box-shadow: none; }
 .dose__done { text-align: center; display: grid; gap: 18px; padding: 40px 10px; font-size: calc(28 * var(--u)); font-weight: 850; }
 .dose__done-icon { display: block; font-size: calc(80 * var(--u)); line-height: 1; }
 .dose__done p { margin: 0; }
