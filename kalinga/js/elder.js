@@ -68,15 +68,34 @@
     if (prn.length) {
       out.push('<button class="el-tile" data-action="prn-open"><span class="el-tile__icon" aria-hidden="true">🤲</span><span><span class="el-tile__label">' + esc(t('el.prn')) + '</span><span class="el-tile__sub">' + esc(prn.map(function (m) { return m.name; }).join(' · ')) + '</span></span></button>');
     }
-    // Today's list
+    // Today's list: by part of the day; one medicine per line with its picture
+    // and amount; the status in words; finished times shrink to one line.
     if (info.slots.length) {
-      out.push('<h2 class="el-h2">' + esc(t('el.today')) + '</h2><div class="el-list">' + info.slots.map(function (s) {
-        var mark = s.status === 'done' ? (s.items.every(function (it) { return it.status === 'skipped'; }) ? '✖️' : '✅') : s.status === 'due' || s.status === 'unconfirmed' ? '⏰' : '🕒';
-        return '<div class="el-row' + (s.status === 'done' ? ' el-row--taken' : '') + '"><span class="el-row__time">' + esc(h.fmtTime(s.at)) + '</span><span class="el-row__what">' + esc(medsOf(s).map(function (m) { return m.name; }).join(', ')) + '</span><span class="el-row__mark" aria-label="' + esc(t('st.' + (s.status === 'done' ? 'taken' : s.status))) + '">' + mark + '</span></div>';
-      }).join('') + '</div>');
+      out.push('<h2 class="el-h2">' + esc(t('el.today')) + '</h2>');
+      ['morning', 'noon', 'afternoon', 'evening'].forEach(function (part) {
+        var ss = info.slots.filter(function (s) { return Sch.partOfDay(s.at) === part; });
+        if (!ss.length) return;
+        out.push('<div class="el-part"><span aria-hidden="true">' + PART_ICON[part] + '</span> ' + esc(t('pod.' + part)) + '</div><div class="el-list">' + ss.map(slotCard).join('') + '</div>');
+      });
     }
     out.push('<button class="btn btn--ghost el-caregiver" data-action="pin-open">⚙ ' + esc(t('el.caregiver')) + '</button>');
     return out.join('');
+  }
+  var PART_ICON = { morning: '🌅', noon: '☀️', afternoon: '🌇', evening: '🌙' };
+  function slotCard(s) {
+    if (s.status === 'done') {
+      var allSkipped = s.items.every(function (it) { return it.status === 'skipped'; });
+      return '<div class="el-slot el-slot--done"><span class="el-slot__time">' + esc(h.fmtTime(s.at)) + '</span><span class="el-chip el-chip--' + (allSkipped ? 'skip' : 'done') + '">' + esc(allSkipped ? '✕ ' + t('st.skipped') : '✓ ' + t('el.allTaken')) + '</span></div>';
+    }
+    var now = s.status === 'due' || s.status === 'unconfirmed';
+    var pending = s.items.filter(function (it) { return it.status !== 'taken' && it.status !== 'skipped'; });
+    return '<button class="el-slot' + (now ? ' el-slot--due' : '') + '" data-action="dose-open" data-key="' + esc(s.slotKey) + '"><span class="el-slot__head"><span class="el-slot__time">' + esc(h.fmtTime(s.at)) + '</span>' +
+      '<span class="el-chip' + (now ? ' el-chip--due' : '') + '">' + esc(now ? '⏰ ' + t('st.due') : t('st.upcoming')) + '</span></span>' +
+      pending.map(function (it) {
+        var m = S().find('meds', it.medId); if (!m) return '';
+        var u = k.isScale(m) ? null : it.dose && it.dose.amount != null ? it.dose.amount : m.dose.amount;
+        return '<span class="el-med">' + k.medPic(m, 'el-med__pic') + '<span><span class="el-med__name">' + esc(m.name) + '</span><span class="el-med__amt">' + esc(u != null ? k.amountText(m, u) : '🩸 ' + t('ins.needReading')) + '</span></span></span>';
+      }).join('') + '</button>';
   }
   function isPrnOnly(m) { return !S().list('schedules', function (s) { return s.medId === m.id && s.rule && !s.rule.prn; }).length; }
 
@@ -174,7 +193,8 @@
       '<div class="dose__meds">' + meds + '</div>' +
       '<div class="dose__actions">' +
       (pending ? '<button class="btn btn--primary el-btn el-btn--huge" data-action="dose-take"' + (anyOn ? '' : ' disabled') + '>✓ ' + esc(applyOnly ? t('dose.applied') : insulinOnly ? t('dose.injected') : t('dose.takeAll')) + '</button>' +
-        '<div class="btn-row"><button class="btn el-btn" data-action="dose-later">⏰ ' + esc(t('dose.later')) + '</button><button class="btn el-btn" data-action="dose-skip">' + esc(t('dose.skip')) + '</button></div>'
+        '<div class="btn-row"><button class="btn el-btn" data-action="dose-later">⏰ ' + esc(t('dose.later')) + '</button><button class="btn el-btn" data-action="dose-skip">' + esc(t('dose.skip')) + '</button></div>' +
+        (dose.ringing ? '' : '<button class="btn btn--ghost el-btn" data-action="dose-close">← ' + esc(t('c.back')) + '</button>')
         : '<button class="btn btn--primary el-btn el-btn--huge" data-action="dose-close">' + esc(t('c.close')) + '</button>') +
       '</div></div>';
   }

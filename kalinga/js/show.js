@@ -43,7 +43,7 @@
   }
   function medPic(med, cls) {
     if (med.photoId) return '<img class="' + (cls || 'thumb') + '" data-photo="' + h.esc(med.photoId) + '" alt="" />';
-    return '<span class="' + (cls === 'dmed__pic' ? 'dmed__pic' : 'pillicon') + '" aria-hidden="true">' + (FORM_ICON[med.form] || '💊') + '</span>';
+    return '<span class="' + (cls === 'dmed__pic' ? 'dmed__pic' : cls === 'el-med__pic' ? 'pillicon el-med__pic' : 'pillicon') + '" aria-hidden="true">' + (FORM_ICON[med.form] || '💊') + '</span>';
   }
 
   /* ---------- Readings ---------- */

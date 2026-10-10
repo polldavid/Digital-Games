@@ -139,6 +139,18 @@ function serve() {
     assert.ok(await S(() => document.documentElement.scrollWidth) <= 320, 'no sideways scroll at the largest text');
     await page.setViewportSize({ width: 412, height: 915 });
 
+    step('elder list: parts of the day, one medicine per line with its picture and amount; tap opens the card, Back closes it');
+    await page.setViewportSize({ width: 412, height: 915 });
+    const parts = await page.$$eval('#elder .el-part', (n) => n.map((x) => x.textContent.trim()));
+    assert.deepStrictEqual(parts.map((x) => x.replace(/^\S+\s/, '')), ['Umaga', 'Gabi']);
+    assert.ok(await page.$('#elder .el-med img, #elder .el-med .pillicon'), 'each medicine has its picture');
+    assert.match(await page.textContent('#elder .el-slot'), /Losartan 50mg\s*1 tableta/);
+    assert.match(await page.textContent('#elder .el-slot'), /Mamaya|Oras na/);
+    await tap('#elder .el-slot');
+    await page.waitForSelector('#dose:not([hidden])');
+    await tap('#dose [data-action="dose-close"]');
+    await page.waitForSelector('#dose', { state: 'hidden' });
+
     step('pain faces fit a 320px screen at the largest text');
     await S(() => { const st = KalingaApp.store, el = st.list('elders')[0]; st.add('vitalTypes', Object.assign(KalingaVitals.template('symptom', { name: 'Pain' }), { elderId: el.id })); KalingaApp.commit(); });
     await page.setViewportSize({ width: 320, height: 640 });

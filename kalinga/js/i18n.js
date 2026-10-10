@@ -311,6 +311,7 @@
     'el.nowDue': ['Oras na ng gamot mo', 'Time for your medicine'],
     'el.allDone': ['Tapos na ang mga gamot mo ngayong araw. 👏', 'All your medicines are done for today. 👏'],
     'el.noMeds': ['Walang nakatakdang gamot.', 'No medicines scheduled.'],
+    'el.allTaken': ['Nainom na lahat', 'All taken'],
     'el.measure': ['Sukatin', 'Measure'],
     'el.measureWhat': ['Ano ang susukatin?', 'What are you measuring?'],
     'el.prn': ['Gamot kung kailangan', 'Medicine when needed'],
