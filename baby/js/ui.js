@@ -554,15 +554,35 @@
     return '<label class="switch"><input type="checkbox" data-setting="' + setting + '"' + (on ? ' checked' : '') + ' aria-label="' + esc(label || setting) + '" /><span></span></label>';
   }
 
-  // "When" field: datetime-local + quick chips.
+  // "When" field: datetime-local + quick chips. The chip matching the time is
+  // lit, and a line under it confirms the pick ("10 min ago · 3:42 PM").
+  var TIME_CHIPS = [[0, 'Now'], [5, '−5m'], [10, '−10m'], [15, '−15m'], [30, '−30m'], [60, '−1h']];
+  // Whole minutes between the (minute-precision) input value and now.
+  function minsBack(ms, now) { return Math.floor((now || Date.now()) / MIN) - Math.floor(ms / MIN); }
+  function timeHint(ms, now) {
+    var m = minsBack(ms, now);
+    var when = m < 0 ? 'in ' + G.fmtDur(-m) : m < 1 ? 'just now' : G.fmtDur(m) + ' ago';
+    var day = dayLabel(ms, now);
+    return when + ' · ' + (day === 'Today' ? '' : day + ' ') + fmtTime(ms);
+  }
   function timeField(name, ms, label) {
+    var back = minsBack(ms);
     return '<div class="field"><span class="field__label">' + esc(label || 'When') + '</span>' +
       '<div class="time-row"><input class="input" type="datetime-local" name="' + name + '" value="' + toLocalInput(ms) + '" required />' +
       '<div class="chips">' +
-      [[0, 'Now'], [5, '−5m'], [10, '−10m'], [15, '−15m'], [30, '−30m'], [60, '−1h']].map(function (c) {
-        return '<button type="button" class="chip" data-action="time-set" data-target="' + name + '" data-min="' + c[0] + '">' + c[1] + '</button>';
+      TIME_CHIPS.map(function (c) {
+        return '<button type="button" class="chip" data-action="time-set" data-target="' + name + '" data-min="' + c[0] + '" aria-pressed="' + (back === c[0]) + '">' + c[1] + '</button>';
       }).join('') +
-      '</div></div></div>';
+      '</div></div><p class="field__hint" data-time-hint="' + name + '" aria-live="polite">' + esc(timeHint(ms)) + '</p></div>';
+  }
+  // After the time input changes (chip or typing): relight the chips and refresh the line.
+  function timeSync(inp) {
+    var field = inp.closest('.field'), ms = fromLocalInput(inp.value);
+    if (!field) return;
+    var back = ms == null ? null : minsBack(ms);
+    $all('[data-action="time-set"]', field).forEach(function (b) { b.setAttribute('aria-pressed', String(+b.getAttribute('data-min') === back)); });
+    var hint = $('[data-time-hint]', field);
+    if (hint) hint.textContent = ms == null ? '' : timeHint(ms);
   }
 
   App.h = {
@@ -576,7 +596,7 @@
     TYPES: TYPES, REACTIONS: REACTIONS, describe: describe,
     toast: toast, openSheet: openSheet, renderSheet: renderSheet, closeSheet: closeSheet, tick: tick, initTips: initTips, initSheetGestures: initSheetGestures, since: since,
     fieldError: fieldError, clearFieldErrors: clearFieldErrors, ask: ask, patch: patch, regions: regions, focusKey: focusKey, refocus: refocus, afterHistory: afterHistory, reducedMotion: reducedMotion,
-    statusPill: statusPill, note: note, sw: sw, timeField: timeField,
+    statusPill: statusPill, note: note, sw: sw, timeField: timeField, timeSync: timeSync,
     MIN: MIN, HOUR: HOUR, DAY: DAY
   };
 })();

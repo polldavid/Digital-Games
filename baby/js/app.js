@@ -748,6 +748,7 @@
 
   function onChange(e) {
     var t = e.target;
+    if (t.type === 'datetime-local' && t.closest('.time-row')) h.timeSync(t);
     var key = t.getAttribute && t.getAttribute('data-setting');
     if (key) {
       var s = S.get().settings;
