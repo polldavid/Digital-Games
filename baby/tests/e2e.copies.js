@@ -2,8 +2,10 @@
    log) while sharing is on. This once deleted a partner's entries on every
    phone (Oct 2026): the older copy saved over newer entries and sync passed
    the loss on as deletions. Now the older copy steps aside, and nothing is lost.
-     cd baby/server && npx wrangler dev --port 8788      (local sync server)
-     SYNC_URL=http://127.0.0.1:8788 node baby/tests/e2e.copies.js */
+   Needs the local sync server — easiest is  node baby/tests/run-all.js copies
+   (starts it for you). By hand:
+     cd baby/server && npx wrangler dev --local --port 8787
+     SYNC_URL=http://127.0.0.1:8787 node baby/tests/e2e.copies.js */
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -11,11 +13,15 @@ const assert = require('assert');
 const { chromium, devices } = require('playwright');
 
 const ROOT = path.join(__dirname, '..', '..');
-const SYNC = process.env.SYNC_URL || 'http://127.0.0.1:8788';
+const SYNC = process.env.SYNC_URL || 'http://127.0.0.1:8787';
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const step = (t) => console.log('• ' + t);
 
 (async () => {
+  try { await fetch(SYNC + '/'); } catch (e) {
+    console.error('No sync server at ' + SYNC + ' — run  node baby/tests/run-all.js copies  (it starts one).');
+    process.exit(1);
+  }
   const server = http.createServer((q, r) => {
     let p = decodeURIComponent(q.url.split('?')[0]);
     if (p.endsWith('/')) p += 'index.html';

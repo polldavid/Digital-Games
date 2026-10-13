@@ -1,5 +1,6 @@
 /* Alaga — partner sync in two real browsers (Playwright, Chromium).
-   Needs the sync server running locally:
+   Needs the local sync server — easiest is  node baby/tests/run-all.js sync
+   (starts it for you). By hand:
      cd baby/server && npx wrangler d1 execute babylog-sync --local --file=schema.sql && npx wrangler dev --port 8787
    Then, from the repo root:
      SYNC_URL=http://127.0.0.1:8787 node baby/tests/e2e.sync.js     # SHOTS=dir to save screenshots */
@@ -45,6 +46,10 @@ async function welcome(page, name) {
 async function settings(page) { await page.click('.tab[data-view="settings"]'); await page.waitForSelector('#set-share'); }
 
 (async () => {
+  try { await fetch(SYNC_URL + '/'); } catch (e) {
+    console.error('No sync server at ' + SYNC_URL + ' — run  node baby/tests/run-all.js sync  (it starts one).');
+    process.exit(1);
+  }
   if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   const server = await serve();
   const base = 'http://localhost:' + server.address().port + '/baby/';

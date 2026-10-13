@@ -38,7 +38,16 @@ function serve() {
   const base = 'http://localhost:' + server.address().port + '/baby/';
   const browser = await chromium.launch({ headless: !process.env.HEADED });
   const ctx = await browser.newContext({ ...devices['iPhone 13'], timezoneId: 'Asia/Manila', locale: 'en-US' });
-  // Stand-in for Tesseract.js: same worker API, returns fixed text.
+  // Stand-in for Tesseract.js: same worker API, returns fixed text. Its bytes can't
+  // match the app's pinned SRI hash, so in this test only, the integrity attribute
+  // is dropped for that one script (the app still sets it for real users).
+  await ctx.addInitScript(() => {
+    const d = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'integrity');
+    Object.defineProperty(HTMLScriptElement.prototype, 'integrity', {
+      configurable: true, get: d.get,
+      set(v) { if (!/tesseract\.js@/.test(this.src)) d.set.call(this, v); },
+    });
+  });
   await ctx.route(/cdn\.jsdelivr\.net\/npm\/tesseract\.js@/, (r) => r.fulfill({ contentType: 'text/javascript',
     body: 'window.Tesseract={createWorker:function(l,oem,o){return Promise.resolve({setParameters:function(){return Promise.resolve()},recognize:function(){o.logger({status:"recognizing text",progress:1});return Promise.resolve({data:{text:' + JSON.stringify(RX_TEXT) + '}})},terminate:function(){}})}}' }));
   const page = await ctx.newPage();
