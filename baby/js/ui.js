@@ -447,6 +447,7 @@
 
   function initSheetGestures() {
     window.addEventListener('popstate', function (e) {
+      if (window.BabyViewer && window.BabyViewer.onPop()) return; // Back closes the photo, not the sheet under it
       if (ignorePop) {
         ignorePop = false;
         // A new sheet opened before the old one's Back finished: give it its own entry.

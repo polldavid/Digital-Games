@@ -10,9 +10,10 @@
   var G = window.BabyGuide, S = window.BabyStore, App = window.BabyApp, h = App.h;
   var esc = h.esc, MIN = h.MIN, HOUR = h.HOUR;
 
-  function val(form, name) { var n = form.elements[name]; return n ? n.value : ''; }
+  // namedItem, not elements[name]: elements['length'] is the number of fields, not the "length" input.
+  function val(form, name) { var n = form.elements.namedItem(name); return n ? n.value : ''; }
   function radio(form, name) { var n = form.querySelector('input[name="' + name + '"]:checked'); return n ? n.value : ''; }
-  function checked(form, name) { var n = form.elements[name]; return !!(n && n.checked); }
+  function checked(form, name) { var n = form.elements.namedItem(name); return !!(n && n.checked); }
   function num(form, name) { var v = parseFloat(val(form, name)); return isNaN(v) ? null : v; }
   function seg(name, options, current) {
     return '<div class="seg" role="radiogroup">' + options.map(function (o) {

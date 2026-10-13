@@ -487,9 +487,8 @@
     return draft;
   }
 
-  function photoViewer(id) {
-    h.openSheet({ title: 'Photo', html: '<div class="photo-full"><img data-photo="' + esc(id) + '" alt="Saved photo, full size" decoding="async" /></div><p class="faint">Pinch to zoom.</p>' });
-  }
+  // Opens over the current sheet (viewer.js) so the form underneath keeps its state.
+  function photoViewer(id) { window.BabyViewer.open(id); }
 
   /* ---------- Summaries to share ---------- */
   function emergencyText() {
