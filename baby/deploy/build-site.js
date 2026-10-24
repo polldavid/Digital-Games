@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const SRC = path.join(__dirname, '..');
 const OUT = path.join(__dirname, 'dist');
-const COPY = ['index.html', 'privacy.html', 'manifest.webmanifest', 'sw.js', 'css', 'js', 'icons'];
+const COPY = ['index.html', 'privacy.html', 'manifest.webmanifest', 'sw.js', 'css', 'js', 'icons', 'img'];
 
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });

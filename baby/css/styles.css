@@ -167,9 +167,15 @@ strong { font-weight: 700; }
 /* ---------- Welcome ---------- */
 .welcome { min-height: 100dvh; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top)) 16px 32px; }
 .welcome__inner { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
-.welcome__art { display: flex; gap: 10px; font-size: calc(32 * var(--u)); }
-.welcome__art span { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 20px; background: var(--card); border: 1px solid var(--stroke); }
-.welcome__art span:nth-child(2) { transform: translateY(-8px); }
+/* The joey mascot: decorative, only in calm spots (never on a warning). */
+.mascot { display: block; width: auto; max-width: 100%; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+.welcome__mascot { height: calc(132 * var(--u)); }
+.empty__mascot { height: calc(88 * var(--u)); margin: 0 auto 10px; }
+.live__mascot { height: calc(46 * var(--u)); flex: none; transform-origin: 50% 90%; animation: mascot-breathe 4s ease-in-out infinite; }
+.note--art { display: flex; align-items: center; gap: 12px; }
+.note__art { height: calc(60 * var(--u)); flex: none; }
+@keyframes mascot-breathe { 50% { transform: scale(1.04, 1.03); } }
+@media (prefers-reduced-motion: reduce) { .live__mascot { animation: none; } }
 .welcome__title { font-size: clamp(calc(36 * var(--u)), 10vw, calc(52 * var(--u))); font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
 .welcome__title em { font-style: normal; color: var(--accent); }
 .welcome__sub { color: var(--text-dim); max-width: 38ch; }

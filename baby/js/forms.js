@@ -275,7 +275,7 @@
     html: function (ev) {
       var t = S.timers().sleep, html = '';
       if (!ev && t) {
-        html += '<div class="card card--flat live live--sleep"><div class="live__head"><span class="live__icon">😴</span><div><div class="live__label"><span class="pulse"></span>Asleep</div><div class="live__sub">since ' + h.fmtTime(t.start) + '</div></div><span class="live__clock" data-elapsed="' + t.start + '">0:00</span></div>' +
+        html += '<div class="card card--flat live live--sleep"><div class="live__head">' + h.mascot('sleep', 'live__mascot') + '<div><div class="live__label"><span class="pulse"></span>Asleep</div><div class="live__sub">since ' + h.fmtTime(t.start) + '</div></div><span class="live__clock" data-elapsed="' + t.start + '">0:00</span></div>' +
           '<button type="button" class="btn btn--primary btn--lg btn--block" data-action="sleep-stop">☀️ Baby woke up</button></div>';
         html += '<p class="faint">Fell asleep earlier than you started the timer? Fix it here:</p>' +
           '<div class="field"><span class="field__label">Fell asleep at</span><input class="input" type="datetime-local" name="liveStart" value="' + h.toLocalInput(t.start) + '" data-action-change="sleep-adjust" /></div>';

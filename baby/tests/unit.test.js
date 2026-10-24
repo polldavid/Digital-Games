@@ -199,6 +199,11 @@ console.log('hardening unit tests passed');
   assert.ok(refs.length >= 15, 'found the page’s scripts and stylesheets');
   refs.forEach(r => assert.ok(r.endsWith('?v=' + V), r + ' must end with ?v=' + V + ' (bump sw.js V and index.html together)'));
   console.log('release guard passed (v' + V + ')');
+  // One missing precached file fails the whole service-worker install: no offline app.
+  const list = sw.slice(sw.indexOf('var VERSIONED'), sw.indexOf('.concat('));
+  const files = [...list.matchAll(/'([^']+\.[a-z]+)'/g)].map((m) => m[1]);
+  assert.ok(files.length >= 25, 'found the precache list');
+  files.forEach((f) => assert.ok(fs.existsSync(path.join(__dirname, '..', f)), 'sw.js precaches ' + f + ' but it does not exist'));
 }
 
 // WHO growth percentiles: the table's own medians and centiles come back out.

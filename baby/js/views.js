@@ -29,7 +29,7 @@
           : '<div class="btn-row"><button class="btn btn--sm" data-action="bottle-pause">' + (bo.paused ? '▶ Resume' : '⏸ Pause') + '</button><button class="btn btn--sm btn--primary" data-action="bottle-finish">✓ Finished</button></div>') + '</div>';
     }
     if (t.sleep) {
-      out += '<div class="card live live--sleep"><div class="live__head"><span class="live__icon">😴</span><div><div class="live__label"><span class="pulse"></span>Asleep</div><div class="live__sub">since ' + h.fmtTime(t.sleep.start) + by(t.sleep) + '</div></div><span class="live__clock" data-elapsed="' + t.sleep.start + '">0:00</span></div>' +
+      out += '<div class="card live live--sleep"><div class="live__head">' + h.mascot('sleep', 'live__mascot') + '<div><div class="live__label"><span class="pulse"></span>Asleep</div><div class="live__sub">since ' + h.fmtTime(t.sleep.start) + by(t.sleep) + '</div></div><span class="live__clock" data-elapsed="' + t.sleep.start + '">0:00</span></div>' +
         '<button class="btn btn--primary btn--block" data-action="sleep-stop">☀️ Woke up</button></div>';
     }
     if (t.pump) {
@@ -262,7 +262,7 @@
       if (s.wet < dia.wet) low.push('wet diapers');
       if (s.feeds < feed.perDay[0]) low.push('feeds');
       if (low.length) html += '<div style="margin-top:12px">' + h.note('warn', 'Fewer ' + low.join(' and ') + ' than usual', 'Missed logging some? If not — and especially with fewer wet diapers, sleepiness at feeds or dark pee — call your pediatrician or a lactation consultant today.') + '</div>';
-      else html += '<div style="margin-top:12px">' + h.note('ok', 'Looking good', 'Feeds and wet diapers are in the expected range for ' + esc(G.ageLabel(days).toLowerCase()) + '.') + '</div>';
+      else html += '<div style="margin-top:12px">' + h.note('ok', 'Looking good', 'Feeds and wet diapers are in the expected range for ' + esc(G.ageLabel(days).toLowerCase()) + '.', 'cheer') + '</div>';
     }
     return html;
   }
@@ -295,7 +295,7 @@
   }
 
   function timelineRows(list, now) {
-    if (!list.length) return '<div class="empty"><span class="empty__icon">🗒️</span>Nothing logged yet today. Tap a button above to start.</div>';
+    if (!list.length) return '<div class="empty">' + h.mascot('peek', 'empty__mascot') + 'Nothing logged yet today. Tap a button above to start.</div>';
     return '<div class="rows">' + list.map(function (e) {
       var d = h.describe(e, now);
       return '<button class="row' + (d.flag ? ' row--flag' : '') + '" data-action="edit" data-id="' + e.id + '"><span class="row__icon">' + d.icon + '</span><div class="row__main"><div class="row__t">' + esc(d.title) + (d.flag ? ' ⚠️' : '') + '</div><div class="row__s">' + esc(d.sub || ' ') + '</div></div>' +
@@ -388,7 +388,7 @@
     var html = modeSwitch('timeline') +
       '<div class="btn-row"><button class="btn btn--sm" data-action="add-past">＋ Add past entry</button><button class="btn btn--sm" data-action="handoff">📤 Share summary</button></div>' +
       '<div class="chips chips--scroll" role="toolbar" aria-label="Filter">' + FILTERS.map(function (f) { return '<button class="chip" data-action="hist-filter" data-type="' + f[0] + '" aria-pressed="' + (ui.historyType === f[0]) + '">' + f[1] + '</button>'; }).join('') + '</div>';
-    if (!list.length) return html + '<div class="card"><div class="empty"><span class="empty__icon">🗒️</span>Nothing here for the last ' + h.plural(ui.historyDays, 'day') + '.</div></div>';
+    if (!list.length) return html + '<div class="card"><div class="empty">' + h.mascot('peek', 'empty__mascot') + 'Nothing here for the last ' + h.plural(ui.historyDays, 'day') + '.</div></div>';
     var groups = {}, order = [];
     list.forEach(function (e) { var k = S.startOfDay(e.time); if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push(e); });
     html += '<div class="card">';

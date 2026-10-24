@@ -548,8 +548,18 @@
     var icon = level === 'ok' ? '✓' : level === 'urgent' ? '⚠' : level === 'warn' ? '!' : 'i';
     return '<span class="status status--' + level + '">' + icon + ' ' + esc(text) + '</span>';
   }
-  function note(level, title, text) {
-    return '<div class="note note--' + (level || 'info') + '">' + (title ? '<div class="note__t">' + esc(title) + '</div>' : '') + '<div>' + esc(text) + '</div></div>';
+  // pose: an optional mascot pose beside the note. Only calm notes get one; a
+  // cute face on a warning would make it feel less serious.
+  function note(level, title, text, pose) {
+    var body = (title ? '<div class="note__t">' + esc(title) + '</div>' : '') + '<div>' + esc(text) + '</div>';
+    if (pose && (level === 'ok' || level === 'info')) return '<div class="note note--' + level + ' note--art">' + mascot(pose, 'note__art') + '<div>' + body + '</div></div>';
+    return '<div class="note note--' + (level || 'info') + '">' + body + '</div>';
+  }
+  // The joey mascot. Decorative, so screen readers skip it.
+  var MASCOT = { wave: [237, 354], peek: [300, 337], sleep: [352, 264], cheer: [244, 319] };
+  function mascot(pose, cls) {
+    var s = MASCOT[pose];
+    return '<img class="mascot' + (cls ? ' ' + cls : '') + '" src="img/mascot/' + pose + '.webp" alt="" width="' + s[0] + '" height="' + s[1] + '" decoding="async" />';
   }
   function sw(setting, on, label) {
     return '<label class="switch"><input type="checkbox" data-setting="' + setting + '"' + (on ? ' checked' : '') + ' aria-label="' + esc(label || setting) + '" /><span></span></label>';
@@ -597,7 +607,7 @@
     TYPES: TYPES, REACTIONS: REACTIONS, describe: describe,
     toast: toast, openSheet: openSheet, renderSheet: renderSheet, closeSheet: closeSheet, tick: tick, initTips: initTips, initSheetGestures: initSheetGestures, since: since,
     fieldError: fieldError, clearFieldErrors: clearFieldErrors, ask: ask, patch: patch, regions: regions, focusKey: focusKey, refocus: refocus, afterHistory: afterHistory, reducedMotion: reducedMotion,
-    statusPill: statusPill, note: note, sw: sw, timeField: timeField, timeSync: timeSync,
+    statusPill: statusPill, note: note, mascot: mascot, sw: sw, timeField: timeField, timeSync: timeSync,
     MIN: MIN, HOUR: HOUR, DAY: DAY
   };
 })();
