@@ -1,6 +1,7 @@
 /* Alaga — the joey mascot shows in its four friendly spots (welcome, empty
    Today, empty History, the sleep timer, "Looking good") and never on a
-   warning, in light and dark themes.
+   warning, in light and dark themes. It moves on good news (save, wake,
+   milestone) unless the Settings switch or "reduce motion" says not to.
      node baby/tests/e2e.mascot.js        # SHOTS=dir to save screenshots */
 const http = require('http');
 const fs = require('fs');
@@ -60,9 +61,50 @@ const step = (t) => console.log('• ' + t);
     await page.click('.tab[data-view="today"]');
     await page.click('.qa[data-type="sleep"]');
     assert.strictEqual(await pose('#view-today .live--sleep'), 'sleep');
+    assert.strictEqual(await page.locator('#view-today .live__z').count(), 3, 'three sleepy stars');
+    assert.match(await page.$eval('#view-today .live__mascot', (i) => getComputedStyle(i).animationName), /joey-settle/);
     await shot('2-asleep');
+    await page.evaluate(() => { BabyStore.timers().sleep.start -= 20 * 60e3; }); // under a minute isn't saved
     await page.click('[data-action="sleep-stop"]');
-    step('sleep timer: the joey sleeps');
+    step('sleep timer: the joey settles in, breathes, stars float');
+
+    // The message after a good-news action: which pose, and how it moved.
+    const toastJoey = async () => {
+      await page.waitForTimeout(350);
+      const img = page.locator('#toasts .toast__joey');
+      if (!(await img.count())) return null;
+      return { pose: (await img.getAttribute('src')).match(/mascot\/(\w+)\./)[1], move: ((await img.getAttribute('class')).match(/joey--(\w+)/) || [])[1] || null };
+    };
+    assert.deepStrictEqual(await toastJoey(), { pose: 'wave', move: 'springup' });
+    step('woke up: the joey springs up in the message');
+
+    const logNote = async (type, text) => {
+      await page.evaluate((t) => BabyApp.act('log', { type: t }), type);
+      await page.fill('#sheet-form textarea[name="text"]', text);
+      await page.click('#sheet-form button[type="submit"]');
+    };
+    await logNote('note', 'Burped well');
+    assert.deepStrictEqual(await toastJoey(), { pose: 'wave', move: 'hop' });
+    step('saved: the joey hops');
+
+    await logNote('milestone', 'First smile');
+    assert.deepStrictEqual(await toastJoey(), { pose: 'star', move: 'jump' });
+    assert.ok(await page.locator('#toasts .joey-star').count() >= 5, 'stars burst');
+    await shot('2b-milestone');
+    step('milestone: the joey jumps and stars burst');
+
+    // The Settings switch: the joey still shows, but holds still.
+    await page.evaluate(() => { BabyStore.get().settings.joeyMotion = false; BabyApp.commit(); });
+    assert.ok(await page.evaluate(() => document.documentElement.classList.contains('joey-still')));
+    await logNote('note', 'Quiet one');
+    assert.deepStrictEqual(await toastJoey(), { pose: 'wave', move: null });
+    await page.evaluate(() => { BabyStore.get().settings.joeyMotion = true; BabyApp.commit(); });
+    // The phone's "reduce motion" wins over the switch.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await logNote('note', 'Calm one');
+    assert.deepStrictEqual(await toastJoey(), { pose: 'wave', move: null });
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    step('animations off, or reduce motion: the joey stays still');
 
     // A full day of feeds and wet diapers in range, logged since yesterday.
     await page.evaluate(() => {

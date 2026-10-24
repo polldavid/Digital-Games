@@ -30,6 +30,7 @@
     $('#welcome').hidden = !!b;
     $('#app').hidden = !b;
     if (!b) return;
+    h.joeyMood();
     var days = S.ageDays(Date.now()), many = S.get().babies.length > 1;
     var chip = $('#babychip');
     chip.innerHTML = '<span class="babychip__emoji" aria-hidden="true">' + esc(b.emoji || '👶') + '</span><span class="babychip__text"><span class="babychip__name">' + esc(b.name) + '</span><span class="babychip__age">' + esc(G.ageLabel(days)) + '</span></span>' + (many ? '<span class="babychip__caret" aria-hidden="true">▼</span>' : '');
@@ -163,7 +164,7 @@
     if (now - t.start < MIN) { commit(); h.toast('Under a minute — not saved.'); return; }
     var e = S.addEvent({ type: 'sleep', time: t.start, end: now, data: {} });
     commit();
-    h.toast('Slept ' + h.durMs(now - t.start) + ' ☀️', { label: 'Undo', fn: function () { S.removeEvent(e.id); S.timers().sleep = t; commit(); } });
+    h.toast('Slept ' + h.durMs(now - t.start) + ' ☀️', { label: 'Undo', fn: function () { S.removeEvent(e.id); S.timers().sleep = t; commit(); } }, 'wake');
   }
   function tummyStart() { if (S.isAsleep()) { h.toast('Baby is asleep — wake-time only for tummy time.'); return; } S.startTimer('tummy'); commit(); }
   function tummyStop(quiet) {
@@ -171,7 +172,7 @@
     if (!t) return;
     var now = Date.now();
     if (now - t.start >= 30000) S.addEvent({ type: 'tummy', time: t.start, end: now, data: {} });
-    if (!quiet) { commit(); h.toast('Tummy time: ' + h.durMs(now - t.start) + ' 💪'); }
+    if (!quiet) { commit(); h.toast('Tummy time: ' + h.durMs(now - t.start) + ' 💪', null, 'save'); }
   }
   function breastFinish() {
     var b = S.timers().breast;
@@ -182,7 +183,7 @@
     var e = S.addEvent({ type: 'feed', time: b.start, end: now, data: { kind: 'breast', left: tt.L, right: tt.R, startSide: b.firstSide || b.side } });
     h.closeSheet();
     commit();
-    h.toast('Feed saved · ' + h.durMs(tt.total), { label: 'Undo', fn: function () { S.removeEvent(e.id); S.timers().breast = b; commit(); } });
+    h.toast('Feed saved · ' + h.durMs(tt.total), { label: 'Undo', fn: function () { S.removeEvent(e.id); S.timers().breast = b; commit(); } }, 'save');
   }
 
   /* =====================================================
@@ -224,7 +225,8 @@
     html += '<div class="section-title"><h2>Today screen</h2></div><div class="card">' +
       row('Quick log buttons', 'Choose which buttons show on ' + esc(S.baby().name) + '’s Today, and their order. Each child has their own.', '<button class="btn btn--sm" data-action="quick-edit">Edit</button>') +
       row('Arrange sections', 'Reorder or hide parts of ' + esc(S.baby().name) + '’s Today (milk, last 24 hours, coming up…).', '<button class="btn btn--sm" data-action="sections-edit">Edit</button>') +
-      (window.BabyMic ? BabyMic.settingsRows(row, sel) : '') + '</div>';
+      (window.BabyMic ? BabyMic.settingsRows(row, sel) : '') +
+      row('Joey animations', 'The joey hops when you save, and celebrates milestones. Calmer from midnight to 5 am.', h.sw('joeyMotion', s.joeyMotion, 'Joey animations')) + '</div>';
 
     // Units
     html += '<div class="section-title"><h2>Units</h2></div><div class="card">' +
@@ -771,7 +773,7 @@
         var parts = k.split(':'), g = G.MILESTONES.filter(function (x) { return String(x.months) === parts[0]; })[0];
         var ev = S.addEvent({ type: 'milestone', time: Date.now(), data: { text: g.items[+parts[1]] } });
         b.milestones[k] = ev.id;
-        h.toast('⭐ Milestone saved to history');
+        h.toast('Milestone saved to history', null, 'milestone');
       } else {
         if (b.milestones[k] && b.milestones[k] !== true) S.removeEvent(b.milestones[k]);
         delete b.milestones[k];
@@ -827,7 +829,7 @@
           if (src) { src.status = 'active'; delete src.doneAt; }
         }
         commit();
-      } });
+      } }, editing || d.flag ? null : ev.type === 'milestone' ? 'milestone' : 'save');
     } else if (f.id === 'welcome-form' || f.id === 'baby-form') {
       e.preventDefault();
       var fd = new FormData(f), name = String(fd.get('name') || '').trim(), birth = String(fd.get('birth') || '');

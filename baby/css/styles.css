@@ -171,11 +171,42 @@ strong { font-weight: 700; }
 .mascot { display: block; width: auto; max-width: 100%; user-select: none; -webkit-user-drag: none; pointer-events: none; }
 .welcome__mascot { height: calc(132 * var(--u)); }
 .empty__mascot { height: calc(88 * var(--u)); margin: 0 auto 10px; }
-.live__mascot { height: calc(46 * var(--u)); flex: none; transform-origin: 50% 90%; animation: mascot-breathe 4s ease-in-out infinite; }
+.live__joey { position: relative; flex: none; }
+.live__mascot { height: calc(46 * var(--u)); transform-origin: 50% 90%; animation: joey-settle 0.45s ease-out, mascot-breathe 4s ease-in-out 0.45s infinite; }
 .note--art { display: flex; align-items: center; gap: 12px; }
 .note__art { height: calc(60 * var(--u)); flex: none; }
+.toast__joey { height: calc(34 * var(--u)); margin: -6px -2px -6px -6px; flex: none; transform-origin: 50% 100%; }
+/* Joey motion (ui.js joeyMood): transform and opacity only, so it costs almost
+   nothing to draw. --amp halves it from midnight to 5 am; .joey-still (the
+   Settings switch) and "reduce motion" stop it. Stars float three times, then rest. */
+:root { --amp: 1; --star: #ffb83d; }
+:root.joey-calm { --amp: 0.45; }
+.live__z { position: absolute; right: -6px; top: 0; width: 11px; height: 11px; color: var(--star); opacity: 0; pointer-events: none; animation: joey-z 2.4s ease-out 0.5s 3; }
+.live__z:nth-of-type(2) { animation-delay: 1.3s; }
+.live__z:nth-of-type(3) { animation-delay: 2.1s; }
+.joey--hop { animation: joey-hop 0.6s ease-out; }
+.joey--jump { animation: joey-hop 0.55s ease-out 2; }
+.joey--springup { animation: joey-springup 0.6s ease-out; }
+.joey-star { position: absolute; width: 14px; height: 14px; color: var(--star); pointer-events: none; opacity: 0; animation: joey-burst 0.8s ease-out forwards; }
 @keyframes mascot-breathe { 50% { transform: scale(1.04, 1.03); } }
-@media (prefers-reduced-motion: reduce) { .live__mascot { animation: none; } }
+@keyframes joey-settle { 0% { transform: translateY(-8px) scale(0.9, 1.1); opacity: 0; } 60% { transform: translateY(0) scale(1.05, 0.95); opacity: 1; } }
+@keyframes joey-z { 0% { transform: translate(0, 0) scale(0.5); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(calc(14px * var(--amp)), calc(-40px * var(--amp))) scale(1.1); opacity: 0; } }
+@keyframes joey-hop {
+  15% { transform: scale(calc(1 + 0.1 * var(--amp)), calc(1 - 0.1 * var(--amp))); }
+  45% { transform: translateY(calc(-14px * var(--amp))) scale(calc(1 - 0.05 * var(--amp)), calc(1 + 0.07 * var(--amp))); }
+  75% { transform: scale(calc(1 + 0.07 * var(--amp)), calc(1 - 0.07 * var(--amp))); }
+}
+@keyframes joey-springup {
+  0% { transform: translateY(10px) scale(1.15, 0.75); opacity: 0; }
+  45% { transform: translateY(calc(-12px * var(--amp))) scale(0.92, 1.1); opacity: 1; }
+  75% { transform: scale(1.05, 0.95); }
+}
+@keyframes joey-burst {
+  0% { transform: translate(-50%, -50%) rotate(0) scale(0.3); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx) * var(--amp)), calc(-50% + var(--dy) * var(--amp))) rotate(160deg) scale(1); opacity: 0; }
+}
+.joey-still .live__mascot, .joey-still .live__z { animation: none; }
+@media (prefers-reduced-motion: reduce) { .live__mascot, .live__z { animation: none; } }
 .welcome__title { font-size: clamp(calc(36 * var(--u)), 10vw, calc(52 * var(--u))); font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
 .welcome__title em { font-style: normal; color: var(--accent); }
 .welcome__sub { color: var(--text-dim); max-width: 38ch; }
@@ -457,7 +488,7 @@ textarea.input { min-height: 80px; resize: vertical; }
 /* ---------- Toasts & tooltip ---------- */
 .toasts { position: fixed; left: 0; right: 0; bottom: calc(var(--tabbar-h) + 22px + env(safe-area-inset-bottom)); z-index: 400; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; padding: 0 16px; }
 .toast {
-  pointer-events: auto; display: flex; align-items: center; gap: 12px; max-width: 520px; width: max-content;
+  position: relative; pointer-events: auto; display: flex; align-items: center; gap: 12px; max-width: 520px; width: max-content;
   padding: 11px 16px; border-radius: 999px; font-weight: 700; font-size: calc(14 * var(--u));
   background: var(--toast-bg); color: var(--toast-fg); border: 1px solid var(--stroke-strong); box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
   animation: rise 0.25s var(--ease);
