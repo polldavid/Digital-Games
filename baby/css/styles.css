@@ -172,7 +172,7 @@ strong { font-weight: 700; }
 .welcome__mascot { height: calc(132 * var(--u)); }
 .empty__mascot { height: calc(88 * var(--u)); margin: 0 auto 10px; }
 .live__joey { position: relative; flex: none; }
-.live__mascot { height: calc(46 * var(--u)); transform-origin: 50% 90%; animation: joey-settle 0.45s ease-out, mascot-breathe 4s ease-in-out 0.45s infinite; }
+.live__mascot { height: calc(54 * var(--u)); transform-origin: 50% 90%; animation: joey-settle 0.45s ease-out, mascot-breathe 4s ease-in-out 0.45s infinite; }
 .note--art { display: flex; align-items: center; gap: 12px; }
 .note__art { height: calc(60 * var(--u)); flex: none; }
 .toast__joey { height: calc(34 * var(--u)); margin: -6px -2px -6px -6px; flex: none; transform-origin: 50% 100%; }
@@ -181,7 +181,7 @@ strong { font-weight: 700; }
    Settings switch) and "reduce motion" stop it. Stars float three times, then rest. */
 :root { --amp: 1; --star: #ffb83d; }
 :root.joey-calm { --amp: 0.45; }
-.live__z { position: absolute; right: -6px; top: 0; width: 11px; height: 11px; color: var(--star); opacity: 0; pointer-events: none; animation: joey-z 2.4s ease-out 0.5s 3; }
+.live__z { position: absolute; right: -6px; top: 10px; width: 11px; height: 11px; color: var(--star); opacity: 0; pointer-events: none; animation: joey-z 2.4s ease-out 0.5s 3; }
 .live__z:nth-of-type(2) { animation-delay: 1.3s; }
 .live__z:nth-of-type(3) { animation-delay: 2.1s; }
 .joey--hop { animation: joey-hop 0.6s ease-out; }

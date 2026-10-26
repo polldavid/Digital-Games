@@ -226,7 +226,7 @@
       row('Quick log buttons', 'Choose which buttons show on ' + esc(S.baby().name) + '’s Today, and their order. Each child has their own.', '<button class="btn btn--sm" data-action="quick-edit">Edit</button>') +
       row('Arrange sections', 'Reorder or hide parts of ' + esc(S.baby().name) + '’s Today (milk, last 24 hours, coming up…).', '<button class="btn btn--sm" data-action="sections-edit">Edit</button>') +
       (window.BabyMic ? BabyMic.settingsRows(row, sel) : '') +
-      row('Joey animations', 'The joey hops when you save, and celebrates milestones. Calmer from midnight to 5 am.', h.sw('joeyMotion', s.joeyMotion, 'Joey animations')) + '</div>';
+      row('Mascot animations', 'The little one bounces when you save, and celebrates milestones. Calmer from midnight to 5 am.', h.sw('joeyMotion', s.joeyMotion, 'Mascot animations')) + '</div>';
 
     // Units
     html += '<div class="section-title"><h2>Units</h2></div><div class="card">' +

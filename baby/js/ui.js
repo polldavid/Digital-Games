@@ -589,7 +589,7 @@
     return '<div class="note note--' + (level || 'info') + '">' + body + '</div>';
   }
   // The joey mascot. Decorative, so screen readers skip it.
-  var MASCOT = { wave: [237, 354], peek: [300, 337], sleep: [352, 264], cheer: [244, 319], star: [238, 331] };
+  var MASCOT = { wave: [271, 396], peek: [296, 361], sleep: [318, 367], cheer: [276, 380], star: [269, 386] };
   function mascot(pose, cls) {
     var s = MASCOT[pose];
     return '<img class="mascot' + (cls ? ' ' + cls : '') + '" src="img/mascot/' + pose + '.webp" alt="" width="' + s[0] + '" height="' + s[1] + '" decoding="async" />';
