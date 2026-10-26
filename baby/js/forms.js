@@ -241,7 +241,7 @@
         '<div class="field"><span class="field__label" id="texture-label">Texture</span><div class="chips" role="radiogroup" aria-labelledby="texture-label">' +
         G.POOP_TEXTURES.map(function (t) { return '<label class="chip chip--pick"><input class="chip__input" type="radio" name="texture" value="' + t.id + '"' + (d.texture === t.id ? ' checked' : '') + ' />' + esc(t.label) + '</label>'; }).join('') +
         '</div></div><div id="texture-feedback"></div>' +
-        h.photoField('photo', d.photo, 'Photo for the doctor (optional)', 'Just the diaper. Hold it next to the colour card above to compare. Kept ' + keepText() + (S.get().settings.sharePhotos !== false ? ', and shared encrypted if you share the log.' : '.')) + '</div>';
+        h.photoField('photo', d.photo, 'Photo for the doctor (optional)', 'Just the diaper. Hold it next to the colour card above to compare. Kept ' + keepText() + (window.BabyShare && BabyShare.photoSync && S.get().settings.sharePhotos !== false ? ', and shared encrypted if you share the log.' : ' on this phone.')) + '</div>';
       html += '<label class="check-line" data-rash' + (where === 'diaper' ? '' : ' hidden') + '><input type="checkbox" name="rash"' + (d.rash ? ' checked' : '') + ' /> Diaper rash</label>';
       html += h.timeField('time', ev ? ev.time : Date.now()) + noteField(d.note) + footer(ev);
       return html;

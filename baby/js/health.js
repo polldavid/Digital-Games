@@ -288,7 +288,7 @@
           (rs ? '<p class="muted">' + (rs.active ? 'Active' : cur.stopped ? 'Stopped' : 'Finished') + ' · ' + h.plural(rs.doses, 'dose') + ' given' + (rs.expected ? ' of ' + rs.expected : '') + (rs.lastDose ? ' · last ' + h.ago(rs.lastDose.time) : '') + '</p>' : '') +
           rxFields(cur || {}) +
           '<label class="field"><span class="field__label">Prescribed by (optional)</span><input class="input" name="prescriber" maxlength="60" value="' + esc(cur ? cur.prescriber || '' : hl().profile.doctor || '') + '" /></label>' +
-          h.photoField('bottlePhotoId', cur && cur.bottlePhotoId, 'Photo of the bottle (optional)', 'Shown when a dose is logged, so a partner or sitter can check it’s the right bottle.') +
+          h.photoField('bottlePhotoId', cur && cur.bottlePhotoId, 'Photo of the bottle (optional)', 'Shown when a dose is logged on this phone, so whoever gives it can check it’s the right bottle.') +
           (cur && rs.active ? '<button type="button" class="btn btn--block" data-action="rx-stop" data-id="' + cur.id + '">⏹ Stop this medicine now</button>' : '') +
           sticky((cur ? '<button type="button" class="btn btn--danger" data-action="rx-delete" data-id="' + cur.id + '">Delete</button>' : '') + '<button type="submit" class="btn btn--primary btn--lg">Save</button>') + '</form>';
       }

@@ -82,6 +82,27 @@ const photoHex = (page, id) => page.evaluate((i) => BabyFiles.get(i).then((b) =>
     assert.match(rx.bottlePhotoId || '', /^ph_/);
     step('a medicine saved with a photo of its bottle');
 
+    // Photo sync is parked (js/share.js PHOTO_SYNC): check it stays off, and stop here.
+    if (!(await A.evaluate(() => BabyShare.photoSync))) {
+      await A.evaluate((id) => BabyForms.open('med', null, { rxId: id }), rx.id);
+      await A.waitForSelector('#med-bottle img.medbottle__img[src]');
+      await A.click('.sheet [data-action="sheet-close"] >> nth=-1');
+      await A.click('.tab[data-view="health"]');
+      await A.waitForSelector('#view-health .doc img[src]');
+      const puts = [];
+      A.on('request', (r) => { if (/\/v1\/photo/.test(r.url())) puts.push(r.url()); });
+      await A.evaluate(() => BabyShare.client.create('Poll’s phone'));
+      await A.waitForTimeout(1500);
+      assert.deepStrictEqual(puts, [], 'no photo leaves the phone while photo sync is parked');
+      await A.click('.tab[data-view="settings"]');
+      assert.strictEqual(await A.locator('[data-setting="sharePhotos"]').count(), 0, 'no Share photos switch');
+      assert.match(await A.textContent('#set-share + .card'), /Photos stay on the phone that took them/);
+      step('photo sync parked: the dose form shows the bottle, Health shows diaper photos, nothing is uploaded');
+      assert.deepStrictEqual(errors, [], 'no page errors');
+      console.log('photos e2e passed (photo sync parked)');
+      return;
+    }
+
     // Sharing on: the photos go up encrypted, under names that say nothing.
     const uploads = [];
     A.on('request', (r) => { if (/\/v1\/photo\?k=/.test(r.url()) && r.method() === 'PUT') uploads.push({ url: r.url(), body: r.postDataBuffer() }); });

@@ -61,8 +61,8 @@ History and a *Diaper photos* gallery in Health with the ones worth a look
 first; kept 30 / 90 days (default) / forever, flagged ones always kept; never
 read automatically (a pale stool must never be called normal). **Medicine
 bottles:** a medicine can have a photo of its bottle, shown on the dose form
-so a partner or sitter can check it's the right one. With partner sharing,
-photos are synced too, encrypted with the family key (see below).
+so a partner or sitter can check it's the right one. Photos stay on the phone
+that took them (photo sync is built but parked, see *Planned*).
 
 ## Reminders
 
@@ -137,7 +137,7 @@ disclaimer.
   lives only in the link's `#fragment`, so the sync server
   ([`server/`](server/README.md), a Cloudflare Worker + D1) stores ciphertext
   under hashed names. No account. A phone that already tracked the baby is
-  merged in ("Combine the logs"). Settings and alerts stay per phone; photos sync too, encrypted the same way, after the entries (Settings → Share photos from this phone turns that off per phone; R2 storage on the server, deleted photos kept 30 days).
+  merged in ("Combine the logs"). Settings, alerts and photos stay per phone.
 - **Arrange Today:** Settings → Today screen → *Arrange sections* (or More →
   *Arrange Today's sections*) reorders or hides the quick-log buttons, tiles,
   Milk, the crying shortcut, Last 24 hours, Coming up and Today's entries, per
@@ -237,6 +237,11 @@ SYNC_URL=http://127.0.0.1:8787 node baby/tests/e2e.sync.js   # two browsers, aga
 ```
 
 ## Planned
+
+- **Photo sync between phones** — built and tested, switched off (`PHOTO_SYNC` in
+  `js/share.js`) until R2 storage is turned on for the sync server: photos
+  encrypted with the family key, stored under hashed names
+  (`server/photos.js`), deleted ones kept 30 days. See `server/wrangler.toml`.
 
 - **Bring in an old shared log** (the Oct 5–6 deletions in the first shared log).
 
