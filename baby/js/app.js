@@ -750,6 +750,8 @@
 
   function onChange(e) {
     var t = e.target;
+    // First run: the mascot turns into a girl or a boy as soon as it's picked.
+    if (t.name === 'sex' && t.form && t.form.id === 'welcome-form') $('.welcome__mascot').outerHTML = h.mascot('wave', 'welcome__mascot', t.value);
     if (t.type === 'datetime-local' && t.closest('.time-row')) h.timeSync(t);
     var key = t.getAttribute && t.getAttribute('data-setting');
     if (key) {

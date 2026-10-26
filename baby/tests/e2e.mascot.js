@@ -47,7 +47,16 @@ const step = (t) => console.log('• ' + t);
     await page.goto(base);
     assert.strictEqual(await pose('#welcome'), 'wave');
     await shot('1-welcome');
-    step('welcome: the joey waves');
+    const welcomeSrc = () => page.getAttribute('#welcome img.mascot', 'src');
+    await page.check('#welcome-form input[name="sex"][value="f"]', { force: true });
+    assert.strictEqual(await welcomeSrc(), 'img/mascot/girl/wave.webp', 'Girl: the girl waves');
+    await page.waitForFunction(() => { const i = document.querySelector('#welcome img.mascot'); return i.complete && i.naturalWidth > 0; });
+    await shot('1b-welcome-girl');
+    await page.check('#welcome-form input[name="sex"][value="m"]', { force: true });
+    assert.strictEqual(await welcomeSrc(), 'img/mascot/wave.webp', 'Boy: the boy waves');
+    await page.check('#welcome-form input[name="sex"][value=""]', { force: true });
+    assert.strictEqual(await welcomeSrc(), 'img/mascot/wave.webp', 'Skip: the boy stands in');
+    step('welcome: the baby waves, and turns into a girl or boy as it is picked');
 
     await page.fill('#welcome-form input[name="name"]', 'Miel');
     await page.fill('#welcome-form input[name="birth"]', new Date(Date.now() - 8 * 864e5).toISOString().slice(0, 10));
@@ -125,6 +134,17 @@ const step = (t) => console.log('• ' + t);
     assert.strictEqual(await page.locator('#view-today .note--ok').count(), 0);
     await noneOnWarnings();
     step('a “fewer wet diapers” warning has no mascot');
+
+    // A girl: every spot shows the girl.
+    await page.evaluate(() => { BabyStore.baby().sex = 'f'; BabyApp.commit(); });
+    await page.click('.qa[data-type="sleep"]');
+    assert.strictEqual(await page.getAttribute('#view-today .live--sleep img.mascot', 'src'), 'img/mascot/girl/sleep.webp');
+    await page.waitForFunction(() => { const i = document.querySelector('#view-today .live--sleep img.mascot'); return i.complete && i.naturalWidth > 0; });
+    await page.evaluate(() => { BabyStore.timers().sleep.start -= 20 * 60e3; });
+    await page.click('[data-action="sleep-stop"]');
+    await page.waitForTimeout(350);
+    assert.strictEqual(await page.getAttribute('#toasts .toast__joey', 'src'), 'img/mascot/girl/wave.webp');
+    step('a girl: the girl sleeps and springs up');
 
     await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
     await shot('4-dark');

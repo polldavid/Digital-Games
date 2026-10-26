@@ -14,8 +14,8 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="css/styles.css?v=33" />
-  <link rel="stylesheet" href="../theme.css?v=33" />
+  <link rel="stylesheet" href="css/styles.css?v=34" />
+  <link rel="stylesheet" href="../theme.css?v=34" />
 </head>
 <body>
   <button class="theme-toggle" data-theme-toggle aria-label="Toggle light or dark mode">🌙</button>
@@ -38,6 +38,15 @@
           <input class="input" type="date" name="birth" required />
           <span class="field__hint">Feeding, sleep and diaper guidance is based on age.</span>
         </label>
+        <fieldset class="field">
+          <legend class="field__label">Girl or boy</legend>
+          <div class="seg" role="radiogroup">
+            <label><input type="radio" name="sex" value="f" /><span>Girl</span></label>
+            <label><input type="radio" name="sex" value="m" /><span>Boy</span></label>
+            <label><input type="radio" name="sex" value="" checked /><span>Skip</span></label>
+          </div>
+          <span class="field__hint">Picks the right WHO growth chart. You can set it later in Settings.</span>
+        </fieldset>
         <fieldset class="field">
           <legend class="field__label">Feeding</legend>
           <div class="seg" role="radiogroup">
@@ -121,25 +130,25 @@
   <div class="tip" id="tip" role="tooltip" hidden></div>
   <input type="file" id="import-file" accept="application/json,.json" hidden />
 
-  <script src="../theme.js?v=33"></script>
-  <script src="js/guide.js?v=33"></script>
-  <script src="js/store.js?v=33"></script>
-  <script src="js/sync.js?v=33"></script>
-  <script src="js/sound.js?v=33"></script>
-  <script src="js/rx.js?v=33"></script>
-  <script src="js/voice.js?v=33"></script>
-  <script src="js/files.js?v=33"></script>
-  <script src="js/viewer.js?v=33"></script>
-  <script src="js/ui.js?v=33"></script>
-  <script src="js/forms.js?v=33"></script>
-  <script src="js/views.js?v=33"></script>
-  <script src="js/help.js?v=33"></script>
-  <script src="js/health.js?v=33"></script>
-  <script src="js/milk.js?v=33"></script>
-  <script src="js/native.js?v=33"></script>
-  <script src="js/share.js?v=33"></script>
-  <script src="js/mic.js?v=33"></script>
-  <script src="js/ping.js?v=33"></script>
-  <script src="js/app.js?v=33"></script>
+  <script src="../theme.js?v=34"></script>
+  <script src="js/guide.js?v=34"></script>
+  <script src="js/store.js?v=34"></script>
+  <script src="js/sync.js?v=34"></script>
+  <script src="js/sound.js?v=34"></script>
+  <script src="js/rx.js?v=34"></script>
+  <script src="js/voice.js?v=34"></script>
+  <script src="js/files.js?v=34"></script>
+  <script src="js/viewer.js?v=34"></script>
+  <script src="js/ui.js?v=34"></script>
+  <script src="js/forms.js?v=34"></script>
+  <script src="js/views.js?v=34"></script>
+  <script src="js/help.js?v=34"></script>
+  <script src="js/health.js?v=34"></script>
+  <script src="js/milk.js?v=34"></script>
+  <script src="js/native.js?v=34"></script>
+  <script src="js/share.js?v=34"></script>
+  <script src="js/mic.js?v=34"></script>
+  <script src="js/ping.js?v=34"></script>
+  <script src="js/app.js?v=34"></script>
 </body>
 </html>

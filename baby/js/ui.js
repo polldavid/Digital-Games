@@ -588,11 +588,15 @@
     if (pose && (level === 'ok' || level === 'info')) return '<div class="note note--' + level + ' note--art">' + mascot(pose, 'note__art') + '<div>' + body + '</div></div>';
     return '<div class="note note--' + (level || 'info') + '">' + body + '</div>';
   }
-  // The joey mascot. Decorative, so screen readers skip it.
+  // The baby mascot: a girl when the baby showing is a girl, otherwise the boy
+  // (who also stands in when it isn't set). Decorative, so screen readers skip it.
+  // sex: 'f' or 'm' to choose here instead (the welcome form, before there's a baby).
   var MASCOT = { wave: [271, 396], peek: [296, 361], sleep: [318, 367], cheer: [276, 380], star: [269, 386] };
-  function mascot(pose, cls) {
-    var s = MASCOT[pose];
-    return '<img class="mascot' + (cls ? ' ' + cls : '') + '" src="img/mascot/' + pose + '.webp" alt="" width="' + s[0] + '" height="' + s[1] + '" decoding="async" />';
+  var MASCOT_GIRL = { wave: [282, 398], peek: [297, 365], sleep: [319, 375], cheer: [284, 389], star: [279, 391] };
+  function mascot(pose, cls, sex) {
+    if (sex == null) { var b = S.baby(); sex = b && b.sex; }
+    var girl = sex === 'f', s = (girl ? MASCOT_GIRL : MASCOT)[pose];
+    return '<img class="mascot' + (cls ? ' ' + cls : '') + '" src="img/mascot/' + (girl ? 'girl/' : '') + pose + '.webp" alt="" width="' + s[0] + '" height="' + s[1] + '" decoding="async" />';
   }
   function sw(setting, on, label) {
     return '<label class="switch"><input type="checkbox" data-setting="' + setting + '"' + (on ? ' checked' : '') + ' aria-label="' + esc(label || setting) + '" /><span></span></label>';
