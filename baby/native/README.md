@@ -14,6 +14,10 @@ can do what a web page can't:
   downloaded on the phone).
 - **App-icon shortcuts** — Sleep, Diaper, Feed, Voice (`res/xml/shortcuts.xml`,
   `babylog://do/<what>`).
+- **Home-screen widget** — the baby's name, a counter since the last feed, the
+  next feed and last diaper as clock times (so they stay right with the app
+  closed), and Feed / Diaper / Sleep buttons (`AlagaWidget.java`, fed by
+  `js/native.js` through `WidgetPlugin.java`).
 - **A durable copy of the log** in Android storage (`@capacitor/preferences`).
 
 ## Build

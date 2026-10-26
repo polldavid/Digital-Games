@@ -8,6 +8,7 @@
      @capacitor/local-notifications  reminders that fire with the app closed
      @capacitor/filesystem + share   backups and CSV exports
      @capacitor/preferences          a durable copy of the log
+     Widget (WidgetPlugin.java)      the home-screen widget
 
    Nothing here is required: a missing plugin means the web path.
    ========================================================= */
@@ -100,6 +101,7 @@
   var syncTimer = null, channelsMade = false;
   function syncReminders() {
     syncTimers();
+    syncWidget();
     if (!LN()) return;
     clearTimeout(syncTimer);
     syncTimer = setTimeout(scheduleNow, 800);
@@ -145,6 +147,39 @@
     TN.sync({ timers: list }).catch(function () {});
   }
   var lastTimers = '', askedPerm = false;
+
+  /* ---------- Home-screen widget (Android app) ----------
+     What AlagaWidget.java shows for the baby on screen: a counter since the
+     last feed (or since a breastfeed started), and clock times, which stay
+     right while the app is closed. */
+  function at(t, now) {
+    var d = new Date(t), same = d.toDateString() === new Date(now).toDateString();
+    return (same ? '' : d.toLocaleDateString(undefined, { weekday: 'short' }) + ' ') + h.fmtTime(t);
+  }
+  function widgetData(now) {
+    var b = S.baby();
+    if (!b) return {};
+    var sleep = S.timers().sleep, lf = S.lastFeedAnchor(), ld = S.last('diaper');
+    var d = { name: b.name, asleep: !!sleep, status: sleep ? '😴 Asleep since ' + h.fmtTime(sleep.start) : '', sinceAt: 0, sinceLabel: '', feed: 'No feeds yet', next: '' };
+    if (lf && lf.live) { d.sinceAt = lf.time; d.sinceLabel = 'feeding now'; d.feed = '🤱 Started ' + h.fmtTime(lf.time); }
+    else if (lf) {
+      d.sinceAt = lf.time; d.sinceLabel = 'since last feed';
+      var ds = h.describe(lf.event);
+      d.feed = '🍼 ' + at(lf.time, now) + ' · ' + ds.title + (ds.sub ? ', ' + ds.sub : ''); // the time first, so it never gets cut off
+      if (S.ageDays(now) < 365) d.next = 'Next feed ~' + at(lf.time + S.feedIntervalH(now) * HOUR, now);
+    }
+    if (ld) d.next = (d.next ? d.next + ' · ' : '') + '🧷 ' + at(ld.time, now);
+    return d;
+  }
+  function syncWidget() {
+    var W = plugin('Widget');
+    if (!W) return;
+    var d = widgetData(Date.now()), sig = JSON.stringify(d);
+    if (sig === lastWidget) return; // nothing changed: don't redraw
+    lastWidget = sig;
+    W.update(d).catch(function () {});
+  }
+  var lastWidget = '';
 
   /* ---------- babylog:// links (shortcuts, timer buttons) ---------- */
   function openUrl(u) {

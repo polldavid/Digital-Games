@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The home-screen widget (AlagaWidget.java): the app's light theme; values-night has the dark one. -->
+<resources>
+    <color name="widget_bg">#FFFBFAFF</color>
+    <color name="widget_stroke">#1A1E2446</color>
+    <color name="widget_text">#FF1B2140</color>
+    <color name="widget_dim">#FF4D5575</color>
+    <color name="widget_brand">#FF4357D4</color>
+    <color name="widget_btn">#144357D4</color>
+    <string name="widget_desc">Time since the last feed, when the next one is due, and quick Feed, Diaper and Sleep buttons.</string>
+    <style name="AlagaWidgetButton">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">40dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:gravity">center</item>
+        <item name="android:background">@drawable/widget_btn</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:textColor">@color/widget_text</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+</resources>
