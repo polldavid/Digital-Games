@@ -34,6 +34,8 @@
         feedRemind: true, feedIntervalH: 0,      // 0 = automatic from age
         diaperRemind: false, diaperIntervalH: 3,
         napRemind: true,
+        sharePhotos: true,
+        diaperPhotoDays: 90,                     // diaper photos come off entries after this (0 = keep); flagged ones stay                       // partner sharing also sends this phone's photos (encrypted)
         closedRemind: true,                      // web: reminders also sent by the server with the app closed (push.js)
         vitdRemind: false, vitdTime: '09:00',
         tummyRemind: false, tummyTime: '16:00',

@@ -20,8 +20,8 @@
    pushed yet is never overwritten; it goes up next and wins.
 
    Not shared: settings, which baby is showing, dismissed and
-   snoozed reminders (all per phone), and photos (too big for v1;
-   the record syncs and the photo stays on the phone that took it).
+   snoozed reminders (all per phone). Photos go separately, also
+   encrypted, after the records (see Photos in Client below).
    ========================================================= */
 (function (root) {
   'use strict';
@@ -319,6 +319,89 @@
       });
     }
 
+    /* ---------- Photos ----------
+       Photos the shared records point at (prescriptions, documents, diaper
+       photos, medicine bottles) go to the server encrypted with the family
+       key, under hashed names (server/photos.js). opts.photos supplies them:
+         ids()         every photo id the log refers to
+         has(id)       -> Promise<bool>   is it on this phone?
+         read(id)      -> Promise<ArrayBuffer|null>
+         write(id, ab) -> Promise         save one that came from the server
+         upload()      -> bool            this phone shares its photos
+       meta.photos[id] = 1 once a photo is on the server (sent from here, or
+       fetched). A few per round, after the records, so photos never hold up
+       the log. A photo nothing refers to any more is deleted on the server,
+       which keeps it 30 days in case the entry is restored. */
+    var PHOTOS_PER_ROUND = 6, photoBusy = null, photosOff = false;
+    function sealBytes(buf) {
+      var iv = rand(12);
+      return subtle.encrypt({ name: 'AES-GCM', iv: iv }, keys.aes, buf).then(function (ct) {
+        var out = new Uint8Array(12 + ct.byteLength);
+        out.set(iv, 0); out.set(new Uint8Array(ct), 12);
+        return out;
+      });
+    }
+    function openBytes(buf) { var a = new Uint8Array(buf); return subtle.decrypt({ name: 'AES-GCM', iv: a.slice(0, 12) }, keys.aes, a.slice(12)); }
+    function photoCall(method, id, body) {
+      return nameOf(keys, 'p:' + id).then(function (k) {
+        return fetchFn(server() + '/v1/photo?k=' + k, { method: method, headers: { 'Authorization': 'Bearer ' + keys.family + '.' + keys.token }, body: body });
+      }).then(function (res) {
+        if (res.status === 503) photosOff = true; // this server has no photo storage
+        return res;
+      });
+    }
+    function syncPhotos() {
+      var P = opts.photos;
+      if (!P || photosOff || photoBusy || !meta || !meta.secret) return photoBusy || Promise.resolve(0);
+      meta.photos = meta.photos || {}; meta.photoMiss = meta.photoMiss || {};
+      var ids = P.ids(), want = {}, got = 0, now = Date.now();
+      ids.forEach(function (id) { want[id] = 1; });
+      var pending = ids.filter(function (id) { return !meta.photos[id] && !(meta.photoMiss[id] && now - meta.photoMiss[id] < 10 * 60e3); });
+      // Not while deletions are held: a phone that lost entries mustn't delete their photos.
+      var gone = meta.held ? [] : Object.keys(meta.photos).filter(function (id) { return !want[id]; });
+      var chain = Promise.resolve(), done = 0;
+      pending.forEach(function (id) {
+        chain = chain.then(function () {
+          if (done >= PHOTOS_PER_ROUND || photosOff) return;
+          return P.has(id).then(function (here) {
+            if (here) {
+              if (meta.joining || !P.upload()) return;
+              done++;
+              return P.read(id).then(function (buf) { return buf && sealBytes(buf); }).then(function (ct) {
+                return ct && photoCall('PUT', id, ct).then(function (res) { if (res.ok) meta.photos[id] = 1; });
+              });
+            }
+            done++;
+            return photoCall('GET', id).then(function (res) {
+              if (res.status === 404) { meta.photoMiss[id] = Date.now(); return; } // not uploaded yet: try again later
+              if (!res.ok) return;
+              return res.arrayBuffer().then(openBytes).then(function (pt) { return P.write(id, pt); }).then(function () {
+                meta.photos[id] = 1; delete meta.photoMiss[id]; got++;
+              });
+            });
+          });
+        });
+      });
+      gone.slice(0, PHOTOS_PER_ROUND).forEach(function (id) {
+        chain = chain.then(function () { return photoCall('DELETE', id).then(function (res) { if (res.ok) delete meta.photos[id]; }); });
+      });
+      photoBusy = chain.catch(function () {}).then(function () {
+        photoBusy = null;
+        saveMeta();
+        if (got && self.onPhotos) self.onPhotos(got);
+        return got;
+      });
+      return photoBusy;
+    }
+    // Photos still to send from this phone, or to fetch (for the Share screen).
+    self.photosPending = function () {
+      var P = opts.photos;
+      if (!P || !loadMeta()) return 0;
+      var have = meta.photos || {};
+      return P.ids().filter(function (id) { return !have[id]; }).length;
+    };
+    self.syncPhotos = function () { return loadMeta() && meta.secret ? getKeys().then(syncPhotos) : Promise.resolve(0); };
+
     // One round: send what changed here, then fetch what changed elsewhere.
     function cycle() {
       if (!loadMeta() || !meta.secret) return Promise.resolve(null);
@@ -333,6 +416,7 @@
         res.applied = n;
         status({ lastOk: Date.now(), error: '' });
         if (n && self.onApplied) self.onApplied(n);
+        syncPhotos(); // in the background: photos never hold up the log
         return res;
       }, function (e) {
         status({ error: (e && e.message) || 'offline' });

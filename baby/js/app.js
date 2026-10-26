@@ -249,6 +249,7 @@
       row('Import a backup', 'Merges entries — nothing is overwritten.', '<button class="btn btn--sm" data-action="import-open">Import</button>') +
       row('Spreadsheet (CSV)', 'For your pediatrician or your own analysis.', '<button class="btn btn--sm" data-action="export-csv">CSV</button>') +
       row('Anonymous usage count', 'Once a day: “Alaga was used today”, the app version and phone type. No ID, nothing about your baby. It tells us whether Alaga is worth building on. <a href="privacy.html">Details</a>', h.sw('usageCount', s.usageCount, 'Anonymous usage count')) +
+      row('Keep diaper photos', 'Photos of poop that needed a look are always kept.', sel('diaperPhotoDays', [[30, '30 days'], [90, '90 days'], [0, 'Until I delete them']], s.diaperPhotoDays, 'Keep diaper photos')) +
       row('Erase everything', 'Deletes all babies, logs and photos from this device.', '<button class="btn btn--sm btn--danger" data-action="erase">Erase</button>') +
       '<p class="faint" style="margin-top:10px">Private by design: no account, no tracking. Your logs never leave this device unless you export them or turn on sharing (encrypted on the phone).</p></div>';
 
@@ -404,13 +405,54 @@
     reader.readAsText(file);
   }
 
+  // Every photo the log refers to: prescriptions, documents, medicine bottles, diaper photos.
   function photoIds() {
-    var ids = [];
+    var ids = [], add = function (id) { if (id && ids.indexOf(id) < 0) ids.push(id); };
     Object.keys(S.get().health).forEach(function (bid) {
       var H = S.get().health[bid];
-      (H.rx || []).concat(H.docs || []).forEach(function (x) { if (x.photoId && ids.indexOf(x.photoId) < 0) ids.push(x.photoId); });
+      (H.rx || []).concat(H.docs || []).forEach(function (x) { add(x.photoId); add(x.bottlePhotoId); });
     });
+    S.get().events.forEach(function (e) { if (e.data && e.data.photo) add(e.data.photo); });
     return ids;
+  }
+  App.photoIds = photoIds;
+  function setFormPhoto(form, field, id) {
+    var box = form && form.isConnected && form.querySelector('[data-photo-for="' + field + '"]');
+    if (!box) return;
+    box.outerHTML = h.photoField(field, id, box.getAttribute('data-label'), box.getAttribute('data-hint'));
+    Files.hydrate(form);
+    var next = form.querySelector('[data-photo-for="' + field + '"] button');
+    if (next) next.focus();
+  }
+  // Photos nothing refers to any more (a deleted entry, a replaced photo, a
+  // form closed without saving) are removed once they've been unused for a
+  // week: an Undo, a restored entry or a log that hasn't finished loading
+  // still finds its photos. Checked at start-up.
+  var ORPHANS = 'dg-babylog-orphans';
+  function cleanPhotos() {
+    if (!S.get().babies.length) return;
+    var used = photoIds(), seen = {}, now = Date.now();
+    try { seen = JSON.parse(localStorage.getItem(ORPHANS) || '{}') || {}; } catch (e) {}
+    Files.keys().then(function (ks) {
+      var next = {};
+      (ks || []).forEach(function (k) {
+        if (used.indexOf(k) >= 0) return;
+        if (seen[k] && now - seen[k] > 7 * DAY) Files.remove(k).catch(function () {});
+        else next[k] = seen[k] || now;
+      });
+      try { localStorage.setItem(ORPHANS, JSON.stringify(next)); } catch (e) {}
+    }).catch(function () {});
+  }
+  App.cleanPhotos = cleanPhotos;
+  // Diaper photos older than the parent's choice come off their entries, except
+  // ones that needed a look. (The entry stays; cleanPhotos removes the photo later.)
+  function expireDiaperPhotos() {
+    var days = +S.get().settings.diaperPhotoDays, now = Date.now(), n = 0;
+    if (!days) return;
+    S.events({ type: 'diaper' }).forEach(function (e) {
+      if (e.data.photo && now - e.time > days * DAY && !h.describe(e).flag) { delete e.data.photo; n++; }
+    });
+    if (n) { S.touch(); S.save(); }
   }
   // Delete a photo once nothing refers to it any more.
   function dropPhotoIfUnused(id) { if (id && photoIds().indexOf(id) < 0) Files.remove(id).catch(function () {}); }
@@ -713,7 +755,18 @@
         dropPhotoIfUnused(d.photoId); h.closeSheet(); commit();
       });
     },
-    'photo-view': function (n) { Hl.photoViewer(n.getAttribute('data-id')); }
+    'photo-view': function (n) { Hl.photoViewer(n.getAttribute('data-id')); },
+    // A form's optional photo (h.photoField): shrunk and kept on the phone; the form saves its id.
+    'form-photo': function (n) {
+      var form = n.closest('form'), field = n.getAttribute('data-field');
+      Hl.pickPhoto(!!n.getAttribute('data-capture'), function (file) {
+        Files.compress(file).then(function (blob) {
+          var id = 'ph_' + S.uid();
+          return Files.put(id, blob).then(function () { return id; });
+        }).then(function (id) { setFormPhoto(form, field, id); }).catch(function (e) { h.toast(e.message || 'Couldn’t save that photo.'); });
+      });
+    },
+    'form-photo-remove': function (n) { setFormPhoto(n.closest('form'), n.getAttribute('data-field'), ''); }
   };
 
   /* Tabs and the Back button, like a native bottom bar: from any tab, Back
@@ -896,7 +949,10 @@
       var rx = id ? S.findIn(H.rx, id) : { id: S.uid(), created: Date.now() };
       Object.keys(d).forEach(function (k) { rx[k] = d[k]; });
       rx.prescriber = fd('prescriber');
+      var oldBottle = rx.bottlePhotoId;
+      rx.bottlePhotoId = fd('bottlePhotoId') || null;
       if (!id) H.rx.push(rx);
+      if (oldBottle && oldBottle !== rx.bottlePhotoId) dropPhotoIfUnused(oldBottle);
       h.closeSheet(); commit(); h.toast(id ? 'Saved' : rx.name + ' added' + (rx.remind ? ' — reminders on' : ''));
     } else if (f.id === 'scan-form') {
       Hl.syncScanForm();
@@ -1050,7 +1106,7 @@
     refreshPermission();
     render();
     // In the app shell, bring back a log the WebView lost (e.g. iOS clearing storage).
-    N.restoreIfEmpty().then(function (restored) { if (restored) { render(); h.toast('Your log was restored ✓'); } });
+    N.restoreIfEmpty().then(function (restored) { if (restored) { render(); h.toast('Your log was restored ✓'); } setTimeout(function () { expireDiaperPhotos(); cleanPhotos(); }, 5000); });
     N.syncReminders();
     setInterval(h.tick, 1000);
     setInterval(checkReminders, 15000);

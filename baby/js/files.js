@@ -26,7 +26,8 @@
     return db().then(function (d) {
       return new Promise(function (resolve, reject) {
         var t = d.transaction(STORE, mode), st = t.objectStore(STORE), out = fn(st);
-        t.oncomplete = function () { resolve(out && out.result !== undefined ? out.result : out); };
+        // A request's result (undefined when the photo isn't here), never the request itself.
+        t.oncomplete = function () { resolve(typeof IDBRequest !== 'undefined' && out instanceof IDBRequest ? out.result : out); };
         t.onerror = function () { reject(t.error); };
       });
     });

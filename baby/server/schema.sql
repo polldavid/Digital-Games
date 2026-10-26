@@ -61,3 +61,12 @@ CREATE TABLE IF NOT EXISTS push_keys (
   id  TEXT PRIMARY KEY,               -- 'vapid'
   jwk TEXT NOT NULL                   -- the server's VAPID private key, made on first use
 );
+
+-- Shared photos (photos.js) live in R2; deleted ones wait here 30 days.
+CREATE TABLE IF NOT EXISTS photo_trash (
+  family  TEXT NOT NULL,
+  k       TEXT NOT NULL,              -- hashed photo name
+  deleted INTEGER NOT NULL,           -- ms
+  PRIMARY KEY (family, k)
+);
+CREATE INDEX IF NOT EXISTS photo_trash_by_time ON photo_trash (deleted);

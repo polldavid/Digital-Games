@@ -10,7 +10,15 @@
 
   var S = window.BabyStore, Sync = window.BabySync, App = window.BabyApp, h = App.h, N = window.BabyNative;
   var $ = h.$, esc = h.esc;
-  var client = Sync.Client();
+  var Files = window.BabyFiles;
+  // Photos travel with the log, encrypted (sync.js, Photos). The ids come from app.js.
+  var client = Sync.Client({ photos: {
+    ids: function () { return App.photoIds ? App.photoIds() : []; },
+    has: function (id) { return Files.get(id).then(function (b) { return !!b; }, function () { return false; }); },
+    read: function (id) { return Files.get(id).then(function (b) { return b ? b.arrayBuffer() : null; }); },
+    write: function (id, buf) { return Files.put(id, new Blob([buf], { type: 'image/jpeg' })); },
+    upload: function () { return S.get().settings.sharePhotos !== false; }
+  } });
   var QR = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
   var QR_SRI = 'sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k';
 
@@ -35,6 +43,10 @@
     if (m.error) return (navigator.onLine === false ? 'Offline — changes are saved here and will sync when you’re back online.' : m.error) + (m.lastOk ? ' Last synced ' + ago(m.lastOk) + '.' : '');
     return 'Synced ' + ago(m.lastOk) + '.';
   }
+  function photoLine() {
+    var n = client.photosPending();
+    return 'Prescriptions, documents, diaper and medicine photos, encrypted like the log.' + (n ? ' ' + h.plural(n, 'photo') + ' still to sync.' : '');
+  }
   function settingsSection(row) {
     var html = '<div class="section-title" id="set-share"><h2>Share with a partner</h2></div><div class="card">';
     if (!client.on()) {
@@ -44,12 +56,13 @@
       var m = client.meta();
       html += row('Sharing is on', statusLine(), '<button class="btn btn--sm" data-action="share-now">Sync now</button>') +
         row('This phone', esc(m.device || 'Unnamed') + ' — shown next to what you log.', '<button class="btn btn--sm" data-action="share-rename">Rename</button>') +
+        row('Share photos from this phone', photoLine(), h.sw('sharePhotos', S.get().settings.sharePhotos !== false, 'Share photos from this phone')) +
         row('Add a phone', 'Show the QR code or send the link to your partner, a grandparent or a sitter.', '<button class="btn btn--sm btn--primary" data-action="share-invite">Invite</button>') +
         row('Stop sharing on this phone', 'The log stays here; other phones keep theirs.', '<button class="btn btn--sm btn--danger" data-action="share-leave">Stop</button>') +
         (client.held() ? row('⚠️ ' + client.held() + ' entries missing on this phone', 'They’re still in your shared log. Bring them back, or delete them on every phone.', '<button class="btn btn--sm btn--primary" data-action="share-held">Review</button>') : '') +
         row('Restore deleted entries', 'Entries deleted in the last 30 days, on any phone, can be brought back.', '<button class="btn btn--sm" data-action="share-history">Open</button>') +
         row('Delete the shared copy', 'Erases the encrypted copy on the sync server. Every phone stops syncing but keeps its own log.', '<button class="btn btn--sm btn--danger" data-action="share-destroy">Delete</button>') +
-        '<p class="faint" style="margin-top:10px">Shared: babies, entries, running timers, reminders you created and health records. Each phone keeps its own settings and alerts. Photos stay on the phone that took them.</p>';
+        '<p class="faint" style="margin-top:10px">Shared: babies, entries, running timers, reminders you created and health records. Each phone keeps its own settings and alerts. Photos (prescriptions, documents, diaper and medicine photos) are encrypted the same way and follow the entries.</p>';
     }
     return html + '</div>';
   }
@@ -251,6 +264,8 @@
   /* ---------- Boot ---------- */
   function init() {
     client.onApplied = refresh;
+    // Photos that arrived: fill in the images waiting for them.
+    client.onPhotos = function () { Files.hydrate(); if (App.ui.view === 'settings' || App.ui.view === 'health') refresh(); };
     client.onGone = function (msg) { App.render(); h.toast(msg); };
     client.onHeld = function () { heldSheet(); };
     if (client.held()) setTimeout(heldSheet, 1500);

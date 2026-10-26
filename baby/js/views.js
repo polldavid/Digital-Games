@@ -321,6 +321,7 @@
     return '<div class="rows">' + list.map(function (e) {
       var d = h.describe(e, now);
       return '<button class="row' + (d.flag ? ' row--flag' : '') + '" data-action="edit" data-id="' + e.id + '"><span class="row__icon">' + d.icon + '</span><div class="row__main"><div class="row__t">' + esc(d.title) + (d.flag ? ' ⚠️' : '') + '</div><div class="row__s">' + esc(d.sub || ' ') + '</div></div>' +
+        (e.data && e.data.photo ? '<img class="row__thumb" data-photo="' + esc(e.data.photo) + '" alt="With a photo" loading="lazy" decoding="async" />' : '') +
         '<div class="row__time"><strong>' + h.fmtTime(e.time) + '</strong>' + h.ago(e.end || e.time, now) + '</div></button>';
     }).join('') + '</div>';
   }

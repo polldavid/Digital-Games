@@ -11,7 +11,7 @@ const path = require('path');
 const TESTS = __dirname;
 const SERVER_DIR = path.join(__dirname, '..', 'server');
 const PORT = 8787, SYNC_URL = 'http://127.0.0.1:' + PORT;
-const NEEDS_SERVER = ['e2e.sync.js', 'e2e.copies.js', 'e2e.push.js'];
+const NEEDS_SERVER = ['e2e.sync.js', 'e2e.copies.js', 'e2e.push.js', 'e2e.photos.js'];
 const filters = process.argv.slice(2);
 
 const files = fs.readdirSync(TESTS)

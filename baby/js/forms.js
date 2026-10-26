@@ -216,6 +216,9 @@
   }
 
   /* ======================= DIAPER ======================= */
+  // How long diaper photos are kept (Settings → Your data); worrying ones always stay.
+  function keepText() { var n = S.get().settings.diaperPhotoDays; return n ? n + ' days (longer if it needs a look)' : 'until you delete it'; }
+
   var DIAPER = {
     title: function (ev, preset) {
       var potty = ev ? !!ev.data.where : preset && preset.potty;
@@ -237,7 +240,8 @@
         '<div id="poop-feedback"></div>' +
         '<div class="field"><span class="field__label" id="texture-label">Texture</span><div class="chips" role="radiogroup" aria-labelledby="texture-label">' +
         G.POOP_TEXTURES.map(function (t) { return '<label class="chip chip--pick"><input class="chip__input" type="radio" name="texture" value="' + t.id + '"' + (d.texture === t.id ? ' checked' : '') + ' />' + esc(t.label) + '</label>'; }).join('') +
-        '</div></div><div id="texture-feedback"></div></div>';
+        '</div></div><div id="texture-feedback"></div>' +
+        h.photoField('photo', d.photo, 'Photo for the doctor (optional)', 'Just the diaper. Hold it next to the colour card above to compare. Kept ' + keepText() + (S.get().settings.sharePhotos !== false ? ', and shared encrypted if you share the log.' : '.')) + '</div>';
       html += '<label class="check-line" data-rash' + (where === 'diaper' ? '' : ' hidden') + '><input type="checkbox" name="rash"' + (d.rash ? ' checked' : '') + ' /> Diaper rash</label>';
       html += h.timeField('time', ev ? ev.time : Date.now()) + noteField(d.note) + footer(ev);
       return html;
@@ -247,7 +251,7 @@
       var where = radio(form, 'where');
       var data = { wet: what === 'wet' || what === 'both', dirty: what === 'dirty' || what === 'both', rash: checked(form, 'rash'), note: val(form, 'note').trim() };
       if (where && where !== 'diaper') { data.where = where; data.rash = false; }
-      if (data.dirty) { data.color = val(form, 'color') || null; data.texture = radio(form, 'texture') || null; }
+      if (data.dirty) { data.color = val(form, 'color') || null; data.texture = radio(form, 'texture') || null; if (val(form, 'photo')) data.photo = val(form, 'photo'); }
       return { time: h.fromLocalInput(val(form, 'time')), data: data };
     },
     mount: function (body) {
@@ -427,7 +431,7 @@
         '<div class="field__row"><label class="field"><span class="field__label">Hours between doses</span><input class="input" type="number" inputmode="decimal" step="0.5" min="0" max="48" name="intervalH" value="' + (d.intervalH != null ? d.intervalH : p.intervalH) + '" /></label>' +
         '<label class="field"><span class="field__label">Max doses / 24h</span><input class="input" type="number" inputmode="numeric" min="0" max="24" name="maxPerDay" value="' + (d.maxPerDay != null ? d.maxPerDay : p.maxPerDay) + '" /></label></div>' +
         '<label class="check-line"><input type="checkbox" name="remind"' + ((ev ? d.remind : p.intervalH > 0 && p.intervalH < 24 && !p.rx) ? ' checked' : '') + ' /> Remind me when the next dose is allowed' + '</label>' +
-        '<div id="med-status"></div>' +
+        '<div id="med-bottle"></div><div id="med-status"></div>' +
         h.timeField('time', ev ? ev.time : preset && preset.time || Date.now(), 'Given at') + noteField(d.note) +
         '<p class="faint">Alaga never suggests doses. Dosing for babies is by weight — follow the label or your pediatrician, and use the syringe that came with the medicine.</p>' + footer(ev);
     },
@@ -450,6 +454,13 @@
           if (p.rx) form.elements.dose.value = p.rx.dose || '';
         }
         form.querySelector('[data-custom]').hidden = id !== 'custom';
+        // The bottle's photo, so whoever gives the dose can check it's the right one.
+        var bp = p.rx && p.rx.bottlePhotoId, mb = form.querySelector('#med-bottle');
+        if ((mb.getAttribute('data-id') || '') !== (bp || '')) {
+          mb.setAttribute('data-id', bp || '');
+          mb.innerHTML = bp ? '<div class="medbottle"><button type="button" class="photo-btn" data-action="photo-view" data-id="' + esc(bp) + '" aria-label="View the bottle full size"><img class="medbottle__img" data-photo="' + esc(bp) + '" alt="" /></button><span class="muted small">Check it’s this bottle.</span></div>' : '';
+          if (bp && window.BabyFiles) window.BabyFiles.hydrate(mb);
+        }
         var out = [], now = Date.now(), dd = days();
         if (dd < p.minAgeDays || (id === 'acetaminophen' && dd < 91)) out.push(h.note('warn', 'Check with a doctor first', p.warn));
         else if (p.warn) out.push('<p class="faint">' + esc(p.warn) + '</p>');

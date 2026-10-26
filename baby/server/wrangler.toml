@@ -8,6 +8,12 @@ binding = "DB"
 database_name = "babylog-sync"
 database_id = "60056cef-7efd-4857-93a0-e1be1083774d"
 
+# Shared photos, encrypted on the phones (photos.js). Create once:
+#   npx wrangler r2 bucket create alaga-photos
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "alaga-photos"
+
 # Reminders with the app closed: send what's due, every minute (push.js).
 [triggers]
 crons = ["* * * * *"]

@@ -17,14 +17,16 @@
    GET  /v1/stats  Authorization: Bearer <STATS_KEY>  -> usage totals
    GET  /stats                              -> the private stats page (asks for the key)
    /v1/remind…                              -> reminders with the app closed (push.js)
+   /v1/photo?k=<name>  PUT / GET / DELETE   -> shared photos, encrypted (photos.js)
    A deleted family keeps only its id, marked gone, so phones that still
    have the code get 410 and stop — instead of re-uploading their copy.
    ========================================================= */
 import { STATS_PAGE } from './stats-page.js';
 import { handlePush, sendDue } from './push.js';
+import { handlePhoto, deleteFamilyPhotos, emptyTrash } from './photos.js';
 
 const MAX_ROWS = 200;          // per push
-const MAX_BLOB = 64 * 1024;    // per record (photos aren't synced)
+const MAX_BLOB = 64 * 1024;    // per record (photos go to R2: photos.js)
 const PAGE = 500;              // per pull
 
 const CORS = {
@@ -99,7 +101,18 @@ export default {
     if (fam && fam.auth === 'gone') return json({ error: 'deleted' }, 410);
     if (fam && fam.auth !== tokenHash) return json({ error: 'auth' }, 403);
 
+    // The family's row, made by its first upload (a record or a photo).
+    const created = async () => {
+      if (fam) return;
+      const now = Date.now();
+      await env.DB.prepare('INSERT OR IGNORE INTO families (id, auth, seq, created, updated) VALUES (?, ?, 0, ?, ?)').bind(family, tokenHash, now, now).run();
+      fam = await env.DB.prepare('SELECT auth, seq FROM families WHERE id = ?').bind(family).first();
+      if (!fam || fam.auth !== tokenHash) throw new Error('auth');
+    };
+
     try {
+      if (url.pathname === '/v1/photo') return await handlePhoto(req, env, url, family, json, created);
+
       if (url.pathname === '/v1/pull' && req.method === 'GET') {
         if (!fam) return json({ rows: [], more: false });
         const after = Math.max(0, parseInt(url.searchParams.get('after') || '0', 10) || 0);
@@ -120,11 +133,7 @@ export default {
           if (!r || !/^[A-Za-z0-9_-]{16,64}$/.test(r.k || '') || typeof r.b !== 'string' || r.b.length > MAX_BLOB) return json({ error: 'row' }, 400);
         }
         const now = Date.now();
-        if (!fam) {
-          await env.DB.prepare('INSERT OR IGNORE INTO families (id, auth, seq, created, updated) VALUES (?, ?, 0, ?, ?)').bind(family, tokenHash, now, now).run();
-          fam = await env.DB.prepare('SELECT auth, seq FROM families WHERE id = ?').bind(family).first();
-          if (!fam || fam.auth !== tokenHash) return json({ error: 'auth' }, 403);
-        }
+        try { await created(); } catch (e) { return json({ error: 'auth' }, 403); }
         // One transaction: keep the versions about to be overwritten (30 days),
         // bump the family's counter, then write every row with it.
         const keep = [];
@@ -153,6 +162,7 @@ export default {
       }
 
       if (url.pathname === '/v1/family' && req.method === 'DELETE') {
+        if (fam) await deleteFamilyPhotos(env, family);
         if (fam) await env.DB.batch([
           env.DB.prepare('DELETE FROM records_history WHERE family = ?').bind(family),
           env.DB.prepare('DELETE FROM records WHERE family = ?').bind(family),
@@ -168,5 +178,6 @@ export default {
 
   async scheduled(event, env, ctx) {
     ctx.waitUntil(sendDue(env));
+    if (new Date(event.scheduledTime).getUTCMinutes() === 7) ctx.waitUntil(emptyTrash(env)); // hourly is plenty
   },
 };

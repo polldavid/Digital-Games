@@ -824,3 +824,14 @@ body.sheet-open .toasts { bottom: auto; top: max(12px, env(safe-area-inset-top))
 @media (min-width: 768px) {
   #view-log .seg { width: 100%; max-width: 480px; }
 }
+
+/* Photos in forms (h.photoField), on rows, and the medicine bottle on the dose form. */
+.photofield__row { display: flex; align-items: center; gap: 12px; }
+.photofield__img { display: block; width: 96px; height: 96px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--stroke); background: var(--card-2); }
+.photofield__add { justify-content: flex-start; }
+.photofield__add > .btn { flex: 0 0 auto; }
+.row__thumb { width: 40px; height: 40px; flex: none; object-fit: cover; border-radius: 10px; border: 1px solid var(--stroke); background: var(--card-2); }
+.row__photo { display: block; width: 32px; height: 32px; object-fit: cover; border-radius: 8px; }
+.medbottle { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: var(--radius-sm); background: var(--card-2); }
+.medbottle__img { display: block; width: 64px; height: 64px; object-fit: cover; border-radius: 10px; }
+.doc--flag { border-color: var(--warn-line); }

@@ -74,6 +74,14 @@
       '<button class="row" data-action="visit-summary"><span class="row__icon">📤</span><div class="row__main"><div class="row__t">Summary for the doctor</div><div class="row__s">For a check-up or a sick visit: growth, illnesses, medicines, sleep, milestones</div></div><span class="faint">›</span></button>' +
       '</div></div>';
 
+    // Diaper photos for the doctor: the ones worth a look first, then the newest.
+    var dp = S.events({ type: 'diaper' }).filter(function (e) { return e.data.photo; }).map(function (e) { return { e: e, flag: !!h.describe(e).flag }; })
+      .sort(function (a, b) { return (b.flag - a.flag) || (b.e.time - a.e.time); });
+    if (dp.length) html += '<div class="section-title"><h2>Diaper photos</h2></div><div class="card"><p class="faint" style="margin-bottom:10px">For the doctor' + (dp[0].flag ? ', the ones worth a look first' : '') + '. Tap one to see it full size or edit the entry.</p><div class="docs">' + dp.slice(0, 24).map(function (x) {
+      var c = G.POOP_COLORS.filter(function (p) { return p.id === x.e.data.color; })[0];
+      return '<button class="doc' + (x.flag ? ' doc--flag' : '') + '" data-action="edit" data-id="' + x.e.id + '"><img class="doc__img" data-photo="' + esc(x.e.data.photo) + '" alt="" loading="lazy" decoding="async" /><span class="doc__t">' + (x.flag ? '⚠️ ' : '') + esc(c ? c.label : 'Dirty diaper') + '</span><span class="doc__s">' + esc(dateOnly(x.e.time)) + ' · ' + h.fmtTime(x.e.time) + '</span></button>';
+    }).join('') + '</div></div>';
+
     html += '<div class="section-title"><h2>Documents</h2> <button class="btn--link" data-action="doc-edit">＋ Add</button></div><div class="card">';
     if (H.docs.length) html += '<div class="docs">' + H.docs.slice().sort(function (a, b) { return b.date - a.date; }).map(function (d) {
       return '<button class="doc" data-action="doc-edit" data-id="' + d.id + '">' + (d.photoId ? '<img class="doc__img" data-photo="' + esc(d.photoId) + '" alt="" loading="lazy" decoding="async" />' : '<span class="doc__img doc__img--none">📄</span>') + '<span class="doc__t">' + esc(d.title || 'Document') + '</span><span class="doc__s">' + esc(dateOnly(d.date)) + '</span></button>';
@@ -94,7 +102,8 @@
     var line = [rx.dose, rx.prn ? 'as needed' : rx.intervalH ? (rx.intervalH >= 24 ? 'once a day' : 'every ' + rx.intervalH + 'h') : '', rs.expected ? rs.doses + ' of ' + rs.expected + ' doses' : rs.doses ? h.plural(rs.doses, 'dose') + ' given' : ''].filter(Boolean).join(' · ');
     var state = !rs.active ? (rx.stopped ? 'Stopped' : 'Finished') + (rs.end ? ' ' + new Date(Math.min(rs.end, rx.stoppedAt || rs.end)).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '')
       : [rs.nextAt ? (rs.nextAt <= now ? '<strong class="due">Due now</strong>' : 'Next ' + h.fmtTime(rs.nextAt)) : '', rs.end ? 'until ' + new Date(rs.end).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''].filter(Boolean).join(' · ');
-    return '<div class="row rxrow"><button class="rxrow__main" data-action="rx-edit" data-id="' + rx.id + '"><span class="row__icon">💊</span><div class="row__main"><div class="row__t">' + esc(rx.name) + (rx.strength ? ' <span class="faint">' + esc(rx.strength) + '</span>' : '') + '</div><div class="row__s">' + esc(line) + '</div>' + (state ? '<div class="row__s">' + state + '</div>' : '') + '</div></button>' +
+    var icon = rx.bottlePhotoId ? '<img class="row__photo" data-photo="' + esc(rx.bottlePhotoId) + '" alt="" />' : '💊';
+    return '<div class="row rxrow"><button class="rxrow__main" data-action="rx-edit" data-id="' + rx.id + '"><span class="row__icon">' + icon + '</span><div class="row__main"><div class="row__t">' + esc(rx.name) + (rx.strength ? ' <span class="faint">' + esc(rx.strength) + '</span>' : '') + '</div><div class="row__s">' + esc(line) + '</div>' + (state ? '<div class="row__s">' + state + '</div>' : '') + '</div></button>' +
       (rs.active ? '<button class="btn btn--sm btn--primary" data-action="rx-dose" data-id="' + rx.id + '">Give dose</button>' : '') + '</div>';
   }
 
@@ -279,6 +288,7 @@
           (rs ? '<p class="muted">' + (rs.active ? 'Active' : cur.stopped ? 'Stopped' : 'Finished') + ' · ' + h.plural(rs.doses, 'dose') + ' given' + (rs.expected ? ' of ' + rs.expected : '') + (rs.lastDose ? ' · last ' + h.ago(rs.lastDose.time) : '') + '</p>' : '') +
           rxFields(cur || {}) +
           '<label class="field"><span class="field__label">Prescribed by (optional)</span><input class="input" name="prescriber" maxlength="60" value="' + esc(cur ? cur.prescriber || '' : hl().profile.doctor || '') + '" /></label>' +
+          h.photoField('bottlePhotoId', cur && cur.bottlePhotoId, 'Photo of the bottle (optional)', 'Shown when a dose is logged, so a partner or sitter can check it’s the right bottle.') +
           (cur && rs.active ? '<button type="button" class="btn btn--block" data-action="rx-stop" data-id="' + cur.id + '">⏹ Stop this medicine now</button>' : '') +
           sticky((cur ? '<button type="button" class="btn btn--danger" data-action="rx-delete" data-id="' + cur.id + '">Delete</button>' : '') + '<button type="submit" class="btn btn--primary btn--lg">Save</button>') + '</form>';
       }

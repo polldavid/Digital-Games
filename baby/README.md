@@ -55,7 +55,14 @@ The **Health** tab keeps the medical side in one place:
   tap to share.
 
 Photos are stored in IndexedDB (compressed to ~1600 px JPEG) and included in
-JSON backups.
+JSON backups. **Diaper photos** (optional, on dirty diapers, for the doctor):
+just the diaper, compared against the colour card in the form; a thumbnail in
+History and a *Diaper photos* gallery in Health with the ones worth a look
+first; kept 30 / 90 days (default) / forever, flagged ones always kept; never
+read automatically (a pale stool must never be called normal). **Medicine
+bottles:** a medicine can have a photo of its bottle, shown on the dose form
+so a partner or sitter can check it's the right one. With partner sharing,
+photos are synced too, encrypted with the family key (see below).
 
 ## Reminders
 
@@ -130,7 +137,7 @@ disclaimer.
   lives only in the link's `#fragment`, so the sync server
   ([`server/`](server/README.md), a Cloudflare Worker + D1) stores ciphertext
   under hashed names. No account. A phone that already tracked the baby is
-  merged in ("Combine the logs"). Settings, alerts and photos stay per phone.
+  merged in ("Combine the logs"). Settings and alerts stay per phone; photos sync too, encrypted the same way, after the entries (Settings → Share photos from this phone turns that off per phone; R2 storage on the server, deleted photos kept 30 days).
 - **Arrange Today:** Settings → Today screen → *Arrange sections* (or More →
   *Arrange Today's sections*) reorders or hides the quick-log buttons, tiles,
   Milk, the crying shortcut, Last 24 hours, Coming up and Today's entries, per
@@ -231,13 +238,6 @@ SYNC_URL=http://127.0.0.1:8787 node baby/tests/e2e.sync.js   # two browsers, aga
 
 ## Planned
 
-- **Diaper photos** (optional, on dirty/both diapers): shrunk on the phone,
-  never uploaded, kept in Alaga's own storage (not the phone gallery in the
-  Android app); thumbnail in History; a "for the doctor" gallery led by
-  flagged diapers; a stool colour card beside the photo for comparison — no
-  automatic colour reading (a pale stool must never be called normal); keep
-  for 30 / 90 days / forever (flagged kept). Partner sharing of photos later,
-  as an opt-in, end-to-end encrypted.
 - **Bring in an old shared log** (the Oct 5–6 deletions in the first shared log).
 
 ## Android app

@@ -604,6 +604,19 @@
     var girl = sex === 'f', s = (girl ? MASCOT_GIRL : MASCOT)[pose];
     return '<img class="mascot' + (cls ? ' ' + cls : '') + '" src="img/mascot/' + (girl ? 'girl/' : '') + pose + '.webp" alt="" width="' + s[0] + '" height="' + s[1] + '" decoding="async" />';
   }
+  // An optional photo in a form (diaper, medicine bottle): Take / Choose, then
+  // a thumbnail that opens full size, and Remove. The photo id is in a hidden
+  // input named `field`; app.js form-photo / form-photo-remove fill it in.
+  function photoField(field, id, label, hint) {
+    var a = ' data-field="' + esc(field) + '"';
+    return '<div class="field photofield" data-photo-for="' + esc(field) + '" data-label="' + esc(label) + '" data-hint="' + esc(hint || '') + '"><span class="field__label">' + esc(label) + '</span>' +
+      (id ? '<div class="photofield__row"><button type="button" class="photo-btn" data-action="photo-view" data-id="' + esc(id) + '" aria-label="View the photo full size"><img class="photofield__img" data-photo="' + esc(id) + '" alt="" decoding="async" /></button>' +
+          '<button type="button" class="btn btn--sm" data-action="form-photo-remove"' + a + '>Remove</button></div>'
+        : '<div class="btn-row photofield__add"><button type="button" class="btn btn--sm" data-action="form-photo" data-capture="1"' + a + '>📷 Take photo</button><button type="button" class="btn btn--sm" data-action="form-photo"' + a + '>🖼️ Choose</button></div>') +
+      '<input type="hidden" name="' + esc(field) + '" value="' + esc(id || '') + '" />' +
+      (hint ? '<span class="field__hint">' + hint + '</span>' : '') + '</div>';
+  }
+
   function sw(setting, on, label) {
     return '<label class="switch"><input type="checkbox" data-setting="' + setting + '"' + (on ? ' checked' : '') + ' aria-label="' + esc(label || setting) + '" /><span></span></label>';
   }
@@ -650,7 +663,7 @@
     TYPES: TYPES, REACTIONS: REACTIONS, describe: describe,
     toast: toast, openSheet: openSheet, renderSheet: renderSheet, closeSheet: closeSheet, tick: tick, initTips: initTips, initSheetGestures: initSheetGestures, since: since,
     fieldError: fieldError, clearFieldErrors: clearFieldErrors, ask: ask, patch: patch, regions: regions, focusKey: focusKey, refocus: refocus, afterHistory: afterHistory, reducedMotion: reducedMotion,
-    statusPill: statusPill, note: note, mascot: mascot, babyIcon: babyIcon, sleepMascot: sleepMascot, mascotMood: mascotMood, sw: sw, timeField: timeField, timeSync: timeSync,
+    statusPill: statusPill, note: note, mascot: mascot, photoField: photoField, babyIcon: babyIcon, sleepMascot: sleepMascot, mascotMood: mascotMood, sw: sw, timeField: timeField, timeSync: timeSync,
     MIN: MIN, HOUR: HOUR, DAY: DAY
   };
 })();
