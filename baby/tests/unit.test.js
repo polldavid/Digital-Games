@@ -36,6 +36,10 @@ assert.strictEqual(G.poopCheck('white', 10).level, 'urgent');
 // store
 S.reset();
 const b = S.addBaby({ name: 'Ava', birth: '2026-09-11', feeding: 'breast' }); // 21 days
+// Sex and birth weight picked when adding a baby are kept (they were once dropped).
+{ const kept = S.addBaby({ name: 'Kai', birth: '2026-09-11', sex: 'f', birthWeightKg: 3.2 });
+  assert.strictEqual(kept.sex, 'f'); assert.strictEqual(kept.birthWeightKg, 3.2);
+  S.removeBaby(kept.id); S.get().activeBaby = b.id; }
 assert.strictEqual(S.ageDays(now), 21);
 const f = S.addEvent({ type: 'feed', time: now - 3 * HOUR, end: now - 3*HOUR + 20*MIN, data: { kind: 'breast', left: 10*MIN, right: 10*MIN, startSide: 'L' } });
 S.addEvent({ type: 'diaper', time: now - 2*HOUR, data: { wet: true, dirty: true, color: 'yellow' } });

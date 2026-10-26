@@ -593,6 +593,12 @@
   // sex: 'f' or 'm' to choose here instead (the welcome form, before there's a baby).
   var MASCOT = { wave: [271, 396], peek: [296, 361], sleep: [318, 367], cheer: [276, 380], star: [269, 386] };
   var MASCOT_GIRL = { wave: [282, 398], peek: [297, 365], sleep: [319, 375], cheer: [284, 389], star: [279, 391] };
+  // A baby's icon: the emoji the parent picked, or for the default 👶 the
+  // mascot's face (girl or boy). alt: only where the icon is the whole label.
+  function babyIcon(b, alt) {
+    if (b.emoji && b.emoji !== '👶') return esc(b.emoji);
+    return '<img class="babyface" src="img/mascot/' + (b.sex === 'f' ? 'girl/' : '') + 'face.webp" alt="' + esc(alt || '') + '" width="112" height="112" />';
+  }
   function mascot(pose, cls, sex) {
     if (sex == null) { var b = S.baby(); sex = b && b.sex; }
     var girl = sex === 'f', s = (girl ? MASCOT_GIRL : MASCOT)[pose];
@@ -644,7 +650,7 @@
     TYPES: TYPES, REACTIONS: REACTIONS, describe: describe,
     toast: toast, openSheet: openSheet, renderSheet: renderSheet, closeSheet: closeSheet, tick: tick, initTips: initTips, initSheetGestures: initSheetGestures, since: since,
     fieldError: fieldError, clearFieldErrors: clearFieldErrors, ask: ask, patch: patch, regions: regions, focusKey: focusKey, refocus: refocus, afterHistory: afterHistory, reducedMotion: reducedMotion,
-    statusPill: statusPill, note: note, mascot: mascot, sleepJoey: sleepJoey, joeyMood: joeyMood, sw: sw, timeField: timeField, timeSync: timeSync,
+    statusPill: statusPill, note: note, mascot: mascot, babyIcon: babyIcon, sleepJoey: sleepJoey, joeyMood: joeyMood, sw: sw, timeField: timeField, timeSync: timeSync,
     MIN: MIN, HOUR: HOUR, DAY: DAY
   };
 })();

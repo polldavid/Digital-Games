@@ -9,14 +9,14 @@
    cached stylesheet or script — not from this cache, nor from the
    browser's HTTP cache (GitHub Pages caches files for 10 minutes).
    ========================================================= */
-var V = '34';
+var V = '35';
 var VERSION = 'babylog-v' + V;
 var VERSIONED = ['css/styles.css', '../theme.css', '../theme.js',
   'js/guide.js', 'js/store.js', 'js/sync.js', 'js/sound.js', 'js/rx.js', 'js/voice.js', 'js/files.js', 'js/viewer.js', 'js/ui.js', 'js/forms.js', 'js/views.js', 'js/help.js', 'js/health.js', 'js/milk.js', 'js/native.js', 'js/share.js', 'js/mic.js', 'js/ping.js', 'js/app.js'];
 var FILES = ['./', 'index.html', 'privacy.html', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
-  'img/mascot/wave.webp', 'img/mascot/peek.webp', 'img/mascot/sleep.webp', 'img/mascot/cheer.webp', 'img/mascot/star.webp',
-  'img/mascot/girl/wave.webp', 'img/mascot/girl/peek.webp', 'img/mascot/girl/sleep.webp', 'img/mascot/girl/cheer.webp', 'img/mascot/girl/star.webp'
+  'img/mascot/wave.webp', 'img/mascot/peek.webp', 'img/mascot/sleep.webp', 'img/mascot/cheer.webp', 'img/mascot/star.webp', 'img/mascot/face.webp',
+  'img/mascot/girl/wave.webp', 'img/mascot/girl/peek.webp', 'img/mascot/girl/sleep.webp', 'img/mascot/girl/cheer.webp', 'img/mascot/girl/star.webp', 'img/mascot/girl/face.webp'
 ].concat(VERSIONED.map(function (f) { return f + '?v=' + V; }));
 
 self.addEventListener('install', function (e) {

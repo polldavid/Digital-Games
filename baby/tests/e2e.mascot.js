@@ -66,6 +66,12 @@ const step = (t) => console.log('• ' + t);
     await page.click('.tab[data-view="log"]');
     assert.strictEqual(await pose('#view-log .empty'), 'peek');
     step('empty Today and History: the joey peeks from behind a card');
+    assert.strictEqual(await page.getAttribute('#babychip img.babyface', 'src'), 'img/mascot/face.webp', 'the boy’s face at the top');
+    await page.evaluate(() => { BabyStore.baby().emoji = '🐻'; BabyApp.commit(); });
+    assert.strictEqual(await page.locator('#babychip img').count(), 0, 'a picked emoji stays');
+    assert.ok((await page.textContent('#babychip')).includes('🐻'));
+    await page.evaluate(() => { BabyStore.baby().emoji = '👶'; BabyApp.commit(); });
+    step('the icon at the top: the mascot face, unless another emoji was picked');
 
     await page.click('.tab[data-view="today"]');
     await page.click('.qa[data-type="sleep"]');
@@ -144,7 +150,8 @@ const step = (t) => console.log('• ' + t);
     await page.click('[data-action="sleep-stop"]');
     await page.waitForTimeout(350);
     assert.strictEqual(await page.getAttribute('#toasts .toast__joey', 'src'), 'img/mascot/girl/wave.webp');
-    step('a girl: the girl sleeps and springs up');
+    assert.strictEqual(await page.getAttribute('#babychip img.babyface', 'src'), 'img/mascot/girl/face.webp', 'her face at the top');
+    step('a girl: her face at the top; she sleeps and springs up');
 
     await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
     await shot('4-dark');

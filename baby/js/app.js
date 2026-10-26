@@ -33,7 +33,7 @@
     h.joeyMood();
     var days = S.ageDays(Date.now()), many = S.get().babies.length > 1;
     var chip = $('#babychip');
-    chip.innerHTML = '<span class="babychip__emoji" aria-hidden="true">' + esc(b.emoji || '👶') + '</span><span class="babychip__text"><span class="babychip__name">' + esc(b.name) + '</span><span class="babychip__age">' + esc(G.ageLabel(days)) + '</span></span>' + (many ? '<span class="babychip__caret" aria-hidden="true">▼</span>' : '');
+    chip.innerHTML = '<span class="babychip__emoji" aria-hidden="true">' + h.babyIcon(b) + '</span><span class="babychip__text"><span class="babychip__name">' + esc(b.name) + '</span><span class="babychip__age">' + esc(G.ageLabel(days)) + '</span></span>' + (many ? '<span class="babychip__caret" aria-hidden="true">▼</span>' : '');
     chip.setAttribute('aria-label', b.name + ', ' + G.ageLabel(days) + (many ? ' — switch baby' : ' — edit profile'));
     var v = App.ui.view;
     $all('.view').forEach(function (n) { n.hidden = n.id !== 'view-' + v; });
@@ -199,7 +199,7 @@
 
     // Babies
     html += '<div class="section-title"><h2>Babies</h2></div><div class="card"><div class="rows">' + st.babies.map(function (x) {
-      return '<button class="row" data-action="baby-edit" data-id="' + x.id + '"><span class="row__icon">' + esc(x.emoji || '👶') + '</span><div class="row__main"><div class="row__t">' + esc(x.name) + (x.id === st.activeBaby ? ' <span class="status status--ok">Active</span>' : '') + '</div><div class="row__s">' + esc(G.ageLabel(G.ageInDays(x.birth))) + ' · ' + ({ breast: 'Breastfed', formula: 'Formula', mixed: 'Breast + formula' })[x.feeding] + '</div></div><span class="faint">Edit ›</span></button>';
+      return '<button class="row" data-action="baby-edit" data-id="' + x.id + '"><span class="row__icon">' + h.babyIcon(x) + '</span><div class="row__main"><div class="row__t">' + esc(x.name) + (x.id === st.activeBaby ? ' <span class="status status--ok">Active</span>' : '') + '</div><div class="row__s">' + esc(G.ageLabel(G.ageInDays(x.birth))) + ' · ' + ({ breast: 'Breastfed', formula: 'Formula', mixed: 'Breast + formula' })[x.feeding] + '</div></div><span class="faint">Edit ›</span></button>';
     }).join('') + '</div><button class="btn btn--sm" data-action="baby-add" style="margin-top:8px">＋ Add a baby (twins, siblings)</button></div>';
 
     // Reminders
@@ -277,7 +277,7 @@
           '<div class="field"><span class="field__label">Feeding</span><div class="seg">' + [['breast', 'Breast'], ['formula', 'Formula'], ['mixed', 'Both']].map(function (o) { return '<label><input type="radio" name="feeding" value="' + o[0] + '"' + ((b ? b.feeding : 'breast') === o[0] ? ' checked' : '') + ' /><span>' + o[1] + '</span></label>'; }).join('') + '</div></div>' +
           '<div class="field"><span class="field__label">Sex <span class="faint">(picks the WHO growth chart)</span></span><div class="seg">' + [['f', 'Girl'], ['m', 'Boy'], ['', 'Not set']].map(function (o) { return '<label><input type="radio" name="sex" value="' + o[0] + '"' + ((b && b.sex || '') === o[0] ? ' checked' : '') + ' /><span>' + o[1] + '</span></label>'; }).join('') + '</div></div>' +
           '<label class="field"><span class="field__label">Birth weight (' + h.weightUnit() + ', optional)</span><input class="input" type="number" step="any" min="0" inputmode="decimal" name="bw" value="' + (b && b.birthWeightKg ? h.weightToDisplay(b.birthWeightKg) : '') + '" /></label>' +
-          '<div class="field"><span class="field__label" id="icon-label">Icon</span><div class="chips" role="radiogroup" aria-labelledby="icon-label">' + EMOJIS.map(function (e) { return '<label class="chip chip--pick"><input class="chip__input" type="radio" name="emoji" value="' + e + '"' + ((b ? b.emoji : '👶') === e ? ' checked' : '') + ' />' + e + '</label>'; }).join('') + '</div></div>' +
+          '<div class="field"><span class="field__label" id="icon-label">Icon</span><div class="chips" role="radiogroup" aria-labelledby="icon-label">' + EMOJIS.map(function (e) { return '<label class="chip chip--pick"><input class="chip__input" type="radio" name="emoji" value="' + e + '"' + ((b ? b.emoji : '👶') === e ? ' checked' : '') + ' />' + (e === '👶' ? h.babyIcon({ sex: b && b.sex }, 'Alaga baby') : e) + '</label>'; }).join('') + '</div></div>' +
           '<div class="btn-row sheet-save">' + (b ? '<button type="button" class="btn btn--danger" data-action="baby-delete" data-id="' + b.id + '">Delete</button>' : '') + '<button class="btn btn--primary btn--lg" type="submit">' + (b ? 'Save' : 'Add baby') + '</button></div></form>';
       },
       mount: function (body) {
@@ -294,7 +294,7 @@
       title: 'Babies',
       html: function () {
         return '<div class="rows">' + st.babies.map(function (x) {
-          return '<button class="row" data-action="baby-select" data-id="' + x.id + '"><span class="row__icon">' + esc(x.emoji || '👶') + '</span><div class="row__main"><div class="row__t">' + esc(x.name) + '</div><div class="row__s">' + esc(G.ageLabel(G.ageInDays(x.birth))) + '</div></div>' + (x.id === st.activeBaby ? '<span class="status status--ok">✓ Active</span>' : '') + '</button>';
+          return '<button class="row" data-action="baby-select" data-id="' + x.id + '"><span class="row__icon">' + h.babyIcon(x) + '</span><div class="row__main"><div class="row__t">' + esc(x.name) + '</div><div class="row__s">' + esc(G.ageLabel(G.ageInDays(x.birth))) + '</div></div>' + (x.id === st.activeBaby ? '<span class="status status--ok">✓ Active</span>' : '') + '</button>';
         }).join('') + '</div><button class="btn btn--block" data-action="baby-add">＋ Add a baby</button>';
       }
     });

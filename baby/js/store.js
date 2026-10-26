@@ -170,6 +170,9 @@
 
   function addBaby(b) {
     var nb = { id: uid(), name: b.name || 'Baby', birth: b.birth, feeding: b.feeding || 'breast', emoji: b.emoji || '👶' };
+    // Picked when adding the baby: sex sets the growth chart and the mascot.
+    if (b.sex) nb.sex = b.sex;
+    if (b.birthWeightKg) nb.birthWeightKg = b.birthWeightKg;
     state.babies.push(nb);
     state.activeBaby = nb.id;
     return nb;
