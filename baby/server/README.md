@@ -37,15 +37,16 @@ SYNC_URL=http://127.0.0.1:8787 node baby/tests/e2e.sync.js    # two browsers
 
 ## Reminders with the app closed
 
-: phones send their next reminders (times in the clear, wording
-encrypted on the phone) and a cron trigger (every minute, )
+`push.js`: phones send their next reminders (times in the clear, wording
+encrypted on the phone) and a cron trigger (every minute, `wrangler.toml`)
 sends each due one as a Web Push message. The VAPID key pair is made on first
-use and kept in the  table, so there's nothing to configure. Only
+use and kept in the `push_keys` table, so there's nothing to configure. Only
 Google, Mozilla, Apple and Windows push services are accepted as endpoints.
-After changing , run it again with  before deploying.
+After changing `schema.sql`, run it again with `--remote` before deploying.
 
-Local tests run  (runs the job;  lets it post to the test's pretend push service on
-127.0.0.1).  does this for you.
+Local tests run `wrangler dev --test-scheduled --var PUSH_TEST:1` (`/__scheduled`
+runs the job; `PUSH_TEST` lets it post to the test's pretend push service on
+127.0.0.1). `../tests/run-all.js` does this for you.
 
 ## Usage stats
 

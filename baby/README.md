@@ -74,8 +74,8 @@ and **Quiet at night** (on by default) makes 10 pm – 7 am alerts vibrate-only.
 **With the app closed** (web and iPhone home-screen app, once notifications are
 on): after every change the phone sends the sync server the next 48 hours of
 reminders: each one's time, and its wording encrypted with a key that never
-leaves the phone (). A cron job on the server sends each as a Web
-Push message at its time (); the service worker decrypts and
+leaves the phone (`js/push.js`). A cron job on the server sends each as a Web
+Push message at its time (`server/push.js`); the service worker decrypts and
 shows it. The server learns only the times. Settings → Reminders → *With Alaga
 closed* turns it off (the server then forgets the phone). A reminder already
 showing is updated quietly rather than buzzing twice. Limits: a partner's log
