@@ -11,7 +11,7 @@ const path = require('path');
 const TESTS = __dirname;
 const SERVER_DIR = path.join(__dirname, '..', 'server');
 const PORT = 8787, SYNC_URL = 'http://127.0.0.1:' + PORT;
-const NEEDS_SERVER = ['e2e.sync.js', 'e2e.copies.js'];
+const NEEDS_SERVER = ['e2e.sync.js', 'e2e.copies.js', 'e2e.push.js'];
 const filters = process.argv.slice(2);
 
 const files = fs.readdirSync(TESTS)
@@ -33,7 +33,8 @@ async function up() {
     console.log('Starting the local sync server (throwaway local database)…');
     const schema = spawnSync('npx wrangler d1 execute babylog-sync --local --file=schema.sql', { cwd: SERVER_DIR, shell: true, encoding: 'utf8' });
     if (schema.status !== 0) { console.error(schema.stdout + schema.stderr); process.exit(1); }
-    server = spawn('npx wrangler dev --local --port ' + PORT, { cwd: SERVER_DIR, shell: true, stdio: 'ignore' });
+    // --test-scheduled: /__scheduled runs the cron job; PUSH_TEST lets it post to the test's pretend push service.
+    server = spawn('npx wrangler dev --local --test-scheduled --var PUSH_TEST:1 --port ' + PORT, { cwd: SERVER_DIR, shell: true, stdio: 'ignore' });
     if (!(await up())) { console.error('The local sync server did not start on ' + SYNC_URL); stop(server); process.exit(1); }
   }
   const results = [];

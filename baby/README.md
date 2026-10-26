@@ -71,10 +71,17 @@ exception follows newborn guidance: babies under 2 weeks get a "time to wake
 for a feed" nudge at about 4 hours. No sound ever plays while a baby is asleep,
 and **Quiet at night** (on by default) makes 10 pm – 7 am alerts vibrate-only.
 
-> Web apps can only fire reminders while they're open or in the background —
-> phones may pause a fully closed web app. The app says so in Settings.
-> Reliable closed-app alerts need native local notifications (see *App
-> stores* below).
+**With the app closed** (web and iPhone home-screen app, once notifications are
+on): after every change the phone sends the sync server the next 48 hours of
+reminders: each one's time, and its wording encrypted with a key that never
+leaves the phone (). A cron job on the server sends each as a Web
+Push message at its time (); the service worker decrypts and
+shows it. The server learns only the times. Settings → Reminders → *With Alaga
+closed* turns it off (the server then forgets the phone). A reminder already
+showing is updated quietly rather than buzzing twice. Limits: a partner's log
+entries reach this phone's list only the next time Alaga opens here, and on
+iPhone it needs iOS 16.4+ and Alaga added to the Home Screen. The Android app
+schedules reminders on the phone instead.
 
 ## Answers — the questions parents search most
 
@@ -189,7 +196,8 @@ baby/
     ├── help.js    # Answers topics + sleep-sounds player
     ├── health.js  # Health tab: visits, prescriptions + scanning, vaccines, records
     ├── milk.js    # milk on hand: use-by countdowns, move/thaw/feed/throw out
-    ├── native.js  # web ↔ app-store differences: notifications, files, share, durable storage
+    ├── native.js  # web ↔ app-store differences: notifications, files, share, durable storage, widget
+    ├── push.js    # reminders with the app closed on the web (Web Push; wording encrypted on the phone)
     ├── share.js   # partner-sync screens: set up, invite (QR), join, combine, status
     ├── mic.js     # voice logging: listening, the confirm card and countdown
     ├── ping.js    # anonymous once-a-day usage count (no ID; opt-out in Settings)
@@ -230,8 +238,6 @@ SYNC_URL=http://127.0.0.1:8787 node baby/tests/e2e.sync.js   # two browsers, aga
   automatic colour reading (a pale stool must never be called normal); keep
   for 30 / 90 days / forever (flagged kept). Partner sharing of photos later,
   as an opt-in, end-to-end encrypted.
-- **Reminders with the app closed on the web / iPhone** via Web Push (see the
-  notifications notes) — the Android app already has them.
 - **Bring in an old shared log** (the Oct 5–6 deletions in the first shared log).
 
 ## Android app

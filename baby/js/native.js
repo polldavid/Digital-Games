@@ -102,6 +102,7 @@
   function syncReminders() {
     syncTimers();
     syncWidget();
+    if (window.BabyPush) window.BabyPush.sync(); // the web: reminders with the app closed
     if (!LN()) return;
     clearTimeout(syncTimer);
     syncTimer = setTimeout(scheduleNow, 800);
@@ -199,34 +200,29 @@
     return (x & 0x7fffffff) || 1;
   }
   function quietAt(t) { var hr = new Date(t).getHours(); return hr >= 22 || hr < 7; }
+  // Every baby's reminders in the next 48 hours, soonest first, worded as of
+  // when each fires ("last fed 3h ago"), not as of now. Scheduled here in the
+  // Android app, and sent ahead for Web Push on the web (push.js).
+  function upcoming(now) {
+    var st = S.get(), many = st.babies.length > 1, list = [];
+    st.babies.forEach(function (b) {
+      S.reminders(now, b.id).forEach(function (r) {
+        if (r.done || r.at <= now || r.at > now + 48 * HOUR) return;
+        var then = S.reminders(r.at, b.id).filter(function (x) { return x.key === r.key; })[0] || r;
+        list.push({ key: r.key, at: r.at, baby: b.id, title: r.icon + ' ' + r.title + (many ? ' · ' + b.name : ''), body: then.text || '', quiet: !!st.settings.quietNight && quietAt(r.at) });
+      });
+    });
+    return list.sort(function (a, b) { return a.at - b.at; });
+  }
   function scheduleNow() {
     var ln = LN(), st = S.get(), now = Date.now();
     var setup = channelsMade || !ln.createChannel ? Promise.resolve() : Promise.all([
       ln.createChannel({ id: 'reminders', name: 'Reminders', description: 'Feeds, diapers, naps, medicine and visits', importance: 4, vibration: true }),
       ln.createChannel({ id: 'quiet', name: 'Night reminders (no sound)', description: 'Reminders during quiet hours', importance: 2, vibration: true })
     ]).then(function () { channelsMade = true; }).catch(function () {});
-    var list = [];
-    if (st.settings.notify) {
-      var many = st.babies.length > 1;
-      st.babies.forEach(function (b) {
-        S.reminders(now, b.id).forEach(function (r) {
-          if (r.done || r.at <= now || r.at > now + 48 * HOUR) return;
-          // Word it as of when it fires ("last fed 3h ago"), not as of now.
-          var then = S.reminders(r.at, b.id).filter(function (x) { return x.key === r.key; })[0] || r;
-          var quiet = st.settings.quietNight && quietAt(r.at);
-          list.push({
-            id: hashId(r.key + '@' + r.at),
-            title: r.icon + ' ' + r.title + (many ? ' · ' + b.name : ''),
-            body: then.text || '',
-            schedule: { at: new Date(r.at), allowWhileIdle: true },
-            channelId: quiet ? 'quiet' : 'reminders',
-            extra: { key: r.key, baby: b.id }
-          });
-        });
-      });
-      list.sort(function (a, b) { return a.schedule.at - b.schedule.at; });
-      list = list.slice(0, 60); // iOS keeps at most 64 pending
-    }
+    var list = !st.settings.notify ? [] : upcoming(now).slice(0, 60).map(function (r) { // iOS keeps at most 64 pending
+      return { id: hashId(r.key + '@' + r.at), title: r.title, body: r.body, schedule: { at: new Date(r.at), allowWhileIdle: true }, channelId: r.quiet ? 'quiet' : 'reminders', extra: { key: r.key, baby: r.baby } };
+    });
     setup.then(function () { return ln.getPending(); }).then(function (p) {
       var old = (p && p.notifications || []).map(function (n) { return { id: n.id }; });
       return old.length ? ln.cancel({ notifications: old }) : null;
@@ -253,7 +249,7 @@
   window.BabyNative = {
     saveFile: saveFile, shareText: shareText,
     permission: permission, requestPermission: requestPermission,
-    syncReminders: syncReminders, restoreIfEmpty: restoreIfEmpty,
+    syncReminders: syncReminders, restoreIfEmpty: restoreIfEmpty, upcoming: upcoming,
     nativeReminders: function () { return !!LN(); },
     init: init
   };

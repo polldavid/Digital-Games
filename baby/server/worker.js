@@ -16,10 +16,12 @@
    POST /v1/ping   { v, p, d, w, m, n, s }  -> { ok }   anonymous daily count (no auth)
    GET  /v1/stats  Authorization: Bearer <STATS_KEY>  -> usage totals
    GET  /stats                              -> the private stats page (asks for the key)
+   /v1/remind…                              -> reminders with the app closed (push.js)
    A deleted family keeps only its id, marked gone, so phones that still
    have the code get 410 and stop — instead of re-uploading their copy.
    ========================================================= */
 import { STATS_PAGE } from './stats-page.js';
+import { handlePush, sendDue } from './push.js';
 
 const MAX_ROWS = 200;          // per push
 const MAX_BLOB = 64 * 1024;    // per record (photos aren't synced)
@@ -27,7 +29,7 @@ const PAGE = 500;              // per pull
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   'Access-Control-Max-Age': '86400',
 };
@@ -84,6 +86,9 @@ export default {
     if (url.pathname === '/' || url.pathname === '/health') return json({ ok: true, app: 'baby-log-sync' });
     if (url.pathname === '/v1/ping' && req.method === 'POST') return ping(req, env);
     if (url.pathname === '/v1/stats' && req.method === 'GET') return stats(req, env);
+    if (url.pathname === '/v1/remind' || url.pathname === '/v1/remind/key') {
+      try { return await handlePush(req, env, url, json); } catch (e) { return json({ error: 'server' }, 500); }
+    }
     if (url.pathname === '/stats') return new Response(STATS_PAGE, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
 
     const auth = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
@@ -159,5 +164,9 @@ export default {
     } catch (e) {
       return json({ error: 'server' }, 500);
     }
+  },
+
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(sendDue(env));
   },
 };

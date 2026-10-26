@@ -94,9 +94,12 @@
     var st = S.get().settings, many = S.get().babies.length > 1, quiet = quietNow();
     var title = r.icon + ' ' + r.title + (many ? ' · ' + b.name : '');
     if (st.notify && 'Notification' in window && Notification.permission === 'granted') {
-      var opts = { body: r.text, tag: r.key, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', renotify: true, silent: quiet, vibrate: [200, 100, 200], data: { url: location.href } };
+      var opts = { body: r.text, tag: r.key, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', renotify: true, silent: quiet, data: { url: location.href } };
+      // A silent notification can't vibrate: browsers refuse one that asks for both.
+      if (!quiet) opts.vibrate = [200, 100, 200];
       try {
-        if (swReg && swReg.showNotification) swReg.showNotification(title, opts);
+        // Already showing (a push from the server got there first): update it quietly instead of buzzing twice.
+        if (swReg && swReg.showNotification) (swReg.getNotifications ? swReg.getNotifications({ tag: r.key }) : Promise.resolve([])).then(function (old) { if (old.length) { opts.renotify = false; opts.silent = true; delete opts.vibrate; } return swReg.showNotification(title, opts); }).catch(function () {});
         else new Notification(title, opts);
       } catch (e) { /* some browsers only allow SW notifications */ }
     }
@@ -193,6 +196,7 @@
     var st = S.get(), s = st.settings, b = S.baby(), days = S.ageDays(Date.now());
     var autoH = G.feedingFor(days, b.feeding).intervalH + (b.feeding === 'formula' && days >= 7 ? 0.5 : 0);
     var perm = App.ui.notifyPerm || (!('Notification' in window) ? 'unsupported' : Notification.permission);
+    var webPush = !!(window.BabyPush && BabyPush.supported()) && perm === 'granted' && s.notify, closedOn = N.nativeReminders() || (webPush && s.closedRemind !== false);
     var row = function (t, sub, ctrl) { return '<div class="set-row"><div class="set-row__main"><div class="set-row__t">' + t + '</div>' + (sub ? '<div class="set-row__s">' + sub + '</div>' : '') + '</div>' + ctrl + '</div>'; };
     var sel = function (key, opts, cur, label) { return '<select class="input" data-setting="' + key + '" aria-label="' + esc(label) + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (String(o[0]) === String(cur) ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'; };
     var html = '<h1 class="h1">Settings</h1>';
@@ -204,8 +208,9 @@
 
     // Reminders
     html += '<div class="section-title" id="set-reminders"><h2>Reminders</h2></div><div class="card">' +
-      row('Phone notifications', perm === 'granted' && s.notify ? (N.nativeReminders() ? 'On — reminders arrive even when Alaga is closed.' : 'On — alerts show even when you’re in another app.') : perm === 'denied' ? (App.platform.native ? 'Off in your phone’s Settings → Alaga → Notifications. In-app alerts still work.' : 'Blocked in browser settings. In-app alerts still work.') : perm === 'unsupported' ? (App.platform.ios && !App.platform.standalone ? 'On iPhone, add Alaga to your Home Screen first (Share → Add to Home Screen), then open it from there.' : 'Not supported here. In-app alerts and the chime still work.') : 'Get alerts while you’re in another app.',
+      row('Phone notifications', perm === 'granted' && s.notify ? (closedOn ? 'On — reminders arrive even when Alaga is closed.' : 'On — alerts show even when you’re in another app.') : perm === 'denied' ? (App.platform.native ? 'Off in your phone’s Settings → Alaga → Notifications. In-app alerts still work.' : 'Blocked in browser settings. In-app alerts still work.') : perm === 'unsupported' ? (App.platform.ios && !App.platform.standalone ? 'On iPhone, add Alaga to your Home Screen first (Share → Add to Home Screen), then open it from there.' : 'Not supported here. In-app alerts and the chime still work.') : 'Get alerts while you’re in another app.',
         perm === 'granted' ? h.sw('notify', s.notify, 'Notifications') : perm === 'default' ? '<button class="btn btn--sm btn--primary" data-action="notify-enable">Turn on</button>' : '') +
+      (webPush ? row('&nbsp;&nbsp;&nbsp;With Alaga closed', 'Alaga’s server sends each reminder at its time. It gets only the times: the wording is encrypted on this phone.', h.sw('closedRemind', s.closedRemind !== false, 'Reminders with Alaga closed')) : '') +
       row('Chime', 'A soft two-note sound with each reminder. Never plays while a baby is asleep.', h.sw('chime', s.chime, 'Chime')) +
       row('Quiet at night', '10 pm – 7 am: vibrate and banner only, no sound.', h.sw('quietNight', s.quietNight, 'Quiet at night')) +
       row('🍼 Next feed', 'Counted from the start of the last feed.', h.sw('feedRemind', s.feedRemind, 'Feed reminder')) +
@@ -219,7 +224,7 @@
       (s.tummyRemind ? row('&nbsp;&nbsp;&nbsp;At', '', '<input class="input" type="time" data-setting="tummyTime" value="' + esc(s.tummyTime) + '" aria-label="Tummy time reminder time" />') : '') +
       '<div class="section-title" style="margin-top:14px"><h2>Your reminders</h2></div>' + customList() +
       '<button class="btn btn--sm" data-action="custom-add" style="margin-top:8px">＋ New reminder</button>' +
-      (N.nativeReminders() ? '' : '<p class="faint" style="margin-top:12px">Reminders fire while Alaga is open or in the background. Phones may pause web apps that are fully closed, so for night feeds add Alaga to your Home Screen and leave it open on the nightstand.</p>') + '</div>';
+      (closedOn ? '' : '<p class="faint" style="margin-top:12px">Reminders fire while Alaga is open or in the background. Phones may pause web apps that are fully closed, so for night feeds add Alaga to your Home Screen and leave it open on the nightstand.</p>') + '</div>';
 
     // Today screen
     html += '<div class="section-title"><h2>Today screen</h2></div><div class="card">' +

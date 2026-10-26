@@ -35,6 +35,18 @@ SYNC_URL=http://127.0.0.1:8787 node baby/tests/sync.test.js   # this Worker
 SYNC_URL=http://127.0.0.1:8787 node baby/tests/e2e.sync.js    # two browsers
 ```
 
+## Reminders with the app closed
+
+: phones send their next reminders (times in the clear, wording
+encrypted on the phone) and a cron trigger (every minute, )
+sends each due one as a Web Push message. The VAPID key pair is made on first
+use and kept in the  table, so there's nothing to configure. Only
+Google, Mozilla, Apple and Windows push services are accepted as endpoints.
+After changing , run it again with  before deploying.
+
+Local tests run  (runs the job;  lets it post to the test's pretend push service on
+127.0.0.1).  does this for you.
+
 ## Usage stats
 
 The Worker also keeps the anonymous daily usage count (`../js/ping.js`): daily

@@ -7,3 +7,7 @@ compatibility_date = "2026-09-01"
 binding = "DB"
 database_name = "babylog-sync"
 database_id = "60056cef-7efd-4857-93a0-e1be1083774d"
+
+# Reminders with the app closed: send what's due, every minute (push.js).
+[triggers]
+crons = ["* * * * *"]

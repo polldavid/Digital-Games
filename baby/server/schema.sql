@@ -41,3 +41,23 @@ CREATE TABLE IF NOT EXISTS records_history (
   PRIMARY KEY (family, k, seq)
 );
 CREATE INDEX IF NOT EXISTS history_by_time ON records_history (family, replaced);
+
+-- Reminders with the app closed (push.js). A phone's next reminders: when each
+-- is due, and its wording encrypted on the phone (the server can't read it).
+CREATE TABLE IF NOT EXISTS push_devices (
+  id      TEXT PRIMARY KEY,           -- 32 hex chars, random per phone
+  auth    TEXT NOT NULL,              -- SHA-256 of the phone's token
+  sub     TEXT NOT NULL,              -- the browser's push subscription (endpoint + keys)
+  updated INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS push_due (
+  device TEXT NOT NULL,
+  at     INTEGER NOT NULL,            -- when to send (ms)
+  blob   TEXT NOT NULL                -- AES-GCM ciphertext, base64url
+);
+CREATE INDEX IF NOT EXISTS push_due_by_at ON push_due (at);
+CREATE INDEX IF NOT EXISTS push_due_by_device ON push_due (device);
+CREATE TABLE IF NOT EXISTS push_keys (
+  id  TEXT PRIMARY KEY,               -- 'vapid'
+  jwk TEXT NOT NULL                   -- the server's VAPID private key, made on first use
+);

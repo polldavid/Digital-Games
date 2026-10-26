@@ -12,7 +12,7 @@
 var V = '35';
 var VERSION = 'babylog-v' + V;
 var VERSIONED = ['css/styles.css', '../theme.css', '../theme.js',
-  'js/guide.js', 'js/store.js', 'js/sync.js', 'js/sound.js', 'js/rx.js', 'js/voice.js', 'js/files.js', 'js/viewer.js', 'js/ui.js', 'js/forms.js', 'js/views.js', 'js/help.js', 'js/health.js', 'js/milk.js', 'js/native.js', 'js/share.js', 'js/mic.js', 'js/ping.js', 'js/app.js'];
+  'js/guide.js', 'js/store.js', 'js/sync.js', 'js/sound.js', 'js/rx.js', 'js/voice.js', 'js/files.js', 'js/viewer.js', 'js/ui.js', 'js/forms.js', 'js/views.js', 'js/help.js', 'js/health.js', 'js/milk.js', 'js/native.js', 'js/push.js', 'js/share.js', 'js/mic.js', 'js/ping.js', 'js/app.js'];
 var FILES = ['./', 'index.html', 'privacy.html', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
   'img/mascot/wave.webp', 'img/mascot/peek.webp', 'img/mascot/sleep.webp', 'img/mascot/cheer.webp', 'img/mascot/star.webp', 'img/mascot/face.webp',
@@ -65,6 +65,40 @@ self.addEventListener('fetch', function (e) {
     });
     if (hit) { net.catch(function () {}); return hit; } // offline: the cached copy is enough
     return net;
+  }));
+});
+
+// Reminders with the app closed (js/push.js, server/push.js): the push carries
+// the reminder's wording encrypted with this phone's own key (IndexedDB).
+function wordingKey() {
+  return new Promise(function (resolve) {
+    var rq = indexedDB.open('babylog-push', 1);
+    rq.onupgradeneeded = function () { rq.result.createObjectStore('k'); };
+    rq.onerror = function () { resolve(null); };
+    rq.onsuccess = function () {
+      var g = rq.result.transaction('k').objectStore('k').get('aes');
+      g.onsuccess = function () { rq.result.close(); resolve(g.result || null); };
+      g.onerror = function () { rq.result.close(); resolve(null); };
+    };
+  });
+}
+function unseal(key, b) {
+  var a = Uint8Array.from(atob(b.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((b.length + 3) % 4)), function (c) { return c.charCodeAt(0); });
+  return crypto.subtle.decrypt({ name: 'AES-GCM', iv: a.slice(0, 12) }, key, a.slice(12)).then(function (pt) { return JSON.parse(new TextDecoder().decode(pt)); });
+}
+self.addEventListener('push', function (e) {
+  var data = {};
+  try { data = e.data ? e.data.json() : {}; } catch (x) {}
+  var icon = 'icons/icon-192.png';
+  e.waitUntil(wordingKey().then(function (k) { return k && data.b ? unseal(k, data.b) : null; }).catch(function () { return null; }).then(function (m) {
+    // Every push must show something; if this phone can't read it, say so plainly.
+    if (!m) return self.registration.showNotification('🔔 Alaga', { body: 'You have a reminder. Open Alaga to see it.', tag: 'alaga-reminder', icon: icon, badge: icon });
+    // Already showing (the open app raised it): update it quietly instead of buzzing twice.
+    return self.registration.getNotifications({ tag: m.g }).then(function (old) {
+      var quiet = !!m.q || old.length > 0, opts = { body: m.b, tag: m.g, icon: icon, badge: icon, renotify: !old.length, silent: quiet, data: { url: self.registration.scope } };
+      if (!quiet) opts.vibrate = [200, 100, 200]; // a silent notification can't vibrate
+      return self.registration.showNotification(m.t, opts);
+    });
   }));
 });
 

@@ -34,6 +34,7 @@
         feedRemind: true, feedIntervalH: 0,      // 0 = automatic from age
         diaperRemind: false, diaperIntervalH: 3,
         napRemind: true,
+        closedRemind: true,                      // web: reminders also sent by the server with the app closed (push.js)
         vitdRemind: false, vitdTime: '09:00',
         tummyRemind: false, tummyTime: '16:00',
         quietNight: true,                        // 10pm–7am: vibrate only, no chime
