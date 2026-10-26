@@ -29,7 +29,7 @@
           : '<div class="btn-row"><button class="btn btn--sm" data-action="bottle-pause">' + (bo.paused ? '▶ Resume' : '⏸ Pause') + '</button><button class="btn btn--sm btn--primary" data-action="bottle-finish">✓ Finished</button></div>') + '</div>';
     }
     if (t.sleep) {
-      out += '<div class="card live live--sleep"><div class="live__head">' + h.sleepJoey() + '<div><div class="live__label"><span class="pulse"></span>Asleep</div><div class="live__sub">since ' + h.fmtTime(t.sleep.start) + by(t.sleep) + '</div></div><span class="live__clock" data-elapsed="' + t.sleep.start + '">0:00</span></div>' +
+      out += '<div class="card live live--sleep"><div class="live__head">' + h.sleepMascot() + '<div><div class="live__label"><span class="pulse"></span>Asleep</div><div class="live__sub">since ' + h.fmtTime(t.sleep.start) + by(t.sleep) + '</div></div><span class="live__clock" data-elapsed="' + t.sleep.start + '">0:00</span></div>' +
         '<button class="btn btn--primary btn--block" data-action="sleep-stop">☀️ Woke up</button></div>';
     }
     if (t.pump) {

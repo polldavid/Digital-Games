@@ -30,7 +30,7 @@
     $('#welcome').hidden = !!b;
     $('#app').hidden = !b;
     if (!b) return;
-    h.joeyMood();
+    h.mascotMood();
     var days = S.ageDays(Date.now()), many = S.get().babies.length > 1;
     var chip = $('#babychip');
     chip.innerHTML = '<span class="babychip__emoji" aria-hidden="true">' + h.babyIcon(b) + '</span><span class="babychip__text"><span class="babychip__name">' + esc(b.name) + '</span><span class="babychip__age">' + esc(G.ageLabel(days)) + '</span></span>' + (many ? '<span class="babychip__caret" aria-hidden="true">▼</span>' : '');
@@ -226,7 +226,7 @@
       row('Quick log buttons', 'Choose which buttons show on ' + esc(S.baby().name) + '’s Today, and their order. Each child has their own.', '<button class="btn btn--sm" data-action="quick-edit">Edit</button>') +
       row('Arrange sections', 'Reorder or hide parts of ' + esc(S.baby().name) + '’s Today (milk, last 24 hours, coming up…).', '<button class="btn btn--sm" data-action="sections-edit">Edit</button>') +
       (window.BabyMic ? BabyMic.settingsRows(row, sel) : '') +
-      row('Mascot animations', 'The little one bounces when you save, and celebrates milestones. Calmer from midnight to 5 am.', h.sw('joeyMotion', s.joeyMotion, 'Mascot animations')) + '</div>';
+      row('Mascot animations', 'The little one bounces when you save, and celebrates milestones. Calmer from midnight to 5 am.', h.sw('mascotMotion', s.mascotMotion, 'Mascot animations')) + '</div>';
 
     // Units
     html += '<div class="section-title"><h2>Units</h2></div><div class="card">' +

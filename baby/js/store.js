@@ -42,7 +42,7 @@
         quickLog: [], todayOrder: [], todayHidden: [], // before v28 one Today served every child; moved into `today` on load
         pumpStore: 'fridge',                     // where pumped milk usually goes ('' = not tracked)
         usageCount: true,                        // anonymous once-a-day count (ping.js); the parent can turn it off
-        joeyMotion: true,                        // the mascot hops and celebrates (ui.js joeyMood); off = it stays still
+        mascotMotion: true,                        // the mascot hops and celebrates (ui.js mascotMood); off = it stays still
         milkMode: 'attention',                   // Milk on Today: 'attention' (only what needs it soon) or 'always'
         installTipDismissed: false
       }

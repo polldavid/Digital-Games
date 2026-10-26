@@ -201,51 +201,51 @@
   var REACTIONS = { loved: '😋 loved it', ok: '😐 okay', refused: '🙅 refused', reaction: '⚠️ reaction' };
 
   /* ---------- Toasts ---------- */
-  // joey: 'save', 'wake' or 'milestone' puts the mascot in the message, moving
+  // move: 'save', 'wake' or 'milestone' puts the mascot in the message, moving
   // once. Good news only: never on a warning or an error.
-  var JOEY = { save: ['wave', 'hop'], wake: ['wave', 'springup'], milestone: ['star', 'jump'] };
-  function toast(msg, action, joey) {
-    var wrap = $('#toasts'), j = JOEY[joey];
+  var MOVES = { save: ['wave', 'hop'], wake: ['wave', 'springup'], milestone: ['star', 'jump'] };
+  function toast(msg, action, move) {
+    var wrap = $('#toasts'), j = MOVES[move];
     // One at a time — a stack of toasts would cover the form underneath.
     wrap.innerHTML = '';
     var n = document.createElement('div');
     n.className = 'toast';
-    n.innerHTML = (j ? mascot(j[0], 'toast__joey') : '') + '<span>' + esc(msg) + '</span>' + (action ? '<button type="button">' + esc(action.label) + '</button>' : '');
+    n.innerHTML = (j ? mascot(j[0], 'toast__mascot') : '') + '<span>' + esc(msg) + '</span>' + (action ? '<button type="button">' + esc(action.label) + '</button>' : '');
     if (action) n.querySelector('button').addEventListener('click', function () { action.fn(); n.remove(); });
     wrap.appendChild(n);
-    if (j && joeyMood()) setTimeout(function () {
-      var img = n.querySelector('.toast__joey');
-      img.classList.add('joey--' + j[1]);
-      if (joey === 'milestone') { burst(n, img); try { if (navigator.vibrate) navigator.vibrate(20); } catch (e) {} }
+    if (j && mascotMood()) setTimeout(function () {
+      var img = n.querySelector('.toast__mascot');
+      img.classList.add('mascot--' + j[1]);
+      if (move === 'milestone') { burst(n, img); try { if (navigator.vibrate) navigator.vibrate(20); } catch (e) {} }
     }, 200); // after the message has risen into place
     // Long enough to read — and reach Undo — with a baby in one arm.
     setTimeout(function () { n.style.opacity = '0'; n.style.transition = 'opacity .3s'; }, action ? 8000 : 4200);
     setTimeout(function () { n.remove(); }, action ? 8400 : 4600);
   }
-  // Joey motion: off with the Settings switch or the phone's "reduce motion",
+  // Mascot motion: off with the Settings switch or the phone's "reduce motion",
   // and half as big from midnight to 5 am. Returns whether it may move.
-  function joeyMood() {
-    var on = S.get().settings.joeyMotion !== false && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function mascotMood() {
+    var on = S.get().settings.mascotMotion !== false && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
     var root = document.documentElement;
-    root.classList.toggle('joey-still', !on);
-    root.classList.toggle('joey-calm', new Date().getHours() < 5);
+    root.classList.toggle('mascot-still', !on);
+    root.classList.toggle('mascot-calm', new Date().getHours() < 5);
     return on;
   }
   var STAR = '<svg viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.8-4.9 4.6 1.3 6.6L12 17.3 6.1 20.5l1.3-6.6L2.5 9.3l6.6-.8z"/></svg>';
-  // Gold stars flying out from the joey, then removed.
+  // Gold stars flying out from the baby, then removed.
   function burst(box, from) {
     var x = from.offsetLeft + from.offsetWidth / 2, y = from.offsetTop + from.offsetHeight / 2;
     for (var i = 0; i < 10; i++) {
       var s = document.createElement('span'), a = Math.PI * 2 * i / 10 + Math.random() * 0.4, r = 50 + Math.random() * 30;
-      s.className = 'joey-star'; s.innerHTML = STAR;
+      s.className = 'mascot-star'; s.innerHTML = STAR;
       s.style.cssText = 'left:' + x + 'px;top:' + y + 'px;--dx:' + Math.round(Math.cos(a) * r) + 'px;--dy:' + Math.round(Math.sin(a) * r) + 'px;animation-delay:' + Math.round(Math.random() * 120) + 'ms';
       box.appendChild(s);
     }
-    setTimeout(function () { Array.prototype.forEach.call(box.querySelectorAll('.joey-star'), function (s) { s.remove(); }); }, 1100);
+    setTimeout(function () { Array.prototype.forEach.call(box.querySelectorAll('.mascot-star'), function (s) { s.remove(); }); }, 1100);
   }
-  // The sleeping joey on the sleep timer: settles in, breathes, and three stars float up a few times.
-  function sleepJoey() {
-    return '<span class="live__joey">' + mascot('sleep', 'live__mascot') + '<i class="live__z">' + STAR + '</i><i class="live__z">' + STAR + '</i><i class="live__z">' + STAR + '</i></span>';
+  // The sleeping baby on the sleep timer: settles in, breathes, and three stars float up a few times.
+  function sleepMascot() {
+    return '<span class="live__nap">' + mascot('sleep', 'live__mascot') + '<i class="live__z">' + STAR + '</i><i class="live__z">' + STAR + '</i><i class="live__z">' + STAR + '</i></span>';
   }
 
   /* ---------- Field errors ----------
@@ -650,7 +650,7 @@
     TYPES: TYPES, REACTIONS: REACTIONS, describe: describe,
     toast: toast, openSheet: openSheet, renderSheet: renderSheet, closeSheet: closeSheet, tick: tick, initTips: initTips, initSheetGestures: initSheetGestures, since: since,
     fieldError: fieldError, clearFieldErrors: clearFieldErrors, ask: ask, patch: patch, regions: regions, focusKey: focusKey, refocus: refocus, afterHistory: afterHistory, reducedMotion: reducedMotion,
-    statusPill: statusPill, note: note, mascot: mascot, babyIcon: babyIcon, sleepJoey: sleepJoey, joeyMood: joeyMood, sw: sw, timeField: timeField, timeSync: timeSync,
+    statusPill: statusPill, note: note, mascot: mascot, babyIcon: babyIcon, sleepMascot: sleepMascot, mascotMood: mascotMood, sw: sw, timeField: timeField, timeSync: timeSync,
     MIN: MIN, HOUR: HOUR, DAY: DAY
   };
 })();
