@@ -58,8 +58,8 @@ const step = (t) => console.log('• ' + t);
     w = await last();
     assert.strictEqual(w.sinceAt, fedAt, 'counts from the feed');
     assert.strictEqual(w.sinceLabel, 'since last feed');
-    assert.match(w.feed, /^🍼 \d{1,2}:\d\d [AP]M · Bottle, 60 ml/);
-    assert.match(w.next, /^Next feed ~\d{1,2}:\d\d.* · 🧷 \d{1,2}:\d\d/);
+    assert.match(w.feed, /^🍼 (?:\w{3} )?\d{1,2}:\d\d [AP]M · Bottle, 60 ml/); // "Mon 11:31 PM" just after midnight
+    assert.match(w.next, /^Next feed ~(?:\w{3} )?\d{1,2}:\d\d.* · 🧷 (?:\w{3} )?\d{1,2}:\d\d/);
     step('after a bottle and a diaper: counter from the feed, next feed, last diaper');
 
     const n = await count();

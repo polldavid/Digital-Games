@@ -304,7 +304,9 @@ strong { font-weight: 700; }
 .live__icon { font-size: calc(30 * var(--u)); }
 .live__label { font-weight: 800; }
 .live__sub { color: var(--text-dim); font-size: calc(14 * var(--u)); }
-.live__clock { margin-left: auto; font-variant-numeric: tabular-nums; font-size: calc(28 * var(--u)); font-weight: 800; letter-spacing: -0.02em; }
+.live__text { flex: 1 1 7em; min-width: 0; }
+.live__by { white-space: nowrap; }
+.live__clock { flex: none; margin-left: auto; font-variant-numeric: tabular-nums; font-size: calc(28 * var(--u)); font-weight: 800; letter-spacing: -0.02em; }
 .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block; margin-right: 6px; animation: pulse 1.6s infinite; vertical-align: middle; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 
