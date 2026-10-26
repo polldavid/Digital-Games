@@ -360,6 +360,17 @@ strong { font-weight: 700; }
 .tipcard__t { font-weight: 800; }
 .tipcard .btn-row { justify-content: flex-end; }
 .tipcard .btn-row > .btn { flex: 0 0 auto; }
+/* The nap hint (views.js napCard): the bar is time awake against the wake
+   window, with the window itself shaded. */
+.napcard { display: flex; flex-direction: column; gap: 8px; border-color: color-mix(in srgb, var(--brand) 45%, transparent); background: color-mix(in srgb, var(--brand) 8%, var(--card)); }
+.napcard__t { font-weight: 800; font-size: calc(16 * var(--u)); }
+.napcard__bar { position: relative; height: 8px; border-radius: 999px; background: var(--card-2); overflow: hidden; }
+.napcard__win { position: absolute; top: 0; bottom: 0; right: 0; background: color-mix(in srgb, var(--mint) 35%, transparent); }
+.napcard__fill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--brand); }
+.napcard--window .napcard__fill { background: var(--mint); }
+.napcard--over .napcard__fill { background: var(--gold); }
+.napcard .btn-row { justify-content: flex-end; }
+.napcard .btn-row > .btn { flex: 0 0 auto; }
 .cry-cta__s { color: var(--text-dim); font-size: calc(13 * var(--u)); }
 .cry-cta__go { margin-left: auto; font-weight: 800; color: var(--accent); font-size: calc(20 * var(--u)); }
 

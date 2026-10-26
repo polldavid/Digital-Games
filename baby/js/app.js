@@ -586,6 +586,7 @@
     },
 
     'notify-enable': requestNotify,
+    'nap-hide': function (n) { App.ui.napHidden = +n.dataset.woke; render(); },
     'install-dismiss': function () { S.get().settings.installTipDismissed = true; commit(); },
     'install-prompt': function () {
       var ev = App.installPrompt; if (!ev) return;

@@ -109,6 +109,33 @@ const step = (t) => console.log('• ' + t);
     assert.ok(t3.includes('Coming up') && t3.includes('Last 24 hours') && t3.indexOf('Today') === t3.length - 1, 'reset: ' + t3);
     step('hidden sections are under More; Reset restores the default');
 
+    // The nap hint, for an 8-day-old (wake window 35–60 min): only around the window.
+    const wokeAgo = async (min) => {
+      await page.evaluate((m) => {
+        BabyStore.events({ type: 'sleep' }).forEach((e) => BabyStore.removeEvent(e.id));
+        const end = Date.now() - m * 60e3;
+        BabyStore.addEvent({ type: 'sleep', time: end - 90 * 60e3, end, data: {} });
+        BabyApp.commit();
+      }, min);
+      const card = page.locator('#view-today .napcard');
+      return (await card.count()) ? (await card.locator('.napcard__t').textContent()).trim() : null;
+    };
+    assert.strictEqual(await wokeAgo(10), null, 'too early for a hint');
+    assert.match(await wokeAgo(25), /(Nap|Sleep) window opens in 10 min/);
+    assert.match(await wokeAgo(45), /window is open/);
+    await shot('5-nap-window');
+    assert.match(await wokeAgo(70), /Past the usual wake window/);
+    assert.strictEqual(await page.locator('#view-today .napcard img.mascot').count(), 0, 'calm, no mascot');
+    assert.strictEqual(await wokeAgo(180), null, 'long after: a sleep probably wasn’t logged');
+    await wokeAgo(45);
+    await page.click('#view-today .napcard [data-action="nap-hide"]');
+    assert.strictEqual(await page.locator('#view-today .napcard').count(), 0, 'Not now hides it');
+    await wokeAgo(50);
+    await page.click('#view-today .napcard [data-action="sleep-start"]');
+    assert.ok(await page.isVisible('#view-today .live--sleep'), 'Start sleep starts the timer');
+    assert.strictEqual(await page.locator('#view-today .napcard').count(), 0);
+    step('nap hint: shows around the wake window; Not now hides it; Start sleep starts the timer');
+
     assert.deepStrictEqual(errors, [], 'no page errors');
     console.log('today e2e passed');
   } finally {

@@ -223,6 +223,28 @@
       '<div class="btn-row sheet-save"><button class="btn" data-action="quick-reset">Reset to default</button><button class="btn btn--primary btn--lg" data-action="sheet-close">Done</button></div>';
   }
 
+  // The nap hint: from 15 min before the wake window opens until an hour after
+  // it closes (later than that, a sleep probably just wasn't logged). Calm, not
+  // a warning; "Not now" hides it until the next wake-up.
+  function napCard(now, days) {
+    if (S.isAsleep() || S.get().settings.napRemind === false) return '';
+    var woke = S.awakeSince(now), nap = woke ? G.nextNap(days, woke, now) : null;
+    if (!nap || App.ui.napHidden === woke) return '';
+    if (nap.state === 'early' && nap.from - now > 15 * MIN) return '';
+    if (nap.state === 'over' && now - nap.to > HOUR) return '';
+    var hr = new Date(now).getHours(), word = hr >= 19 || hr < 6 ? 'Sleep' : 'Nap';
+    var awake = G.fmtDur((now - woke) / MIN), name = esc(S.baby().name);
+    var t = nap.state === 'early' ? word + ' window opens ' + h.until(nap.from, now)
+      : nap.state === 'window' ? word + ' window is open' : 'Past the usual wake window';
+    var s = nap.state === 'over' ? name + ' has been awake ' + awake + '. Overtired babies can fight sleep, so dim the lights and start winding down now.'
+      : name + ' has been awake ' + awake + '. Watch for yawns, rubbed eyes or staring off, and start winding down.';
+    var span = nap.wake[1] * MIN, pct = function (ms) { return Math.min(100, Math.round(ms / span * 100)); };
+    return '<div class="card napcard napcard--' + nap.state + '"><div class="napcard__t">😴 ' + t + '</div><p class="muted small">' + s + '</p>' +
+      '<div class="napcard__bar" role="img" aria-label="' + esc('Awake ' + awake + ' of a ' + nap.wake[0] + '–' + nap.wake[1] + ' minute wake window') + '">' +
+      '<span class="napcard__win" style="left:' + pct(nap.wake[0] * MIN) + '%"></span><span class="napcard__fill" style="width:' + pct(now - woke) + '%"></span></div>' +
+      '<div class="btn-row"><button class="btn btn--sm" data-action="nap-hide" data-woke="' + woke + '">Not now</button><button class="btn btn--sm btn--primary" data-action="sleep-start">🌙 Start sleep</button></div></div>';
+  }
+
   // One-time tip: installing matters for notifications (iPhone) and for keeping logs (Safari).
   function installTip() {
     var P = App.platform;
@@ -346,7 +368,7 @@
           (todays.length > 10 ? '<button class="btn btn--link btn--block" data-action="go" data-view="log">See all ' + todays.length + ' entries today</button>' : '') + '</div>';
       }
     };
-    var html = '<h1 class="sr-only">Today</h1>' + liveCards(now);
+    var html = '<h1 class="sr-only">Today</h1>' + liveCards(now) + napCard(now, days);
     sectionOrder().forEach(function (id) {
       html += parts[id](sectionHidden(id));
       if (id === 'cry') html += installTip();
