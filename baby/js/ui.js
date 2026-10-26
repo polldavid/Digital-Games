@@ -599,6 +599,13 @@
     if (b.emoji && b.emoji !== '👶') return esc(b.emoji);
     return '<img class="babyface" src="img/mascot/' + (b.sex === 'f' ? 'girl/' : '') + 'face.webp" alt="' + esc(alt || '') + '" width="112" height="112" />';
   }
+  // 😴 and 😭 as the mascot's face (asleep, crying); any other emoji as is.
+  var FACES = { '😴': 'sleep-face', '😭': 'cry-face' };
+  function faceIcon(emoji) {
+    if (!FACES[emoji]) return esc(emoji);
+    var b = S.baby();
+    return '<img class="faceicon" src="img/mascot/' + (b && b.sex === 'f' ? 'girl/' : '') + FACES[emoji] + '.webp" alt="" width="112" height="112" />';
+  }
   function mascot(pose, cls, sex) {
     if (sex == null) { var b = S.baby(); sex = b && b.sex; }
     var girl = sex === 'f', s = (girl ? MASCOT_GIRL : MASCOT)[pose];
@@ -663,7 +670,7 @@
     TYPES: TYPES, REACTIONS: REACTIONS, describe: describe,
     toast: toast, openSheet: openSheet, renderSheet: renderSheet, closeSheet: closeSheet, tick: tick, initTips: initTips, initSheetGestures: initSheetGestures, since: since,
     fieldError: fieldError, clearFieldErrors: clearFieldErrors, ask: ask, patch: patch, regions: regions, focusKey: focusKey, refocus: refocus, afterHistory: afterHistory, reducedMotion: reducedMotion,
-    statusPill: statusPill, note: note, mascot: mascot, photoField: photoField, babyIcon: babyIcon, sleepMascot: sleepMascot, mascotMood: mascotMood, sw: sw, timeField: timeField, timeSync: timeSync,
+    statusPill: statusPill, note: note, mascot: mascot, faceIcon: faceIcon, photoField: photoField, babyIcon: babyIcon, sleepMascot: sleepMascot, mascotMood: mascotMood, sw: sw, timeField: timeField, timeSync: timeSync,
     MIN: MIN, HOUR: HOUR, DAY: DAY
   };
 })();

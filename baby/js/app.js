@@ -128,7 +128,7 @@
     var b = S.baby(a.baby), many = S.get().babies.length > 1;
     var act = { feed: ['Log feed', 'log', 'feed'], diaper: ['Log change', 'log', 'diaper'], nap: ['Start sleep', 'sleep-start', ''], med: ['Log dose', 'log', 'med'], vitd: ['Log it', 'log-vitd', ''], tummy: ['Start', 'tummy-start', ''], milk: ['Open', 'milk-open', ''], rx: ['Give dose', 'rx-dose', ''], appt: ['Open', 'appt-edit', ''], vax: ['Checklist', 'vax-open', ''] }[a.kind];
     var actId = a.rxId || a.apptId || a.milkId || '';
-    var html = '<span class="banner__icon" aria-hidden="true">' + esc(a.icon) + '</span><div class="banner__text"><div class="banner__title">' + esc(a.title) + (many && b ? ' · ' + esc(b.name) : '') + '</div><div class="banner__sub">' + esc(a.text) + '</div></div>' +
+    var html = '<span class="banner__icon" aria-hidden="true">' + h.faceIcon(a.icon) + '</span><div class="banner__text"><div class="banner__title">' + esc(a.title) + (many && b ? ' · ' + esc(b.name) : '') + '</div><div class="banner__sub">' + esc(a.text) + '</div></div>' +
       '<div class="banner__actions">' + (act ? '<button class="btn btn--sm btn--primary" data-action="alert-act" data-key="' + esc(a.key) + '" data-do="' + act[1] + '" data-type="' + act[2] + '" data-id="' + esc(actId) + '">' + act[0] + '</button>' : '') +
       '<button class="btn btn--sm" data-action="snooze" data-key="' + esc(a.key) + '">Snooze 15m</button>' +
       '<button class="btn btn--sm btn--ghost" data-action="alert-dismiss" data-key="' + esc(a.key) + '">Dismiss</button></div>';

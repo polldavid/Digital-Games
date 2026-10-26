@@ -71,13 +71,13 @@
     out.push(tile('diaper', '🧷 Diaper', ld ? '<span data-ago="' + ld.time + '">' + h.ago(ld.time, now) + '</span>' : '—', '<span class="tile__s">' + (ld ? esc(h.describe(ld).title) : 'No changes yet') + '</span>'));
 
     // Sleep / wake window
-    var t = S.timers(), sv, ss, sk = '😴 Sleep';
-    if (t.sleep) { sk = '😴 Asleep'; sv = '<span data-since="' + t.sleep.start + '">' + h.since(now - t.sleep.start) + '</span>'; ss = '<span class="tile__s">Since ' + h.fmtTime(t.sleep.start) + '</span>'; }
+    var t = S.timers(), sv, ss, sk = h.faceIcon('😴') + ' Sleep';
+    if (t.sleep) { sk = h.faceIcon('😴') + ' Asleep'; sv = '<span data-since="' + t.sleep.start + '">' + h.since(now - t.sleep.start) + '</span>'; ss = '<span class="tile__s">Since ' + h.fmtTime(t.sleep.start) + '</span>'; }
     else {
       var woke = S.awakeSince(now);
       if (woke) {
         var nap = G.nextNap(days, woke, now);
-        sk = '😴 Awake for'; sv = '<span data-since="' + woke + '">' + h.since(now - woke) + '</span>';
+        sk = h.faceIcon('😴') + ' Awake for'; sv = '<span data-since="' + woke + '">' + h.since(now - woke) + '</span>';
         ss = nap.state === 'early' ? '<span class="tile__s">Nap window ' + h.fmtTime(nap.from) + '–' + h.fmtTime(nap.to) + '</span>'
           : nap.state === 'window' ? '<span class="tile__s tile__s--ok">In the nap window now</span>'
           : '<span class="tile__s tile__s--due">Past wake window (' + nap.wake[1] + ' min)</span>';
@@ -109,12 +109,12 @@
     out.push(tile('solids', '🍽️ Last meal', lm ? '<span data-ago="' + lm.time + '">' + h.ago(lm.time, now) + '</span>' : '—', '<span class="tile__s">' + (lm ? esc(lm.data.food || 'Meal') : 'No meals logged') + '</span>'));
     var ld = S.last('diaper'), potty = days >= 548 && (!ld || ld.data.where);
     if (ld && now - ld.time < 7 * DAY) out.push(tile(potty ? 'potty' : 'diaper', potty ? '🚽 Potty' : '🧷 Diaper', '<span data-ago="' + ld.time + '">' + h.ago(ld.time, now) + '</span>', '<span class="tile__s">' + esc(h.describe(ld).title) + '</span>'));
-    var sv, ss, sk = '😴 Sleep';
-    if (t.sleep) { sk = '😴 Asleep'; sv = '<span data-since="' + t.sleep.start + '">' + h.since(now - t.sleep.start) + '</span>'; ss = '<span class="tile__s">Since ' + h.fmtTime(t.sleep.start) + '</span>'; }
+    var sv, ss, sk = h.faceIcon('😴') + ' Sleep';
+    if (t.sleep) { sk = h.faceIcon('😴') + ' Asleep'; sv = '<span data-since="' + t.sleep.start + '">' + h.since(now - t.sleep.start) + '</span>'; ss = '<span class="tile__s">Since ' + h.fmtTime(t.sleep.start) + '</span>'; }
     else {
       var woke = S.awakeSince(now), nap = woke ? G.nextNap(days, woke, now) : null, sl = S.last('sleep');
       if (nap) {
-        sk = '😴 Awake for'; sv = '<span data-since="' + woke + '">' + h.since(now - woke) + '</span>';
+        sk = h.faceIcon('😴') + ' Awake for'; sv = '<span data-since="' + woke + '">' + h.since(now - woke) + '</span>';
         ss = nap.state === 'early' ? '<span class="tile__s">Nap around ' + h.fmtTime(nap.from) + '–' + h.fmtTime(nap.to) + '</span>' : nap.state === 'window' ? '<span class="tile__s tile__s--ok">Nap time</span>' : '<span class="tile__s">Past the usual nap time</span>';
       } else if (sl) { sv = '<span data-ago="' + (sl.end || sl.time) + '">' + h.ago(sl.end || sl.time, now) + '</span>'; ss = '<span class="tile__s">Woke up' + (sl.end ? ' · slept ' + h.durMs(sl.end - sl.time) : '') + '</span>'; }
       else { sv = '—'; ss = '<span class="tile__s">No sleep logged</span>'; }
@@ -146,7 +146,7 @@
       feed:      ['feed', '🍼', t.breast || t.bottle ? 'Feeding…' : big ? 'Milk' : 'Feed', !!(t.breast || t.bottle), 'log'],
       diaper:    ['diaper', '🧷', 'Diaper', false, 'log'],
       potty:     ['potty', '🚽', 'Potty', false, 'log'],
-      sleep:     ['sleep', t.sleep ? '☀️' : '🌙', t.sleep ? 'Woke up' : 'Sleep', !!t.sleep, 'sleep-toggle'],
+      sleep:     ['sleep', t.sleep ? '☀️' : h.faceIcon('😴'), t.sleep ? 'Woke up' : 'Sleep', !!t.sleep, 'sleep-toggle'],
       tummy:     ['tummy', '🤸', t.tummy ? 'Stop tummy' : 'Tummy', !!t.tummy, 'tummy-toggle'],
       solids:    ['solids', big ? '🍽️' : '🥣', big ? 'Meal' : 'Solids', false, 'log-solids'],
       pump:      ['pump', '🧴', t.pump ? 'Pumping…' : 'Pump', !!t.pump, 'log'],
@@ -160,7 +160,7 @@
       milestone: ['milestone', '⭐', 'Milestone', false, 'log'],
       note:      ['note', '📝', 'Note', false, 'log'],
       sounds:    ['sounds', '🎶', 'Sounds', !!window.BabySound.playing(), 'help-sounds'],
-      cry:       ['cry', '😭', 'Crying?', false, 'help']
+      cry:       ['cry', h.faceIcon('😭'), 'Crying?', false, 'help']
     };
   }
   var ITEM_ORDER = ['feed', 'diaper', 'potty', 'sleep', 'tummy', 'solids', 'pump', 'milk', 'med', 'temp', 'scan', 'visit', 'growth', 'bath', 'milestone', 'note', 'sounds', 'cry'];
@@ -239,7 +239,7 @@
     var s = nap.state === 'over' ? name + ' has been awake ' + awake + '. Overtired babies can fight sleep, so dim the lights and start winding down now.'
       : name + ' has been awake ' + awake + '. Watch for yawns, rubbed eyes or staring off, and start winding down.';
     var span = nap.wake[1] * MIN, pct = function (ms) { return Math.min(100, Math.round(ms / span * 100)); };
-    return '<div class="card napcard napcard--' + nap.state + '"><div class="napcard__t">😴 ' + t + '</div><p class="muted small">' + s + '</p>' +
+    return '<div class="card napcard napcard--' + nap.state + '"><div class="napcard__t">' + h.faceIcon('😴') + ' ' + t + '</div><p class="muted small">' + s + '</p>' +
       '<div class="napcard__bar" role="img" aria-label="' + esc('Awake ' + awake + ' of a ' + nap.wake[0] + '–' + nap.wake[1] + ' minute wake window') + '">' +
       '<span class="napcard__win" style="left:' + pct(nap.wake[0] * MIN) + '%"></span><span class="napcard__fill" style="width:' + pct(now - woke) + '%"></span></div>' +
       '<div class="btn-row"><button class="btn btn--sm" data-action="nap-hide" data-woke="' + woke + '">Not now</button><button class="btn btn--sm btn--primary" data-action="sleep-start">🌙 Start sleep</button></div></div>';
@@ -275,7 +275,7 @@
     row('🍼', 'Feeds', s.feeds, feed.perDay[0], feed.perDay[1], '', s.bottleMl ? 'Bottles: ' + h.vol(s.bottleMl) + (s.breastMs ? ' · breast ' + h.durMs(s.breastMs) : '') : (s.breastMs ? 'Breast: ' + h.durMs(s.breastMs) + ' total' : ''));
     row('💧', 'Wet diapers', s.wet, dia.wet, 0, '', days < 5 ? 'Day ' + (days + 1) + ' of life: expect at least ' + dia.wet + '. From day 5, 6+ a day.' : 'Pale yellow pee is a good sign of enough milk.');
     row('💩', 'Dirty diapers', s.dirty, dia.dirty, 0, '', esc(dia.dirtyNote));
-    row('😴', 'Sleep', sleepH, sl.totalH[0], sl.totalH[1], 'h', 'Only counts sleeps you’ve logged.');
+    row(h.faceIcon('😴'), 'Sleep', sleepH, sl.totalH[0], sl.totalH[1], 'h', 'Only counts sleeps you’ve logged.');
     row('🤸', 'Tummy time', Math.round(s.tummyMs / MIN), tg, 0, ' min', '', tg > 0);
     var html = '<div class="checks">' + rows.join('') + '</div>';
     if (partial) html += '<p class="faint" style="margin-top:12px">' + (first ? 'You started logging ' + h.ago(first.time, now) + ' — this check is complete after a full 24 hours.' : 'Log feeds, diapers and sleep and this fills in.') + '</p>';
@@ -300,7 +300,7 @@
     var potty = S.events({ type: 'diaper', from: week });
     if (potty.length) row(potty.some(function (e) { return e.data.where; }) ? '🚽' : '🧷', 'Pee and poop', s.wet + ' pee · ' + s.dirty + ' poop', '');
     var sleepH = Math.round(s.sleepMs / HOUR * 10) / 10, pct = Math.min(100, sleepH / sl.totalH[0] * 100);
-    rows.push('<div class="check"><span class="check__icon">😴</span><span class="check__k">Sleep</span><span class="check__v">' + sleepH + 'h <span class="faint">/ ' + sl.totalH[0] + '–' + sl.totalH[1] + 'h</span></span>' +
+    rows.push('<div class="check"><span class="check__icon">' + h.faceIcon('😴') + '</span><span class="check__k">Sleep</span><span class="check__v">' + sleepH + 'h <span class="faint">/ ' + sl.totalH[0] + '–' + sl.totalH[1] + 'h</span></span>' +
       '<div class="check__bar" role="img" aria-label="' + esc('Sleep: ' + sleepH + ' of ' + sl.totalH[0] + ' hours') + '"><div class="check__fill' + (sleepH >= sl.totalH[0] ? ' check__fill--ok' : '') + '" style="width:' + pct + '%"></div></div>' +
       '<div class="check__note">Typical for ' + esc(sl.label.toLowerCase()) + ', counting naps. Only counts sleeps you’ve logged.</div></div>');
     return '<div class="checks">' + rows.join('') + '</div>';
@@ -310,7 +310,7 @@
     if (!list.length) return '<div class="empty"><span class="empty__icon">🔕</span>No reminders coming up.</div>';
     return '<div class="rows">' + list.map(function (r) {
       var overdue = r.at <= now;
-      return '<div class="row' + (r.done ? ' row--done' : '') + '"><span class="row__icon" aria-hidden="true">' + esc(r.icon) + '</span><div class="row__main"><div class="row__t">' + esc(r.title) + '</div><div class="row__s">' + esc(r.text) + '</div></div>' +
+      return '<div class="row' + (r.done ? ' row--done' : '') + '"><span class="row__icon" aria-hidden="true">' + h.faceIcon(r.icon) + '</span><div class="row__main"><div class="row__t">' + esc(r.title) + '</div><div class="row__s">' + esc(r.text) + '</div></div>' +
         '<div class="row__time"><strong>' + h.fmtTime(r.at) + '</strong><span data-until="' + r.at + '">' + h.until(r.at, now) + '</span>' +
         (overdue ? '<br><button class="btn btn--link btn--sm" data-action="snooze" data-key="' + esc(r.key) + '" data-at="' + r.at + '">Snooze 15m</button>' : '') + '</div></div>';
     }).join('') + '</div>';
@@ -350,7 +350,7 @@
       buttons: function () { return quickActions(days); },
       tiles: function (hidden) { return hidden ? '' : tiles(now, days); },
       milk: function (hidden) { return window.BabyMilk ? window.BabyMilk.todayCard(now, hidden ? 'urgent' : S.get().settings.milkMode) : ''; },
-      cry: function (hidden) { return hidden ? '' : '<button class="cry-cta" data-action="help" data-topic="cry"><span class="cry-cta__icon">😭</span><span class="cry-cta__t">Crying? See the likely reasons</span><span class="cry-cta__go">›</span></button>'; },
+      cry: function (hidden) { return hidden ? '' : '<button class="cry-cta" data-action="help" data-topic="cry"><span class="cry-cta__icon">' + h.faceIcon('😭') + '</span><span class="cry-cta__t">Crying? See the likely reasons</span><span class="cry-cta__go">›</span></button>'; },
       checks: function (hidden) {
         var c = checks(now, days);
         if (hidden && !/note--(warn|urgent)/.test(c)) return '';
