@@ -9,3 +9,6 @@ exclude:
   - package.json
   - package-lock.json
   - CLAUDE.md
+  - api
+  - scripts
+  - .vercelignore

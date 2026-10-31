@@ -8,6 +8,7 @@ A static-site hub ("Digital Games") of phone-first web apps, deployed with **Git
 
 - `friends/`, `getchurched/` — pass-and-play party games (`js/game.js` state machine + a word/question bank file)
 - `flip7/` — card-game scorer (`js/rules.js` pure scoring maths, `js/app.js` UI + persistence)
+- `inbetween/` — In-Between (Acey-Deucey) card game: `js/rules.js` (deck, judging, odds, bot betting) and `js/engine.js` (game state machine) are pure dual-export modules shared with the server; `js/app.js` is the UI with a same-device driver and an online-room client. See the In-Between section below.
 - `baby/` — source of **Alaga** (formerly Baby Log), a newborn tracker PWA, by far the largest app; most work happens here (see below and `baby/README.md`). It is **not** published on GitHub Pages (`_config.yml` excludes it); it's built by `baby/deploy/build-site.js` and deployed to Cloudflare Pages (https://alaga.pages.dev). `moved/` serves a "moved" page + kill-switch service worker at the old `/baby/` address.
 
 There is **no build step, no bundler, no framework, and no runtime npm dependencies**. Everything is plain HTML/CSS and ES5-style vanilla JS (`var`, IIFEs, string-concatenated HTML). Keep it that way. `.gitignore` excludes `package.json` and `node_modules/`, so dev-only packages (Playwright) are installed with `--no-save` and never committed.
@@ -35,7 +36,7 @@ The tests are plain scripts, not a framework — there is no per-test filter; to
 
 - **All links and asset paths are relative** (apps are served from a subfolder on Pages).
 - **Theming**: `theme.css` + `theme.js` at the root provide the light/dark toggle (`<button data-theme-toggle>`), persisted in `localStorage['dg-theme']`. Every page also has a tiny inline `<head>` script that sets `data-theme` before first paint. Each app's stylesheet defines its **dark palette on `:root`** and overrides tokens under `:root[data-theme="light"]` — style through the CSS custom properties, never hard-coded colors.
-- `localStorage` keys are namespaced per app (`dg-theme`, `flip7-game-v1`, `dg-babylog-v1`).
+- `localStorage` keys are namespaced per app (`dg-theme`, `flip7-game-v1`, `dg-babylog-v1`, `dg-inbetween-*`).
 - Adding an app: new folder with its own `index.html`, then copy an `<a class="game" href="./folder/">` card in the root `index.html` and add a row to the README table.
 
 ## Baby Log architecture (`baby/`)
@@ -79,6 +80,15 @@ The tests are plain scripts, not a framework — there is no per-test filter; to
 - Health guidance in `guide.js` (feeding/sleep/diaper norms, fever thresholds, vaccine schedules for PH and US, milestones) follows AAP/CDC/WHO/NHS/DOH/PIDSP material; screens present it as general information with a "call your pediatrician" disclaimer.
 - The app **never suggests medicine doses** — it only records what was given and enforces spacing/max-per-day that the parent or prescription supplies.
 - Scanned prescriptions are **never saved without the parent confirming** the drafted lines.
+
+## In-Between online rooms (`inbetween/`, `api/`)
+
+The only part of the repo with a server. On GitHub Pages it runs same-device only (the page pings `../api/room?ping=1` and hides **Play online** when there's no API); the online mode needs the Vercel deployment described in the README.
+- `api/room.js` is a Vercel Node function (CommonJS, Node ≥18; `var` style like the rest, but `async`/`await` is fine here since it never ships to browsers). It `require`s `inbetween/js/engine.js`, so **game rules change in one place** — keep engine/rules DOM-free.
+- The server owns the deck: views send `deck` **sorted** (enough for the odds meter, never the order). Moves are authorised by a per-seat token kept in `localStorage['dg-inbetween-online']`.
+- Storage (`api/_lib/store.js`): Upstash Redis over REST, two keys per room (JSON + revision), every write a compare-and-set Lua script; falls back to an in-memory Map locally. Room TTL 12 h.
+- Clients poll every ~1.2 s with their revision (unchanged → a one-key read). Serverless functions have no timers, so bots, turn timeouts and auto-advancing finished hands happen when a client sends `tick` once `E.nextDue()` says something is due (host first, others as backup); the server re-checks the timing.
+- Local test of online play: `node scripts/dev.js` (static site + `/api/room`, in-memory) and open several browser windows. `.vercelignore` keeps `baby/`, `kalinga/` and `moved/` off Vercel.
 
 ## Kalinga (`kalinga/`)
 
