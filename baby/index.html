@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0E1424" />
+  <meta name="description" content="Alaga: Baby Tracker &amp; Feeding — a private, ad-free newborn tracker for Filipino families: feeds, diapers, sleep, pumping, medicine, temperature and growth, with reminders and answers to the questions parents search most. Private, offline, no sign-up." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Alaga" />
+  <title>Alaga: Baby Tracker &amp; Feeding</title>
+  <script>try{var t=localStorage.getItem('dg-theme')||((window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="css/styles.css?v=38" />
+  <link rel="stylesheet" href="../theme.css?v=38" />
+</head>
+<body>
+  <button class="theme-toggle" data-theme-toggle aria-label="Toggle light or dark mode">🌙</button>
+
+  <!-- ===================== WELCOME / FIRST RUN ===================== -->
+  <section class="welcome" id="welcome" hidden>
+    <div class="welcome__inner">
+      <img class="mascot welcome__mascot" src="img/mascot/wave.webp" alt="" width="271" height="396" />
+      <h1 class="welcome__title"><em>Alaga</em></h1>
+      <p class="welcome__sub">Feeds, diapers and sleep — timed, tracked and gently reminded, with straight answers for 3&nbsp;a.m. questions.</p>
+
+      <form class="card form" id="welcome-form" autocomplete="off">
+        <h2 class="form__title">Who are we looking after?</h2>
+        <label class="field">
+          <span class="field__label">Baby’s name</span>
+          <input class="input" name="name" required maxlength="30" placeholder="e.g. Ava" />
+        </label>
+        <label class="field">
+          <span class="field__label">Date of birth</span>
+          <input class="input" type="date" name="birth" required />
+          <span class="field__hint">Feeding, sleep and diaper guidance is based on age.</span>
+        </label>
+        <fieldset class="field">
+          <legend class="field__label">Girl or boy</legend>
+          <div class="seg" role="radiogroup">
+            <label><input type="radio" name="sex" value="f" /><span>Girl</span></label>
+            <label><input type="radio" name="sex" value="m" /><span>Boy</span></label>
+            <label><input type="radio" name="sex" value="" checked /><span>Skip</span></label>
+          </div>
+          <span class="field__hint">Picks the right WHO growth chart. You can set it later in Settings.</span>
+        </fieldset>
+        <fieldset class="field">
+          <legend class="field__label">Feeding</legend>
+          <div class="seg" role="radiogroup">
+            <label><input type="radio" name="feeding" value="breast" checked /><span>Breast</span></label>
+            <label><input type="radio" name="feeding" value="formula" /><span>Formula</span></label>
+            <label><input type="radio" name="feeding" value="mixed" /><span>Both</span></label>
+          </div>
+        </fieldset>
+        <fieldset class="field">
+          <legend class="field__label">Units</legend>
+          <div class="seg" role="radiogroup">
+            <label><input type="radio" name="units" value="metric" checked /><span>ml · °C · kg</span></label>
+            <label><input type="radio" name="units" value="imperial" /><span>oz · °F · lb</span></label>
+          </div>
+        </fieldset>
+        <button class="btn btn--primary btn--block btn--lg" type="submit">Start tracking</button>
+        <p class="fineprint">Everything stays on this device. No account, no ads, works offline. <a href="privacy.html">Privacy</a></p>
+        <p class="fineprint">Beta — thank you for testing. Tell whoever invited you anything that’s confusing or missing.</p>
+      </form>
+      <button class="btn btn--link" type="button" data-action="share-join">Join a partner’s log</button>
+      <button class="btn btn--link" type="button" data-action="import-open">Restore from a backup</button>
+      <a class="link-back" href="../">← All games &amp; tools</a>
+    </div>
+  </section>
+
+  <!-- ===================== APP ===================== -->
+  <div class="app" id="app" hidden>
+    <header class="topbar">
+      <button class="babychip" data-action="baby-switch" aria-label="Baby profile" id="babychip"></button>
+      <button class="iconbtn iconbtn--mic" data-action="mic-listen" id="micbtn" hidden aria-label="Log by voice">🎤</button>
+      <button class="iconbtn iconbtn--sync" data-action="go" data-view="settings" data-focus="share" id="syncchip" hidden aria-label="Sharing">🔄</button>
+      <button class="iconbtn" data-action="go" data-view="settings" data-focus="reminders" aria-label="Reminders" id="bell">🔔<span class="iconbtn__badge" id="bell-badge" hidden></span></button>
+    </header>
+
+    <div class="banner banner--bad" id="save-warning" hidden role="alert"></div>
+    <div class="banner" id="banner" hidden role="alert"></div>
+
+    <main class="views">
+      <section class="view" id="view-today" aria-label="Today"></section>
+      <section class="view" id="view-log" aria-label="History" hidden></section>
+      <section class="view" id="view-health" aria-label="Health" hidden></section>
+      <section class="view" id="view-help" aria-label="Answers" hidden></section>
+      <section class="view" id="view-settings" aria-label="Settings" hidden></section>
+    </main>
+
+    <nav class="tabbar" aria-label="Sections">
+      <button class="tab tab--active" data-action="go" data-view="today"><span class="tab__icon" aria-hidden="true">🏠</span><span class="tab__label">Today</span></button>
+      <button class="tab" data-action="go" data-view="log"><span class="tab__icon" aria-hidden="true">📋</span><span class="tab__label">History</span></button>
+      <button class="tab" data-action="go" data-view="health"><span class="tab__icon" aria-hidden="true">🩺</span><span class="tab__label">Health</span></button>
+      <button class="tab" data-action="go" data-view="help"><span class="tab__icon" aria-hidden="true">💡</span><span class="tab__label">Answers</span></button>
+      <button class="tab" data-action="go" data-view="settings"><span class="tab__icon" aria-hidden="true">⚙️</span><span class="tab__label">Settings</span></button>
+    </nav>
+  </div>
+
+  <!-- Bottom sheet for logging / editing / help topics -->
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheet__scrim" data-action="sheet-close"></div>
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="sheet__grab" aria-hidden="true"></div>
+      <div class="sheet__head">
+        <h2 class="sheet__title" id="sheet-title"></h2>
+        <button class="iconbtn" data-action="sheet-close" aria-label="Close">✕</button>
+      </div>
+      <div class="sheet__body" id="sheet-body"></div>
+    </div>
+  </div>
+
+  <!-- Confirmation for anything destructive (styled, unlike window.confirm) -->
+  <dialog class="confirm" id="confirm" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+    <form method="dialog" class="confirm__body">
+      <h2 class="confirm__title" id="confirm-title"></h2>
+      <p class="confirm__text" id="confirm-text"></p>
+      <div class="btn-row">
+        <button class="btn btn--lg" value="" id="confirm-cancel">Cancel</button>
+        <button class="btn btn--lg btn--primary" value="ok" id="confirm-ok">OK</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <div class="tip" id="tip" role="tooltip" hidden></div>
+  <input type="file" id="import-file" accept="application/json,.json" hidden />
+
+  <script src="../theme.js?v=38"></script>
+  <script src="js/guide.js?v=38"></script>
+  <script src="js/store.js?v=38"></script>
+  <script src="js/sync.js?v=38"></script>
+  <script src="js/sound.js?v=38"></script>
+  <script src="js/rx.js?v=38"></script>
+  <script src="js/voice.js?v=38"></script>
+  <script src="js/files.js?v=38"></script>
+  <script src="js/viewer.js?v=38"></script>
+  <script src="js/ui.js?v=38"></script>
+  <script src="js/forms.js?v=38"></script>
+  <script src="js/views.js?v=38"></script>
+  <script src="js/help.js?v=38"></script>
+  <script src="js/health.js?v=38"></script>
+  <script src="js/milk.js?v=38"></script>
+  <script src="js/native.js?v=38"></script>
+  <script src="js/push.js?v=38"></script>
+  <script src="js/share.js?v=38"></script>
+  <script src="js/mic.js?v=38"></script>
+  <script src="js/ping.js?v=38"></script>
+  <script src="js/app.js?v=38"></script>
+</body>
+</html>

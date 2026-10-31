@@ -49,6 +49,15 @@ doesn't lose the game. It even warns you when a round claims more copies of a
 card than the 94-card deck actually holds.
 See [`flip7/`](flip7/) to score a game.
 
+### Alaga (formerly Baby Log)
+
+The newborn tracker that started here is now its own app, **Alaga**, published
+at **https://alaga.pages.dev** (not on this site). Its source is still in
+[`baby/`](baby/) — see [`baby/README.md`](baby/README.md) and
+[`baby/deploy/`](baby/deploy/) for how it's built and published. The old
+`/baby/` address shows a "moved" page (`moved/`) that lets old installs save
+their log as a backup file to import into Alaga.
+
 ### In-Between
 
 The classic card game also known as **Acey-Deucey**. Everyone antes into a
@@ -96,6 +105,17 @@ See [`inbetween/`](inbetween/) to play.
 │   └── js/
 │       ├── rules.js        # Deck, hand judging, odds, computer betting (pure)
 │       └── app.js          # Table state machine, UI, persistence
+├── baby/                   # Source of Alaga (published at alaga.pages.dev, not here)
+├── moved/                  # "Alaga has moved" page served at the old /baby/ address
+├── _config.yml             # keeps baby/ out of GitHub Pages
+│   ├── index.html
+│   ├── manifest.webmanifest / sw.js   # install + offline
+│   ├── css/styles.css
+│   └── js/
+│       ├── guide.js        # Age-based norms & answers (pure, tested)
+│       ├── store.js        # State, persistence, reminder engine
+│       ├── sound.js        # White-noise generator (Web Audio)
+│       └── ui.js · forms.js · views.js · help.js · app.js   # UI
 ├── README.md
 └── .gitignore
 ```

@@ -1,0 +1,848 @@
+/* =========================================================
+   Alaga — store.js
+   State, persistence, queries and the reminder engine.
+   No DOM. Everything is kept in localStorage on this device;
+   export/import moves it between phones (e.g. to a partner).
+
+   Units are stored canonically — ml, °C, kg, cm, ms epoch —
+   and only converted for display.
+   ========================================================= */
+(function (root) {
+  'use strict';
+
+  var G = root.BabyGuide || (typeof require !== 'undefined' ? require('./guide.js') : null);
+  var STORE_KEY = 'dg-babylog-v1';
+  var MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
+
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+  function defaults() {
+    return {
+      v: 1,
+      babies: [],
+      activeBaby: null,
+      events: [],
+      timers: {},      // babyId -> { sleep:{start}, breast:{side,start,accL,accR}, tummy:{start}, pump:{start} }
+      custom: [],      // custom reminders
+      milk: [],        // stored milk: pumped, prepared, leftovers (shared by all babies)
+      health: {},      // babyId -> { profile, appointments, rx, vaccines, docs }
+      fired: {},       // reminder key -> time fired (so each fires once)
+      snoozed: {},     // reminder key -> snooze-until time
+      settings: {
+        volume: 'ml', temp: 'C', length: 'cm',
+        notify: false, chime: true,
+        feedRemind: true, feedIntervalH: 0,      // 0 = automatic from age
+        diaperRemind: false, diaperIntervalH: 3,
+        napRemind: true,
+        sharePhotos: true,
+        diaperPhotoDays: 90,                     // diaper photos come off entries after this (0 = keep); flagged ones stay                       // partner sharing also sends this phone's photos (encrypted)
+        closedRemind: true,                      // web: reminders also sent by the server with the app closed (push.js)
+        vitdRemind: false, vitdTime: '09:00',
+        tummyRemind: false, tummyTime: '16:00',
+        quietNight: true,                        // 10pm–7am: vibrate only, no chime
+        voice: false, voiceLang: 'en-US', voiceAutoSave: true, // voice logging (opt-in: speech goes to the phone's speech service)
+        today: {},                               // babyId -> { quickLog, todayOrder, todayHidden }: each child's Today (see prefs())
+        quickLog: [], todayOrder: [], todayHidden: [], // before v28 one Today served every child; moved into `today` on load
+        pumpStore: 'fridge',                     // where pumped milk usually goes ('' = not tracked)
+        usageCount: true,                        // anonymous once-a-day count (ping.js); the parent can turn it off
+        mascotMotion: true,                        // the mascot hops and celebrates (ui.js mascotMood); off = it stays still
+        milkMode: 'attention',                   // Milk on Today: 'attention' (only what needs it soon) or 'always'
+        installTipDismissed: false
+      }
+    };
+  }
+
+  /* ---------- Persistence ---------- */
+  var state = defaults();
+
+  /* One log, one writer. Every save stamps a new "generation" next to the log.
+     A copy of the app that finds a generation it didn't write (another tab or
+     window saved since it loaded) must not save over it: its picture of the log
+     is older. It reports a conflict instead (app.js asks it to reload). Without
+     this, an older copy could overwrite newer entries, and sharing would then
+     pass the loss on as deletions. */
+  var GEN_KEY = STORE_KEY + '-gen', myGen = null;
+  function newGen() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function storedGen(storage) { try { return storage && storage.getItem(GEN_KEY); } catch (e) { return null; } }
+  // True when nobody else has saved since this copy loaded or last saved.
+  function isCurrent(storage) {
+    storage = storage || (typeof localStorage !== 'undefined' ? localStorage : null);
+    var g = storedGen(storage);
+    return !g || g === myGen;
+  }
+
+  function load(storage) {
+    storage = storage || (typeof localStorage !== 'undefined' ? localStorage : null);
+    try {
+      var raw = storage && storage.getItem(STORE_KEY);
+      if (raw) state = normalize(JSON.parse(raw));
+    } catch (e) { state = defaults(); }
+    myGen = storedGen(storage);
+    return state;
+  }
+
+  // Returns true when the log is safely on the device. A failure (storage
+  // full, blocked, private mode) is reported through api.onSaveError so the
+  // app can tell the parent instead of losing entries silently.
+  var pending = null, saveFailed = false;
+  function save(storage) {
+    if (pending) { clearTimeout(pending); pending = null; }
+    storage = storage || (typeof localStorage !== 'undefined' ? localStorage : null);
+    if (!storage) return false;
+    if (api.paused) return false;
+    if (!isCurrent(storage)) { if (api.onConflict) api.onConflict(); return false; }
+    var json;
+    try {
+      json = JSON.stringify(state);
+      storage.setItem(STORE_KEY, json);
+      myGen = newGen();
+      storage.setItem(GEN_KEY, myGen);
+    } catch (e) {
+      saveFailed = true;
+      if (api.onSaveError) api.onSaveError(e);
+      return false;
+    }
+    if (saveFailed) { saveFailed = false; if (api.onSaveOk) api.onSaveOk(); }
+    if (api.onSaved) api.onSaved(json);
+    for (var i = 0; i < listeners.length; i++) try { listeners[i](json); } catch (e) {}
+    return true;
+  }
+  // Writing a year of logs costs ~15 ms; do it just after the screen updates
+  // so a tap feels instant. flush() runs it now (e.g. when the app is hidden).
+  function saveSoon() {
+    if (typeof setTimeout === 'undefined' || typeof requestAnimationFrame === 'undefined') return save();
+    if (pending) return true;
+    var run = function () { if (pending) save(); };
+    // After the next paint — or within 120 ms regardless, since browsers
+    // pause animation frames for hidden or backgrounded pages.
+    pending = setTimeout(run, 120);
+    requestAnimationFrame(function () { setTimeout(run, 0); });
+    return true;
+  }
+  function flush() { if (pending) return save(); return !saveFailed; }
+  // Anyone else who needs to know the log was saved (partner sync).
+  var listeners = [];
+  function onSave(fn) { listeners.push(fn); }
+  // After entries are changed from outside (partner sync): keep them sorted and drop cached spans.
+  function touch() { rev++; sortEvents(); if (!baby(state.activeBaby)) state.activeBaby = state.babies[0] ? state.babies[0].id : null; }
+
+  // Fill in anything missing (older saves, imports).
+  function normalize(s) {
+    var d = defaults();
+    if (!s || typeof s !== 'object') return d;
+    var out = {};
+    for (var k in d) out[k] = s[k] != null ? s[k] : d[k];
+    out.settings = {};
+    for (var k2 in d.settings) out.settings[k2] = s.settings && s.settings[k2] != null ? s.settings[k2] : d.settings[k2];
+    if (!Array.isArray(out.events)) out.events = [];
+    if (!Array.isArray(out.babies)) out.babies = [];
+    if (!Array.isArray(out.custom)) out.custom = [];
+    if (!Array.isArray(out.milk)) out.milk = [];
+    // Used or thrown-out milk is kept two weeks, then dropped.
+    var milkBefore = out.milk.length;
+    out.milk = out.milk.filter(function (m) { return m && (m.status === 'active' || !m.doneAt || m.doneAt > Date.now() - 14 * DAY); });
+    noteDeletes(milkBefore - out.milk.length);
+    if (!out.health || typeof out.health !== 'object') out.health = {};
+    if (!out.activeBaby && out.babies[0]) out.activeBaby = out.babies[0].id;
+    // One Today for every child (before v28): it becomes each existing child's own.
+    var st = out.settings;
+    if (!st.today || typeof st.today !== 'object') st.today = {};
+    if (st.quickLog.length || st.todayOrder.length || st.todayHidden.length) {
+      out.babies.forEach(function (b) {
+        if (!st.today[b.id]) st.today[b.id] = { quickLog: st.quickLog.slice(), todayOrder: st.todayOrder.slice(), todayHidden: st.todayHidden.length ? st.todayHidden.slice() : null };
+      });
+      st.quickLog = []; st.todayOrder = []; st.todayHidden = [];
+    }
+    // A short-lived version stored custom-reminder icons as names ('pill'); show them as emoji again.
+    var NAMED = { bell: '🔔', pill: '💊', bottle: '🍼', pump: '🧴', tub: '🛁', stethoscope: '🩺', phone: '📞', sun: '☀️', basket: '🧺', drop: '💧' };
+    out.custom.forEach(function (r) { if (r && NAMED[r.icon]) r.icon = NAMED[r.icon]; });
+    out.events.sort(function (a, b) { return a.time - b.time; }); // range queries rely on it
+    return out;
+  }
+
+  function get() { return state; }
+  function set(s) { state = normalize(s); return state; }
+  function reset() { state = defaults(); return state; }
+
+  /* ---------- Babies ---------- */
+  function baby(id) {
+    id = id || state.activeBaby;
+    for (var i = 0; i < state.babies.length; i++) if (state.babies[i].id === id) return state.babies[i];
+    return null;
+  }
+
+  function addBaby(b) {
+    var nb = { id: uid(), name: b.name || 'Baby', birth: b.birth, feeding: b.feeding || 'breast', emoji: b.emoji || '👶' };
+    // Picked when adding the baby: sex sets the growth chart and the mascot.
+    if (b.sex) nb.sex = b.sex;
+    if (b.birthWeightKg) nb.birthWeightKg = b.birthWeightKg;
+    state.babies.push(nb);
+    state.activeBaby = nb.id;
+    return nb;
+  }
+
+  function updateBaby(id, patch) {
+    var b = baby(id);
+    if (b) for (var k in patch) b[k] = patch[k];
+    return b;
+  }
+
+  function removeBaby(id) {
+    // Everything of this baby's goes, on every shared phone: tell sync it's on purpose.
+    var H = state.health[id] || {};
+    noteDeletes(1 + state.events.filter(function (e) { return e.baby === id; }).length + state.custom.filter(function (r) { return r.baby === id; }).length +
+      Object.keys(state.timers[id] || {}).length + 2 + ['appointments', 'rx', 'docs'].reduce(function (a, k) { return a + (H[k] || []).length; }, 0));
+    state.babies = state.babies.filter(function (b) { return b.id !== id; });
+    state.events = state.events.filter(function (e) { return e.baby !== id; });
+    state.custom = state.custom.filter(function (r) { return r.baby !== id; });
+    delete state.timers[id];
+    delete state.health[id];
+    delete state.settings.today[id];
+    if (state.activeBaby === id) state.activeBaby = state.babies[0] ? state.babies[0].id : null;
+  }
+
+  /* Each child's Today on this phone: the buttons (quickLog, [] = by age), the
+     order of sections (todayOrder, [] = default) and the hidden ones (todayHidden,
+     null = by age). Settings stay on the phone; they aren't shared. */
+  function prefs(id) {
+    id = id || state.activeBaby;
+    var all = state.settings.today, p = all[id];
+    if (!p) p = all[id] = {};
+    if (!Array.isArray(p.quickLog)) p.quickLog = [];
+    if (!Array.isArray(p.todayOrder)) p.todayOrder = [];
+    if (p.todayHidden !== null && !Array.isArray(p.todayHidden)) p.todayHidden = null;
+    return p;
+  }
+
+  function ageDays(now, id) {
+    var b = baby(id);
+    return b ? G.ageInDays(b.birth, now) : 0;
+  }
+
+  /* ---------- Events ---------- */
+  function addEvent(ev) {
+    var e = { id: ev.id || uid(), baby: ev.baby || state.activeBaby, type: ev.type, time: ev.time || Date.now(), end: ev.end || null, data: ev.data || {} };
+    state.events.push(e);
+    sortEvents();
+    return e;
+  }
+
+  function updateEvent(id, patch) {
+    var e = findEvent(id);
+    if (!e) return null;
+    for (var k in patch) e[k] = patch[k];
+    rev++;
+    sortEvents();
+    return e;
+  }
+
+  function removeEvent(id) {
+    var n = state.events.length;
+    state.events = state.events.filter(function (e) { return e.id !== id; });
+    noteDeletes(n - state.events.length);
+  }
+
+  /* Deletions the parent chose (an entry, a baby, a visit…). Sync compares a
+     push's deletions with this count: deletions nobody asked for are held back
+     and the parent is asked (sync.js). */
+  var deleteBudget = 0;
+  function noteDeletes(n) { if (n > 0) deleteBudget += n; }
+  function takeDeleteBudget() { var b = deleteBudget; deleteBudget = 0; return b; }
+  function findEvent(id) { for (var i = 0; i < state.events.length; i++) if (state.events[i].id === id) return state.events[i]; return null; }
+  function sortEvents() { state.events.sort(function (a, b) { return a.time - b.time; }); }
+
+  // Events are kept sorted by start time, so a time range is found by binary
+  // search instead of scanning a year of logs (Trends asks dozens of times).
+  // An event that started before `from` still counts if it ends after it, so
+  // the search starts one "longest event" earlier.
+  var rev = 0, span = { arr: null, len: -1, rev: -1, ms: 0 };
+  function longestSpan() {
+    var list = state.events;
+    if (span.arr !== list || span.len !== list.length || span.rev !== rev) {
+      var m = 0;
+      for (var i = 0; i < list.length; i++) { var e = list[i]; if (e.end && e.end - e.time > m) m = e.end - e.time; }
+      span = { arr: list, len: list.length, rev: rev, ms: m };
+    }
+    return span.ms;
+  }
+  function firstAtOrAfter(t) {
+    var list = state.events, lo = 0, hi = list.length;
+    while (lo < hi) { var mid = (lo + hi) >> 1; if (list[mid].time < t) lo = mid + 1; else hi = mid; }
+    return lo;
+  }
+
+  // Events for the active baby, optionally filtered by type and time range [from, to).
+  function events(opts) {
+    opts = opts || {};
+    var id = opts.baby || state.activeBaby, list = state.events, out = [];
+    var types = opts.type ? (Array.isArray(opts.type) ? opts.type : [opts.type]) : null;
+    var lo = opts.from != null ? firstAtOrAfter(opts.from - longestSpan()) : 0;
+    var hi = opts.to != null ? firstAtOrAfter(opts.to) : list.length;
+    for (var i = lo; i < hi; i++) {
+      var e = list[i];
+      if (e.baby !== id) continue;
+      if (types && types.indexOf(e.type) < 0) continue;
+      if (opts.from != null && (e.end || e.time) < opts.from) continue;
+      out.push(e);
+    }
+    return out;
+  }
+
+  function last(type, pred, id) {
+    var list = state.events;
+    id = id || state.activeBaby;
+    for (var i = list.length - 1; i >= 0; i--) {
+      var e = list[i];
+      if (e.baby === id && e.type === type && (!pred || pred(e))) return e;
+    }
+    return null;
+  }
+
+  function startOfDay(t) { var d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); }
+
+  // Milliseconds of an interval event that fall inside [from, to).
+  function overlap(e, from, to, now) {
+    var s = e.time, en = e.end || now || Date.now();
+    return Math.max(0, Math.min(en, to) - Math.max(s, from));
+  }
+
+  /* ---------- Health records ---------- */
+  function health(id) {
+    id = id || state.activeBaby;
+    var hl = state.health[id];
+    if (!hl) hl = state.health[id] = {};
+    hl.profile = hl.profile || {};
+    hl.appointments = hl.appointments || [];
+    hl.rx = hl.rx || [];
+    hl.vaccines = hl.vaccines || { schedule: '', given: {}, custom: [] };
+    hl.vaccines.given = hl.vaccines.given || {};
+    hl.vaccines.custom = hl.vaccines.custom || [];
+    hl.docs = hl.docs || [];
+    return hl;
+  }
+  function findIn(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; }
+
+  // A prescription course: when it ends, how many doses so far, when the next one is.
+  function rxStatus(rx, now, id) {
+    now = now || Date.now();
+    var end = rx.durationDays ? rx.start + rx.durationDays * DAY : null;
+    var doses = events({ baby: id, type: 'med' }).filter(function (e) { return e.data.rxId === rx.id; });
+    var lastDose = doses[doses.length - 1] || null;
+    var expected = rx.durationDays && rx.timesPerDay ? rx.durationDays * rx.timesPerDay : null;
+    var active = !rx.stopped && (!end || now < end);
+    var nextAt = rx.prn || !rx.intervalH ? null : lastDose ? lastDose.time + rx.intervalH * HOUR : rx.start;
+    if (nextAt && end && nextAt >= end) nextAt = null;
+    return { end: end, doses: doses.length, expected: expected, lastDose: lastDose, active: active, nextAt: active ? nextAt : null };
+  }
+
+  /* ---------- Timers (survive refresh / lock screen: just timestamps) ---------- */
+  // Which phone started a timer, when sharing ("Asleep · started by Sam's phone").
+  // share.js sets api.device; without sharing it stays empty and nothing is stamped.
+  function stamp() { var d = api.device && api.device(); return d ? { by: d } : {}; }
+  function timers(id) {
+    id = id || state.activeBaby;
+    if (!state.timers[id]) state.timers[id] = {};
+    return state.timers[id];
+  }
+
+  function startTimer(kind, extra, now) {
+    var t = timers();
+    t[kind] = Object.assign({ start: now || Date.now() }, extra || {}, stamp());
+    return t[kind];
+  }
+
+  function stopTimer(kind) {
+    var t = timers();
+    var v = t[kind];
+    delete t[kind];
+    return v;
+  }
+
+  // Breastfeeding timer: switch sides, banking time on the old side.
+  function breastSwitch(side, now) {
+    now = now || Date.now();
+    var t = timers();
+    var b = t.breast;
+    if (!b) { t.breast = Object.assign({ side: side, firstSide: side, start: now, segStart: now, accL: 0, accR: 0, paused: false }, stamp()); return t.breast; }
+    bankBreast(b, now);
+    b.side = side; b.paused = false; b.segStart = now;
+    return b;
+  }
+
+  function breastPause(now) {
+    var b = timers().breast;
+    if (!b) return null;
+    now = now || Date.now();
+    if (b.paused) { b.paused = false; b.segStart = now; }
+    else { bankBreast(b, now); b.paused = true; }
+    return b;
+  }
+
+  function bankBreast(b, now) {
+    if (b.paused || !b.segStart) return;
+    var d = now - b.segStart;
+    if (b.side === 'L') b.accL += d; else b.accR += d;
+    b.segStart = now;
+  }
+
+  function breastTotals(b, now) {
+    var L = b.accL, R = b.accR;
+    if (!b.paused && b.segStart) { var d = (now || Date.now()) - b.segStart; if (b.side === 'L') L += d; else R += d; }
+    return { L: L, R: R, total: L + R };
+  }
+
+  /* ---------- Pump timer ----------
+     Left and right run independently, so a double pump can time both
+     at once and a single pump can do one side, then the other.
+     Finishing pauses everything but keeps the session until the
+     amounts are saved, so closing the sheet never loses it. */
+  function newPump(now) { return Object.assign({ start: now, L: { on: false, acc: 0, seg: 0 }, R: { on: false, acc: 0, seg: 0 } }, stamp()); }
+  function bankSide(sd, now) { if (sd.on) { sd.acc += now - sd.seg; sd.on = false; } }
+
+  function pumpSide(side, now) {
+    now = now || Date.now();
+    var t = timers();
+    if (!t.pump) t.pump = newPump(now);
+    var p = t.pump, sd = p[side];
+    if (p.done) { p.done = false; delete p.end; } // tapping a side again resumes
+    if (sd.on) bankSide(sd, now); else { sd.on = true; sd.seg = now; }
+    return p;
+  }
+
+  // Start both sides; if both are already running, pause both.
+  function pumpBoth(now) {
+    now = now || Date.now();
+    var t = timers();
+    if (!t.pump) t.pump = newPump(now);
+    var p = t.pump;
+    if (p.done) { p.done = false; delete p.end; }
+    if (p.L.on && p.R.on) { bankSide(p.L, now); bankSide(p.R, now); }
+    else ['L', 'R'].forEach(function (k) { if (!p[k].on) { p[k].on = true; p[k].seg = now; } });
+    return p;
+  }
+
+  function pumpFinish(now) {
+    now = now || Date.now();
+    var p = timers().pump;
+    if (!p || p.done) return p || null;
+    bankSide(p.L, now); bankSide(p.R, now);
+    p.done = true; p.end = now;
+    return p;
+  }
+
+  function pumpTotals(p, now) {
+    now = p.done ? p.end : (now || Date.now());
+    var side = function (sd) { return sd.acc + (sd.on ? now - sd.seg : 0); };
+    return { L: side(p.L), R: side(p.R), total: now - p.start, running: p.L.on || p.R.on };
+  }
+
+  /* ---------- Bottle timer ----------
+     Times a bottle so a slow nipple (or a tired baby) shows up as minutes
+     per ml. Finishing keeps the session until the amount is saved, so
+     closing the sheet never loses it. */
+  function bottleStart(now, from) {
+    now = now || Date.now();
+    var t = timers();
+    t.bottle = Object.assign({ start: now, seg: now, acc: 0, paused: false }, stamp());
+    var m = from ? milkItem(from) : null;
+    if (m) {
+      t.bottle.milkId = m.id; t.bottle.offeredMl = m.ml; t.bottle.milk = m.kind;
+      m.feedStartAt = now; // formula: 1 hour once a feed starts
+    }
+    return t.bottle;
+  }
+  function bottlePause(now) {
+    var b = timers().bottle;
+    if (!b || b.done) return b || null;
+    now = now || Date.now();
+    if (b.paused) { b.paused = false; b.seg = now; } else { b.acc += now - b.seg; b.paused = true; }
+    return b;
+  }
+  function bottleFinish(now) {
+    var b = timers().bottle;
+    if (!b || b.done) return b || null;
+    now = now || Date.now();
+    if (!b.paused) b.acc += now - b.seg;
+    b.paused = true; b.done = true; b.end = now;
+    return b;
+  }
+  // "Not finished — keep timing"
+  function bottleResume(now) {
+    var b = timers().bottle;
+    if (!b) return null;
+    b.done = false; delete b.end; b.paused = false; b.seg = now || Date.now();
+    return b;
+  }
+  function bottleTotal(b, now) { return b.acc + (b.paused ? 0 : (now || Date.now()) - b.seg); }
+
+  /* ---------- Milk storage ----------
+     Bottles and bags of milk with a use-by from where they've been kept
+     (rules in guide.js). Moving milk somewhere warmer never extends its
+     time: the earlier use-by stays as a cap. */
+  function milkAdd(m, now) {
+    now = now || Date.now();
+    var it = { id: uid(), kind: m.kind === 'formula' ? 'formula' : 'breast', ml: Math.round(m.ml || 0), where: m.where || 'fridge',
+      madeAt: m.madeAt || now, since: now, status: 'active', label: m.label || '' };
+    if (it.where !== 'room') it.chilled = true;
+    if (m.thawed) { it.thawedAt = now; it.chilled = true; }
+    if (m.leftoverAt) it.leftoverAt = m.leftoverAt;
+    if (m.cap) it.cap = m.cap;
+    if (m.from) it.from = m.from;
+    state.milk.push(it);
+    return it;
+  }
+  function milkItem(id) { return findIn(state.milk, id); }
+  function milkActive() {
+    return state.milk.filter(function (m) { return m.status === 'active'; })
+      .sort(function (a, b) { return G.milkExpiry(a).at - G.milkExpiry(b).at; });
+  }
+  // Returns false when the move isn't allowed (refreezing, freezing formula…).
+  function milkMove(id, to, now) {
+    var m = milkItem(id);
+    now = now || Date.now();
+    if (!m || G.milkMoves(m).indexOf(to) < 0) return false;
+    var before = G.milkExpiry(m).at;
+    if (to === 'thawFridge' || to === 'thawRoom') { m.thawedAt = now; m.where = to === 'thawFridge' ? 'fridge' : 'room'; }
+    else {
+      if (to === 'room') m.cap = Math.min(m.cap || Infinity, before); // warming never adds time
+      else m.chilled = true;
+      m.where = to;
+    }
+    m.since = now;
+    return true;
+  }
+  function milkDone(id, how, now) {
+    var m = milkItem(id);
+    if (!m) return null;
+    m.status = how === 'used' ? 'used' : 'discarded';
+    m.doneAt = now || Date.now();
+    return m;
+  }
+  /* After a bottle feed: the milk it came from is used, and what's left over
+     becomes a leftover (breast milk: 2 hours) — or, for formula, is thrown out.
+     Returns { leftover, ml, kind } for the message. */
+  function milkAfterFeed(ev, fromId) {
+    var d = ev.data, src = fromId ? milkItem(fromId) : null;
+    if (src) milkDone(src.id, 'used', ev.end || ev.time);
+    var left = (d.offeredMl || 0) - (d.amountMl || 0);
+    if (left <= 0) return null;
+    if (d.milk === 'formula') return { kind: 'formula', ml: left, leftover: null };
+    var end = ev.end || ev.time;
+    var it = milkAdd({ kind: 'breast', ml: left, where: 'room', madeAt: src ? src.madeAt : ev.time, leftoverAt: end, cap: src ? G.milkExpiry(src).at : null, from: ev.id }, end);
+    if (src && src.thawedAt) it.thawedAt = src.thawedAt;
+    return { kind: 'breast', ml: left, leftover: it };
+  }
+
+  /* ---------- Derived status ---------- */
+  function isAsleep(id) { return !!timers(id).sleep; }
+
+  // When did baby last wake? (end of the last finished sleep)
+  function awakeSince(now, id) {
+    if (isAsleep(id)) return null;
+    var s = last('sleep', function (e) { return e.end; }, id);
+    return s ? s.end : null;
+  }
+
+  function lastFeedAnchor(id) {
+    // Breast timer counts as "feeding now".
+    var b = timers(id).breast;
+    if (b) return { time: b.start, end: null, live: true };
+    var f = last('feed', function (e) { return e.data.kind !== 'solids'; }, id);
+    return f ? { time: f.time, end: f.end, id: f.id, event: f } : null;
+  }
+
+  function feedIntervalH(now, id) {
+    var b = baby(id);
+    if (state.settings.feedIntervalH > 0) return state.settings.feedIntervalH;
+    return G.feedingFor(ageDays(now, id), b ? b.feeding : 'breast').intervalH;
+  }
+
+  // Totals for a calendar day — powers the "is baby getting enough?" checks.
+  function daySummary(dayStart, now, id) {
+    now = now || Date.now();
+    var to = dayStart + DAY;
+    var list = events({ baby: id, from: dayStart, to: to });
+    var s = { feeds: 0, breastMs: 0, bottleMl: 0, pumpMl: 0, solids: 0, wet: 0, dirty: 0, sleepMs: 0, tummyMs: 0, meds: 0, lastTemp: null };
+    list.forEach(function (e) {
+      var d = e.data || {};
+      if (e.time >= dayStart && e.time < to) {
+        if (e.type === 'feed') {
+          if (d.kind === 'solids') s.solids++; else s.feeds++;
+          if (d.kind === 'breast') s.breastMs += (d.left || 0) + (d.right || 0);
+          if (d.kind === 'bottle') s.bottleMl += d.amountMl || 0;
+        }
+        if (e.type === 'diaper') { if (d.wet) s.wet++; if (d.dirty) s.dirty++; }
+        if (e.type === 'pump') s.pumpMl += d.amountMl || 0;
+        if (e.type === 'med') s.meds++;
+        if (e.type === 'temp') s.lastTemp = d.tempC;
+      }
+      if (e.type === 'sleep') s.sleepMs += overlap(e, dayStart, to, now);
+      if (e.type === 'tummy') s.tummyMs += overlap(e, dayStart, to, now);
+    });
+    // Running timers count too.
+    var t = timers(id);
+    if (t.sleep) s.sleepMs += Math.max(0, Math.min(now, to) - Math.max(t.sleep.start, dayStart));
+    if (t.tummy) s.tummyMs += Math.max(0, Math.min(now, to) - Math.max(t.tummy.start, dayStart));
+    return s;
+  }
+
+  // Rolling 24h — fairer than "today" at 7am.
+  function last24(now, id) {
+    now = now || Date.now();
+    var from = now - DAY;
+    var s = daySummary(from, now, id);
+    return s;
+  }
+
+  /* ---------- Medicine spacing ---------- */
+  function medKeyOf(d) {
+    if (d.rxId) return 'rx:' + d.rxId;
+    return d.medId === 'custom' ? 'custom:' + (d.name || '').toLowerCase() : d.medId;
+  }
+  function medStatus(medKey, now, id) {
+    now = now || Date.now();
+    var doses = events({ baby: id, type: 'med', from: now - DAY }).filter(function (e) { return medKeyOf(e.data) === medKey; });
+    if (!doses.length) return null;
+    var lastDose = doses[doses.length - 1];
+    var interval = (lastDose.data.intervalH || 0) * HOUR;
+    var preset = G.medicine(lastDose.data.medId);
+    return {
+      last: lastDose,
+      nextAt: interval ? lastDose.time + interval : null,
+      count24: doses.length,
+      max: lastDose.data.maxPerDay || preset.maxPerDay || 0
+    };
+  }
+
+  /* ---------- Reminder engine ----------
+     Returns every reminder with its due time. The UI shows the
+     upcoming ones; `due()` returns those that should fire now. */
+  function hm(str, now) {
+    var p = String(str || '09:00').split(':');
+    var d = new Date(now); d.setHours(+p[0] || 0, +p[1] || 0, 0, 0);
+    return d.getTime();
+  }
+  function dayKey(t) { var d = new Date(t); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+
+  function reminders(now, id) {
+    now = now || Date.now();
+    id = id || state.activeBaby;
+    var b = baby(id);
+    if (!b) return [];
+    var st = state.settings, out = [];
+    var name = b.name || 'Baby';
+    var days = ageDays(now, id);
+
+    // A sleeping baby is never "due" for a diaper change, tummy time or vitamin D —
+    // those wait until they wake. Feeds only interrupt sleep for young newborns.
+    var asleep = isAsleep(id);
+
+    // Next feed — from the START of the last feed, like a pediatrician counts it.
+    if (st.feedRemind && days < 730) {
+      var lf = lastFeedAnchor(id);
+      if (lf && !lf.live) {
+        var iv = feedIntervalH(now, id);
+        if (!asleep) {
+          out.push({ key: 'feed:' + lf.id, kind: 'feed', icon: '🍼', title: 'Feed due', text: name + ' last fed ' + G.fmtDur((now - lf.time) / MIN) + ' ago (every ~' + G.fmtHours(iv) + ').', at: lf.time + iv * HOUR });
+        } else if (days < 14) {
+          // Newborns shouldn't go more than ~4 hours between feeds until back to birth weight.
+          out.push({ key: 'feedwake:' + lf.id, kind: 'feed', icon: '🍼', title: 'Time to wake for a feed', text: name + ' last fed ' + G.fmtDur((now - lf.time) / MIN) + ' ago. Newborns under 2 weeks shouldn’t go more than about 4 hours between feeds.', at: Math.max(lf.time + iv * HOUR, lf.time + 4 * HOUR) });
+        }
+      }
+    }
+
+    // Diaper check.
+    if (st.diaperRemind && !asleep) {
+      var ld = last('diaper', null, id);
+      if (ld && !ld.data.where) out.push({ key: 'diaper:' + ld.id, kind: 'diaper', icon: '🧷', title: 'Diaper check', text: 'Last change was ' + G.fmtDur((now - ld.time) / MIN) + ' ago.', at: ld.time + st.diaperIntervalH * HOUR });
+    }
+
+    // Nap window — when the wake window starts closing.
+    if (st.napRemind) {
+      var woke = awakeSince(now, id);
+      if (woke) {
+        var nap = G.nextNap(days, woke, now);
+        if (nap) out.push({ key: 'nap:' + woke, kind: 'nap', icon: '😴', title: 'Nap window', text: name + ' has been awake ' + G.fmtDur((now - woke) / MIN) + '. Watch for sleepy cues and start winding down.', at: nap.from + Math.round((nap.to - nap.from) / 2) });
+      }
+    }
+
+    // Medicine — next dose allowed (only if the parent asked to be reminded).
+    var seen = {};
+    events({ baby: id, type: 'med', from: now - 2 * DAY }).forEach(function (e) {
+      var key = medKeyOf(e.data);
+      seen[key] = e;
+    });
+    Object.keys(seen).forEach(function (k) {
+      var e = seen[k];
+      if (!e.data.remind || !e.data.intervalH) return;
+      out.push({ key: 'med:' + e.id, kind: 'med', icon: '💊', title: (e.data.name || 'Medicine') + ' — next dose allowed', text: 'Last dose ' + G.fmtDur((now - e.time) / MIN) + ' ago. Check the dose before giving.', at: e.time + e.data.intervalH * HOUR });
+    });
+
+    // Daily vitamin D (skipped if already logged today).
+    if (st.vitdRemind && !asleep) {
+      var start = startOfDay(now);
+      var given = events({ baby: id, type: 'med', from: start }).some(function (e) { return e.data.medId === 'vitd'; });
+      var at = hm(st.vitdTime, now);
+      if (given) at = hm(st.vitdTime, now + DAY);
+      out.push({ key: 'vitd:' + dayKey(at), kind: 'vitd', icon: '☀️', title: 'Vitamin D drops', text: 'Daily vitamin D for ' + name + '.', at: at });
+    }
+
+    // Tummy time daily nudge if under goal.
+    if (st.tummyRemind && !asleep) {
+      var goal = G.tummyGoalMin(days);
+      if (goal) {
+        var doneMin = daySummary(startOfDay(now), now, id).tummyMs / MIN;
+        var tat = hm(st.tummyTime, now);
+        if (doneMin >= goal) tat = hm(st.tummyTime, now + DAY);
+        out.push({ key: 'tummy:' + dayKey(tat), kind: 'tummy', icon: '🤸', title: 'Tummy time', text: Math.round(doneMin) + ' of ' + goal + ' minutes done today.', at: tat });
+      }
+    }
+
+    // Appointments: the evening before (7 pm) and 2 hours before.
+    var hl = health(id);
+    hl.appointments.forEach(function (a) {
+      if (a.done || !a.at || a.at < now - 6 * HOUR) return;
+      var title = (a.title || 'Doctor’s visit') + (a.place ? ' · ' + a.place : '');
+      var eve = new Date(a.at - DAY); eve.setHours(19, 0, 0, 0);
+      if (eve.getTime() < a.at - 3 * HOUR) out.push({ key: 'appt:' + a.id + ':eve', kind: 'appt', icon: '🩺', title: 'Tomorrow: ' + title, text: 'At ' + new Date(a.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '. Bring the vaccine card and your questions.', at: eve.getTime(), apptId: a.id });
+      out.push({ key: 'appt:' + a.id + ':soon', kind: 'appt', icon: '🩺', title: 'In 2 hours: ' + title, text: name + '’s appointment is at ' + new Date(a.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.', at: a.at - 2 * HOUR, apptId: a.id });
+    });
+    // Prescription courses with reminders on: each next dose until the course ends.
+    hl.rx.forEach(function (rx) {
+      if (!rx.remind) return;
+      var rs = rxStatus(rx, now, id);
+      if (!rs.nextAt) return;
+      out.push({ key: 'rx:' + rx.id + ':' + (rs.lastDose ? rs.lastDose.id : 'first'), kind: 'rx', icon: '💊', title: rx.name + ' — dose due', text: (rx.dose ? rx.dose + ' · ' : '') + 'dose ' + (rs.doses + 1) + (rs.expected ? ' of ' + rs.expected : '') + '.', at: rs.nextAt, rxId: rx.id });
+    });
+    // Vaccines: one nudge at 9 am on the due date (only for ones not given and not long overdue).
+    if (hl.vaccines.schedule && b.birth) {
+      var dueDays = {};
+      G.vaccinePlan(hl.vaccines.schedule, b.birth, hl.vaccines.given, now).forEach(function (v) {
+        if (v.status === 'given' || v.due < startOfDay(now) - 7 * DAY) return;
+        var k = dayKey(v.due); (dueDays[k] = dueDays[k] || []).push(v);
+      });
+      Object.keys(dueDays).forEach(function (k) {
+        var list = dueDays[k], d9 = new Date(list[0].due); d9.setHours(9, 0, 0, 0);
+        out.push({ key: 'vax:' + k, kind: 'vax', icon: '💉', title: 'Vaccines due', text: list.map(function (v) { return v.name; }).join(', ') + '.', at: d9.getTime() });
+      });
+    }
+
+    // Milk use-by: shown with the first baby only (milk is shared, so it isn't repeated per baby).
+    if (state.babies[0] && state.babies[0].id === id) milkActive().forEach(function (m) {
+      var x = G.milkExpiry(m), long = x.at - (m.since || m.madeAt) > DAY;
+      var what = (m.ml ? m.ml + ' ml ' : '') + (m.kind === 'formula' ? 'formula' : 'breast milk') + (m.leftoverAt ? ' (leftover)' : '') + ' · ' + (G.MILK_WHERE[m.where] || m.where).toLowerCase();
+      out.push({ key: 'milk:' + m.id + ':' + x.at, kind: 'milk', icon: '🍼', title: 'Milk to use soon', text: what + ' — use by ' + new Date(x.at).toLocaleString([], { weekday: long ? 'short' : undefined, hour: 'numeric', minute: '2-digit' }) + '.', at: x.at - (long ? 12 * HOUR : 30 * MIN), milkId: m.id });
+    });
+
+    // Custom reminders.
+    state.custom.filter(function (r) { return r.baby === id && r.on !== false; }).forEach(function (r) {
+      var at2, key;
+      if (r.repeat === 'daily') {
+        at2 = hm(r.time, now);
+        if (state.fired['custom:' + r.id + ':' + dayKey(at2)]) at2 = hm(r.time, now + DAY);
+        key = 'custom:' + r.id + ':' + dayKey(at2);
+      } else if (r.repeat === 'every') {
+        var iv2 = (r.everyH || 3) * HOUR;
+        var base = r.anchor || r.created || now;
+        // The most recent slot if it hasn't fired yet, otherwise the next one.
+        var n = Math.floor((now - base) / iv2);
+        at2 = base + Math.max(1, n) * iv2;
+        if (n >= 1 && state.fired['custom:' + r.id + ':' + at2 + '@' + at2]) at2 += iv2;
+        key = 'custom:' + r.id + ':' + at2;
+      } else {
+        at2 = r.at; key = 'custom:' + r.id;
+      }
+      out.push({ key: key, kind: 'custom', icon: r.icon || '🔔', title: r.label || 'Reminder', text: r.note || '', at: at2, customId: r.id });
+    });
+
+    // Apply snoozes.
+    out.forEach(function (r) {
+      var s = state.snoozed[r.key];
+      if (s && s > r.at) { r.at = s; r.snoozed = true; }
+      r.done = !!state.fired[r.key + '@' + r.at];
+    });
+    out.sort(function (a, b) { return a.at - b.at; });
+    return out;
+  }
+
+  function due(now, id) {
+    now = now || Date.now();
+    return reminders(now, id).filter(function (r) { return r.at <= now && !state.fired[r.key + '@' + r.at]; });
+  }
+
+  function markFired(r) {
+    state.fired[r.key + '@' + r.at] = Date.now();
+    if (r.kind === 'custom') state.fired[r.key] = Date.now();
+    // Keep the map small.
+    var keys = Object.keys(state.fired);
+    if (keys.length > 300) keys.sort(function (a, b) { return state.fired[a] - state.fired[b]; }).slice(0, keys.length - 200).forEach(function (k) { delete state.fired[k]; });
+  }
+
+  function snooze(key, until) { state.snoozed[key] = until; }
+
+  /* ---------- Export / import ---------- */
+  function exportJSON() {
+    return JSON.stringify({ app: 'baby-log', exported: new Date().toISOString(), state: state });
+  }
+
+  // Merge another device's log in: babies by id, events by id (newer wins on clash).
+  function importJSON(text, mode) {
+    var parsed = JSON.parse(text);
+    var incoming = normalize(parsed.state || parsed);
+    if (mode === 'replace') { state = incoming; return { babies: state.babies.length, events: state.events.length }; }
+    var added = 0;
+    incoming.babies.forEach(function (b) { if (!baby(b.id)) state.babies.push(b); });
+    var byId = {};
+    state.events.forEach(function (e) { byId[e.id] = e; });
+    incoming.events.forEach(function (e) { if (!byId[e.id]) { state.events.push(e); added++; } });
+    incoming.custom.forEach(function (r) { if (!state.custom.some(function (x) { return x.id === r.id; })) state.custom.push(r); });
+    // Health records: merge lists by id; keep local profile fields, fill in missing ones.
+    Object.keys(incoming.health || {}).forEach(function (bid) {
+      var src = incoming.health[bid], dst = state.health[bid];
+      if (!dst) { state.health[bid] = src; return; }
+      ['appointments', 'rx', 'docs'].forEach(function (k) { (src[k] || []).forEach(function (x) { dst[k] = dst[k] || []; if (!findIn(dst[k], x.id)) dst[k].push(x); }); });
+      dst.profile = Object.assign({}, src.profile || {}, dst.profile || {});
+      if (src.vaccines) {
+        dst.vaccines = dst.vaccines || { schedule: '', given: {}, custom: [] };
+        dst.vaccines.schedule = dst.vaccines.schedule || src.vaccines.schedule;
+        dst.vaccines.given = Object.assign({}, src.vaccines.given || {}, dst.vaccines.given || {});
+      }
+    });
+    if (!state.activeBaby && state.babies[0]) state.activeBaby = state.babies[0].id;
+    sortEvents();
+    return { babies: incoming.babies.length, events: added };
+  }
+
+  function exportCSV(id) {
+    var b = baby(id);
+    var rows = [['baby', 'type', 'start', 'end', 'duration_min', 'details']];
+    events({ baby: id }).forEach(function (e) {
+      var dur = e.end ? Math.round((e.end - e.time) / MIN) : '';
+      rows.push([b ? b.name : '', e.type, new Date(e.time).toISOString(), e.end ? new Date(e.end).toISOString() : '', dur, JSON.stringify(e.data)]);
+    });
+    return rows.map(function (r) { return r.map(function (c) { c = String(c); return /[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(','); }).join('\n');
+  }
+
+  var api = {
+    STORE_KEY: STORE_KEY, uid: uid, defaults: defaults,
+    load: load, save: save, saveSoon: saveSoon, flush: flush, onSave: onSave, touch: touch,
+    isCurrent: isCurrent, paused: false, onConflict: null, noteDeletes: noteDeletes, takeDeleteBudget: takeDeleteBudget, get: get, set: set, reset: reset, normalize: normalize,
+    onSaveError: null, onSaveOk: null, onSaved: null, device: null,
+    baby: baby, addBaby: addBaby, updateBaby: updateBaby, removeBaby: removeBaby, ageDays: ageDays, prefs: prefs,
+    addEvent: addEvent, updateEvent: updateEvent, removeEvent: removeEvent, findEvent: findEvent, events: events, last: last,
+    startOfDay: startOfDay, overlap: overlap,
+    timers: timers, startTimer: startTimer, stopTimer: stopTimer,
+    breastSwitch: breastSwitch, breastPause: breastPause, breastTotals: breastTotals,
+    pumpSide: pumpSide, pumpBoth: pumpBoth, pumpFinish: pumpFinish, pumpTotals: pumpTotals,
+    milkAdd: milkAdd, milkItem: milkItem, milkActive: milkActive, milkMove: milkMove, milkDone: milkDone, milkAfterFeed: milkAfterFeed,
+    bottleStart: bottleStart, bottlePause: bottlePause, bottleFinish: bottleFinish, bottleResume: bottleResume, bottleTotal: bottleTotal,
+    isAsleep: isAsleep, awakeSince: awakeSince, lastFeedAnchor: lastFeedAnchor, feedIntervalH: feedIntervalH,
+    daySummary: daySummary, last24: last24, medStatus: medStatus, medKeyOf: medKeyOf,
+    health: health, findIn: findIn, rxStatus: rxStatus,
+    reminders: reminders, due: due, markFired: markFired, snooze: snooze,
+    exportJSON: exportJSON, importJSON: importJSON, exportCSV: exportCSV
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.BabyStore = api;
+})(this);
