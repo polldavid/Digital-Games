@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0a2a1f" />
-  <meta name="description" content="In-Between (Acey-Deucey) — the classic card game. Two cards are dealt; bet the pot that the next one lands in between. Pass-and-play or against computer players." />
+  <meta name="description" content="In-Between (Acey-Deucey) — the classic card game. Two cards are dealt; bet the pot that the next one lands in between. Play online with friends on their own phones, pass-and-play on one device, or against computer players." />
   <title>In-Between</title>
   <script>try{var t=localStorage.getItem('dg-theme')||((window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
   <link rel="stylesheet" href="css/styles.css" />
@@ -31,10 +31,20 @@
           <strong>double</strong>.
         </p>
 
+        <div class="resume resume--online" id="rejoin-card" hidden>
+          <div class="resume__top">
+            <span class="resume__dot" aria-hidden="true"></span>
+            <span class="resume__label">Online room</span>
+          </div>
+          <p class="resume__meta" id="rejoin-meta"></p>
+          <button class="btn btn--primary btn--block" data-action="rejoin">Back to the table</button>
+          <button class="btn btn--link btn--block" data-action="forget-room">Forget this room</button>
+        </div>
+
         <div class="resume" id="resume-card" hidden>
           <div class="resume__top">
             <span class="resume__dot" aria-hidden="true"></span>
-            <span class="resume__label">Game in progress</span>
+            <span class="resume__label">Game on this device</span>
           </div>
           <p class="resume__meta" id="resume-meta"></p>
           <button class="btn btn--primary btn--block" data-action="resume">Resume game</button>
@@ -42,9 +52,11 @@
         </div>
 
         <div class="hero__actions" id="hero-actions">
-          <button class="btn btn--primary btn--lg" data-action="go-setup">New game</button>
-          <button class="btn btn--ghost btn--lg" data-action="go-how">How to play</button>
+          <button class="btn btn--primary btn--lg" data-action="go-online" id="online-btn" hidden>Play online 🌐</button>
+          <button class="btn btn--ghost btn--lg" data-action="go-setup" id="local-btn">Play on one device</button>
+          <button class="btn btn--link" data-action="go-how">How to play</button>
         </div>
+        <p class="hero__note" id="online-note" hidden></p>
         <a class="link-back" href="../">← All games</a>
       </div>
     </section>
@@ -84,6 +96,14 @@
           <li><strong>Ante every lap:</strong> top up the pot each time play goes round, not only when it's emptied.</li>
           <li><strong>Pairs:</strong> higher-or-lower, or just pass the turn.</li>
           <li><strong>Odds:</strong> the app can show your chances, counted from the cards still in the deck.</li>
+          <li><strong>Turn timer (online):</strong> dawdle past it and your turn passes, so nobody stalls the table.</li>
+        </ul>
+
+        <h3 class="panel__h3">Playing online</h3>
+        <ul class="bullets">
+          <li><strong>Start a room</strong> and share the link — everyone joins from their own phone or laptop.</li>
+          <li><strong>The host</strong> sets the house rules, adds computer players, deals, and can skip anyone who wanders off.</li>
+          <li><strong>The server deals</strong>, so no one can peek at the deck. Late arrivals can sit down mid-game.</li>
         </ul>
 
         <button class="btn btn--primary btn--block btn--lg" data-action="go-setup">Set up a game</button>
@@ -103,65 +123,56 @@
           <button class="btn btn--ghost" data-action="add-cpu">+ Computer 🤖</button>
         </div>
 
-        <h3 class="panel__h3">Table stakes</h3>
-        <div class="field">
-          <span class="field__label">Starting chips</span>
-          <div class="segmented" data-opt="startChips" data-num>
-            <button class="seg" data-val="50">50</button>
-            <button class="seg" data-val="100">100</button>
-            <button class="seg" data-val="250">250</button>
-          </div>
-        </div>
-        <div class="field">
-          <span class="field__label">Ante</span>
-          <div class="segmented" data-opt="ante" data-num>
-            <button class="seg" data-val="1">1</button>
-            <button class="seg" data-val="2">2</button>
-            <button class="seg" data-val="5">5</button>
-          </div>
-        </div>
-        <div class="field">
-          <span class="field__label">Hit the post</span>
-          <div class="segmented" data-opt="postMult" data-num>
-            <button class="seg" data-val="2">Pay 2×</button>
-            <button class="seg" data-val="1">Pay 1×</button>
-          </div>
-        </div>
-        <div class="field">
-          <span class="field__label">On a pair</span>
-          <div class="segmented" data-opt="pairs">
-            <button class="seg" data-val="hilo">Hi / Lo</button>
-            <button class="seg" data-val="pass">Pass</button>
-          </div>
-        </div>
-
-        <h3 class="panel__h3">House rules</h3>
-        <div class="toggles">
-          <button class="toggle" data-toggle="aceChoice" aria-pressed="true">
-            <span class="toggle__text"><strong>Call the first Ace</strong><em>Low or high. Off: Aces are always high.</em></span>
-            <span class="toggle__switch" aria-hidden="true"></span>
-          </button>
-          <button class="toggle" data-toggle="firstLapCap" aria-pressed="true">
-            <span class="toggle__text"><strong>No pot on the first lap</strong><em>After an ante, nobody may bet the whole pot until everyone's had a turn.</em></span>
-            <span class="toggle__switch" aria-hidden="true"></span>
-          </button>
-          <button class="toggle" data-toggle="lapAnte" aria-pressed="false">
-            <span class="toggle__text"><strong>Ante every lap</strong><em>Everyone antes again each time play goes round — the pot grows and games move faster.</em></span>
-            <span class="toggle__switch" aria-hidden="true"></span>
-          </button>
-          <button class="toggle" data-toggle="allowPass" aria-pressed="true">
-            <span class="toggle__text"><strong>Allow passing</strong><em>Off: you must bet at least 1 chip.</em></span>
-            <span class="toggle__switch" aria-hidden="true"></span>
-          </button>
-          <button class="toggle" data-toggle="showOdds" aria-pressed="true">
-            <span class="toggle__text"><strong>Show the odds</strong><em>Counted from the cards still in the deck.</em></span>
-            <span class="toggle__switch" aria-hidden="true"></span>
-          </button>
-        </div>
+        <div id="setup-rules"><!-- injected --></div>
 
         <p class="setup-error" id="setup-error" role="alert" hidden></p>
         <button class="btn btn--primary btn--block btn--lg" data-action="start">Deal me in</button>
         <button class="btn btn--link btn--block" data-action="go-home">← Back</button>
+      </div>
+    </section>
+
+    <!-- ===================== ONLINE: CREATE / JOIN ===================== -->
+    <section class="screen" id="screen-online">
+      <div class="panel">
+        <h2 class="panel__title" id="online-title">Play online</h2>
+        <p class="panel__sub" id="online-sub">Everyone on their own phone or laptop — perfect for a video call. Start a room and share the link, or join with a code.</p>
+
+        <label class="label" for="on-name">Your name</label>
+        <input class="input" id="on-name" maxlength="18" autocomplete="nickname" placeholder="e.g. Maya" />
+
+        <div id="online-create">
+          <button class="btn btn--primary btn--block btn--lg" data-action="on-create">Start a room</button>
+          <div class="or"><span>or join a room</span></div>
+        </div>
+        <div class="join-row">
+          <input class="input input--code" id="on-code" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CODE" aria-label="Room code" />
+          <button class="btn btn--ghost" data-action="on-join" id="on-join-btn">Join</button>
+        </div>
+        <p class="setup-error" id="online-error" role="alert" hidden></p>
+        <button class="btn btn--link btn--block" data-action="go-home">← Back</button>
+      </div>
+    </section>
+
+    <!-- ===================== ONLINE: LOBBY ===================== -->
+    <section class="screen" id="screen-lobby">
+      <div class="panel">
+        <p class="room__kicker">Room code</p>
+        <h2 class="room__code" id="lobby-code">····</h2>
+        <div class="duo">
+          <button class="btn btn--primary" data-action="copy-link">🔗 Copy invite link</button>
+          <button class="btn btn--ghost" data-action="share-link">Share…</button>
+        </div>
+        <p class="room__hint">Send the link in your meeting chat — people tap it, type their name and they're in.</p>
+
+        <h3 class="panel__h3" id="lobby-count">At the table</h3>
+        <ol class="player-list" id="lobby-members"><!-- injected --></ol>
+        <button class="btn btn--ghost btn--block host-only" data-action="lobby-add-bot">+ Computer player 🤖</button>
+
+        <div id="lobby-rules"><!-- injected --></div>
+
+        <p class="lobby__wait" id="lobby-wait" hidden></p>
+        <button class="btn btn--primary btn--block btn--lg host-only" data-action="lobby-start" id="lobby-start">Deal the cards</button>
+        <button class="btn btn--link btn--block" data-action="ask-leave">Leave room</button>
       </div>
     </section>
 
@@ -170,7 +181,8 @@
       <div class="tbar">
         <button class="icon-btn" data-action="leave" aria-label="Back to the menu (game is saved)" title="Back to the menu (game is saved)">←</button>
         <div class="tbar__meta" id="tbar-meta"></div>
-        <button class="btn btn--ghost btn--sm" data-action="ask-end">End game</button>
+        <span class="net" id="net" hidden title="Reconnecting…">⚠︎ Reconnecting</span>
+        <button class="btn btn--ghost btn--sm" data-action="ask-end" id="end-btn">End game</button>
       </div>
 
       <div class="pot" id="pot">
@@ -201,9 +213,7 @@
         <p class="panel__sub" id="over-sub"></p>
         <ol class="standings" id="standings"><!-- injected --></ol>
         <div class="stats" id="stats"><!-- injected --></div>
-        <button class="btn btn--primary btn--block btn--lg" data-action="rematch">Rematch</button>
-        <button class="btn btn--ghost btn--block" data-action="go-setup">New table</button>
-        <button class="btn btn--link btn--block" data-action="go-home">Home</button>
+        <div id="results-actions"><!-- injected --></div>
       </div>
     </section>
   </div>
@@ -212,11 +222,11 @@
   <div class="modal" id="modal" hidden>
     <div class="modal__backdrop" data-action="modal-cancel"></div>
     <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <h3 class="modal__title" id="modal-title">End the game?</h3>
-      <p class="modal__body">The biggest stack wins. Chips still in the pot stay there.</p>
+      <h3 class="modal__title" id="modal-title"></h3>
+      <p class="modal__body" id="modal-body"></p>
       <div class="modal__actions">
-        <button class="btn btn--ghost" data-action="modal-cancel">Keep playing</button>
-        <button class="btn btn--primary" data-action="end">End game</button>
+        <button class="btn btn--ghost" data-action="modal-cancel" id="modal-cancel"></button>
+        <button class="btn btn--primary" data-action="modal-ok" id="modal-ok"></button>
       </div>
     </div>
   </div>
@@ -224,6 +234,7 @@
   <div class="toast" id="toast" role="status" hidden></div>
 
   <script src="js/rules.js"></script>
+  <script src="js/engine.js"></script>
   <script src="js/app.js"></script>
   <script src="../theme.js"></script>
 </body>

@@ -17,7 +17,7 @@ No backend, no build step — everything is plain HTML, CSS, and vanilla JavaScr
 | [Do You Really Know Your Friends?](friends/) | `friends/` | 3–8 | ✅ Playable |
 | [Get ChurchED](getchurched/) | `getchurched/` | 2+ teams | ✅ Playable |
 | [Flip 7 Scorer](flip7/) | `flip7/` | 2–12 | ✅ Playable |
-| [In-Between](inbetween/) | `inbetween/` | 2–8 (incl. computers) | ✅ Playable |
+| [In-Between](inbetween/) | `inbetween/` | 2–8, online or one device | ✅ Playable |
 | _More on the way…_ | — | — | 🛠️ Coming soon |
 
 ### Do You Really Know Your Friends?
@@ -67,10 +67,21 @@ your bet from the pot; outside, it goes in; **hit the post** (match either
 card) and you pay double. A first-card Ace can be called low or high,
 consecutive cards pass the turn, and a pair becomes a higher-or-lower bet
 (three of a kind costs triple). Clean out the pot and everyone antes again;
-run out of chips and you're out. Fill empty seats with **computer players**
-that bet from the live odds, optionally show your own odds counted from the
-cards left in the deck, and tune the house rules (post penalty, pairs, first-lap
-pot cap, ante every lap). The game survives a refresh.
+run out of chips and you're out.
+
+Two ways to play:
+
+- **Online** — everyone on their own phone or laptop (great for a remote
+  happy hour over a video call). The host starts a room and shares the link;
+  people join with their name, even mid-game. The **server deals**, so nobody
+  can peek at the deck. The host sets the house rules, adds computer players,
+  can skip anyone who wanders off, and a **turn timer** keeps things moving.
+  Needs the Vercel deployment below.
+- **One device** — pass-and-play, works anywhere including GitHub Pages.
+
+Either way: computer players that bet from the live odds, an optional odds
+meter counted from the cards left in the deck, tunable house rules (post
+penalty, pairs, first-lap pot cap, ante every lap), and it survives a refresh.
 See [`inbetween/`](inbetween/) to play.
 
 ---
@@ -104,7 +115,12 @@ See [`inbetween/`](inbetween/) to play.
 │   ├── css/styles.css
 │   └── js/
 │       ├── rules.js        # Deck, hand judging, odds, computer betting (pure)
-│       └── app.js          # Table state machine, UI, persistence
+│       ├── engine.js       # Game state machine (shared by browser + server)
+│       └── app.js          # UI: same-device driver + online room client
+├── api/                    # Vercel serverless functions (online play)
+│   ├── room.js             # /api/room — rooms, seats, moves; server deals
+│   └── _lib/store.js       # Upstash Redis over REST (in-memory locally)
+├── scripts/dev.js          # Local server: static site + /api, no setup
 ├── baby/                   # Source of Alaga (published at alaga.pages.dev, not here)
 ├── moved/                  # "Alaga has moved" page served at the old /baby/ address
 ├── _config.yml             # keeps baby/ out of GitHub Pages
@@ -132,15 +148,38 @@ See [`inbetween/`](inbetween/) to play.
 
 ## Running locally
 
-It's just static files. Serve the repo root and open the hub:
-
 ```bash
-python3 -m http.server 8000
-# then visit http://localhost:8000  (hub)
-#            http://localhost:8000/friends/  (the game)
+node scripts/dev.js
+# → http://localhost:3000            (hub)
+#   http://localhost:3000/inbetween/  (open several windows to try online rooms)
 ```
 
-Or open `index.html` directly in a browser.
+`scripts/dev.js` serves the site and the `/api/room` function with in-memory
+storage, so online rooms work locally with no accounts or keys. (Plain
+`python3 -m http.server` works too, but only for the one-device games.)
+
+## Deploying to Vercel (online In-Between)
+
+The site is static apart from one serverless function, `api/room.js`. Vercel
+functions can't hold live connections, so room state lives in **Upstash
+Redis** and each browser checks in about once a second (an unchanged check is
+a single tiny read).
+
+1. **Import the repo** at [vercel.com/new](https://vercel.com/new). Framework
+   preset: **Other**. Leave the build command and output directory empty.
+2. **Add the database:** in the project, open **Storage → Create Database →
+   Upstash for Redis** (free plan is plenty). Pick a region near your Vercel
+   functions (e.g. US East) and connect it to the project. This injects
+   `KV_REST_API_URL` / `KV_REST_API_TOKEN` (the `UPSTASH_REDIS_REST_*` names
+   work too).
+3. **Redeploy** so the function sees the new variables.
+4. Open `https://<your-project>.vercel.app/inbetween/` and tap **Play online**.
+   If the database isn't connected, the page says so instead of failing.
+
+Rooms expire 12 hours after the last move. Rough load: ~10 players for an
+hour is about 30k function calls and Redis commands, comfortably inside the
+free tiers. To check: `GET /api/room?ping=1` returns
+`{"ok":true,"storage":true}` when everything is wired up.
 
 ## Light & dark mode
 
@@ -154,7 +193,8 @@ via a `:root[data-theme="light"]` block. A tiny inline script in each page's
 
 ## Notes
 
-- **No dependencies.** Pure vanilla JS, no frameworks, no bundler.
+- **No dependencies.** Pure vanilla JS, no frameworks, no bundler — the
+  serverless function talks to Redis with plain `fetch`.
 - **Accessible-minded:** honors `prefers-reduced-motion`, uses real buttons and
   ARIA states, and keeps color contrast high.
 - **Mobile-first**, designed to be passed around the table.

@@ -6,6 +6,10 @@ package-lock.json
 !baby/native/package.json
 !baby/native/package-lock.json
 
+# Vercel / secrets
+.vercel/
+.env*
+
 # OS / editor
 .DS_Store
 Thumbs.db

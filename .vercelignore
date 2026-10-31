@@ -1,0 +1,8 @@
+# Only the games hub and its /api go to Vercel. Alaga (baby/) and Kalinga
+# deploy to Cloudflare Pages, and moved/ is a GitHub Pages-only redirect page.
+baby
+kalinga
+moved
+scripts
+CLAUDE.md
+_config.yml
