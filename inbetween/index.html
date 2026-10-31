@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a2a1f" />
+  <meta name="description" content="In-Between (Acey-Deucey) — the classic card game. Two cards are dealt; bet the pot that the next one lands in between. Pass-and-play or against computer players." />
+  <title>In-Between</title>
+  <script>try{var t=localStorage.getItem('dg-theme')||((window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="../theme.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%83%8F%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <button class="theme-toggle" data-theme-toggle aria-label="Toggle light or dark mode">🌙</button>
+  <div id="app">
+
+    <!-- ===================== HOME ===================== -->
+    <section class="screen screen--active" id="screen-home">
+      <div class="hero">
+        <div class="hero__cards" aria-hidden="true">
+          <div class="card card--mini hero__card hero__card--a"><span class="card__corner">4<i>♣</i></span><span class="card__pip">♣</span></div>
+          <div class="card card--mini card--red hero__card hero__card--b"><span class="card__corner">9<i>♥</i></span><span class="card__pip">♥</span></div>
+          <div class="card card--mini card--red hero__card hero__card--c"><span class="card__corner">J<i>♦</i></span><span class="card__pip card__pip--face">J<i>♦</i></span></div>
+        </div>
+        <div class="hero__badge">Card Game</div>
+        <h1 class="hero__title">In-<em>Between</em></h1>
+        <p class="hero__subtitle">
+          Two cards hit the felt. Bet the pot that the next one lands
+          <strong>in between</strong> — but hit the post and you pay
+          <strong>double</strong>.
+        </p>
+
+        <div class="resume" id="resume-card" hidden>
+          <div class="resume__top">
+            <span class="resume__dot" aria-hidden="true"></span>
+            <span class="resume__label">Game in progress</span>
+          </div>
+          <p class="resume__meta" id="resume-meta"></p>
+          <button class="btn btn--primary btn--block" data-action="resume">Resume game</button>
+          <button class="btn btn--link btn--block" data-action="discard">Start a new game instead</button>
+        </div>
+
+        <div class="hero__actions" id="hero-actions">
+          <button class="btn btn--primary btn--lg" data-action="go-setup">New game</button>
+          <button class="btn btn--ghost btn--lg" data-action="go-how">How to play</button>
+        </div>
+        <a class="link-back" href="../">← All games</a>
+      </div>
+    </section>
+
+    <!-- ===================== HOW TO PLAY ===================== -->
+    <section class="screen" id="screen-how">
+      <div class="panel">
+        <h2 class="panel__title">How to play</h2>
+        <p class="panel__sub">Also known as <strong>Acey-Deucey</strong> or <strong>Between the Sheets</strong>. One deck, one pot, a lot of nerve.</p>
+
+        <ol class="steps">
+          <li><span class="steps__n">1</span><div><strong>Everyone antes</strong> into the pot to start.</div></li>
+          <li><span class="steps__n">2</span><div><strong>Two cards are dealt face up</strong> — the posts. Aces are high, but if your <em>first</em> card is an Ace you call it <strong>low or high</strong>. A second Ace is always high.</div></li>
+          <li><span class="steps__n">3</span><div><strong>Bet</strong> anything from 1 chip up to the whole pot that the next card lands <strong>strictly between</strong> the posts. Or pass.</div></li>
+          <li><span class="steps__n">4</span><div><strong>The third card decides it.</strong> Between: take your bet from the pot. Outside: your bet goes into the pot.</div></li>
+          <li><span class="steps__n">5</span><div><strong>Hit the post</strong> — match either post's rank — and you pay <strong>double</strong> your bet into the pot.</div></li>
+          <li><span class="steps__n">6</span><div><strong>Clean out the pot</strong> and everyone antes again. Run out of chips and you're out. Last one with chips — or the biggest stack when you call it — wins. 🏆</div></li>
+        </ol>
+
+        <h3 class="panel__h3">Awkward hands</h3>
+        <div class="formula">
+          <div class="formula__row"><span class="formula__k">7 · 8</span><span class="formula__v">Consecutive — nothing fits between, so the turn passes free</span></div>
+          <div class="formula__row"><span class="formula__k">9 · 9</span><span class="formula__v">A pair — bet the next card is <em>higher</em> or <em>lower</em>. Three of a kind costs <em>triple</em></span></div>
+          <div class="formula__row"><span class="formula__k">A · K</span><span class="formula__v">Call the Ace low and you've got 11 ranks to hit. Call it high and it's consecutive</span></div>
+          <div class="formula__row formula__row--bust"><span class="formula__k">Post</span><span class="formula__v">You never pay more than you have — it takes the lot</span></div>
+        </div>
+        <p class="example">
+          Example: posts <strong>4♣</strong> and <strong>J♦</strong>, you bet
+          <strong>10</strong>. A <strong>9♥</strong> wins you 10. A <strong>K♠</strong>
+          loses 10. A <strong>J♥</strong> hits the post — pay <strong>20</strong>.
+        </p>
+
+        <h3 class="panel__h3">House rules (set them in setup)</h3>
+        <ul class="bullets">
+          <li><strong>First lap:</strong> straight after an ante, nobody may bet the whole pot.</li>
+          <li><strong>Post penalty:</strong> classic double, or a gentler single.</li>
+          <li><strong>Ante every lap:</strong> top up the pot each time play goes round, not only when it's emptied.</li>
+          <li><strong>Pairs:</strong> higher-or-lower, or just pass the turn.</li>
+          <li><strong>Odds:</strong> the app can show your chances, counted from the cards still in the deck.</li>
+        </ul>
+
+        <button class="btn btn--primary btn--block btn--lg" data-action="go-setup">Set up a game</button>
+        <button class="btn btn--link btn--block" data-action="go-home">← Back</button>
+      </div>
+    </section>
+
+    <!-- ===================== SETUP ===================== -->
+    <section class="screen" id="screen-setup">
+      <div class="panel">
+        <h2 class="panel__title">Who's playing?</h2>
+        <p class="panel__sub panel__sub--tight">2–8 players around one phone. Add <strong>computer players</strong> to fill the table or play solo.</p>
+
+        <ol class="player-list" id="player-list"><!-- injected --></ol>
+        <div class="add-btns">
+          <button class="btn btn--ghost" data-action="add-human">+ Player</button>
+          <button class="btn btn--ghost" data-action="add-cpu">+ Computer 🤖</button>
+        </div>
+
+        <h3 class="panel__h3">Table stakes</h3>
+        <div class="field">
+          <span class="field__label">Starting chips</span>
+          <div class="segmented" data-opt="startChips" data-num>
+            <button class="seg" data-val="50">50</button>
+            <button class="seg" data-val="100">100</button>
+            <button class="seg" data-val="250">250</button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field__label">Ante</span>
+          <div class="segmented" data-opt="ante" data-num>
+            <button class="seg" data-val="1">1</button>
+            <button class="seg" data-val="2">2</button>
+            <button class="seg" data-val="5">5</button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field__label">Hit the post</span>
+          <div class="segmented" data-opt="postMult" data-num>
+            <button class="seg" data-val="2">Pay 2×</button>
+            <button class="seg" data-val="1">Pay 1×</button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field__label">On a pair</span>
+          <div class="segmented" data-opt="pairs">
+            <button class="seg" data-val="hilo">Hi / Lo</button>
+            <button class="seg" data-val="pass">Pass</button>
+          </div>
+        </div>
+
+        <h3 class="panel__h3">House rules</h3>
+        <div class="toggles">
+          <button class="toggle" data-toggle="aceChoice" aria-pressed="true">
+            <span class="toggle__text"><strong>Call the first Ace</strong><em>Low or high. Off: Aces are always high.</em></span>
+            <span class="toggle__switch" aria-hidden="true"></span>
+          </button>
+          <button class="toggle" data-toggle="firstLapCap" aria-pressed="true">
+            <span class="toggle__text"><strong>No pot on the first lap</strong><em>After an ante, nobody may bet the whole pot until everyone's had a turn.</em></span>
+            <span class="toggle__switch" aria-hidden="true"></span>
+          </button>
+          <button class="toggle" data-toggle="lapAnte" aria-pressed="false">
+            <span class="toggle__text"><strong>Ante every lap</strong><em>Everyone antes again each time play goes round — the pot grows and games move faster.</em></span>
+            <span class="toggle__switch" aria-hidden="true"></span>
+          </button>
+          <button class="toggle" data-toggle="allowPass" aria-pressed="true">
+            <span class="toggle__text"><strong>Allow passing</strong><em>Off: you must bet at least 1 chip.</em></span>
+            <span class="toggle__switch" aria-hidden="true"></span>
+          </button>
+          <button class="toggle" data-toggle="showOdds" aria-pressed="true">
+            <span class="toggle__text"><strong>Show the odds</strong><em>Counted from the cards still in the deck.</em></span>
+            <span class="toggle__switch" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <p class="setup-error" id="setup-error" role="alert" hidden></p>
+        <button class="btn btn--primary btn--block btn--lg" data-action="start">Deal me in</button>
+        <button class="btn btn--link btn--block" data-action="go-home">← Back</button>
+      </div>
+    </section>
+
+    <!-- ===================== TABLE ===================== -->
+    <section class="screen screen--wide" id="screen-table">
+      <div class="tbar">
+        <button class="icon-btn" data-action="leave" aria-label="Back to the menu (game is saved)" title="Back to the menu (game is saved)">←</button>
+        <div class="tbar__meta" id="tbar-meta"></div>
+        <button class="btn btn--ghost btn--sm" data-action="ask-end">End game</button>
+      </div>
+
+      <div class="pot" id="pot">
+        <span class="pot__label">Pot</span>
+        <span class="pot__value"><span class="chip-ico" aria-hidden="true"></span><span id="pot-value">0</span></span>
+      </div>
+
+      <ol class="seats" id="seats" aria-label="Players"><!-- injected --></ol>
+
+      <div class="felt" id="felt">
+        <p class="felt__turn" id="turn-label"></p>
+        <div class="posts" id="posts"><!-- injected --></div>
+        <p class="felt__spread" id="spread-label"></p>
+      </div>
+
+      <div class="controls" id="controls" aria-live="polite"><!-- injected --></div>
+
+      <h3 class="panel__h3 panel__h3--log">Table talk</h3>
+      <ol class="log" id="log"><!-- injected --></ol>
+    </section>
+
+    <!-- ===================== RESULTS ===================== -->
+    <section class="screen" id="screen-results">
+      <div class="panel panel--center">
+        <div class="trophy" aria-hidden="true">🏆</div>
+        <p class="over__kicker" id="over-kicker">Winner</p>
+        <h2 class="over__winner" id="over-winner"></h2>
+        <p class="panel__sub" id="over-sub"></p>
+        <ol class="standings" id="standings"><!-- injected --></ol>
+        <div class="stats" id="stats"><!-- injected --></div>
+        <button class="btn btn--primary btn--block btn--lg" data-action="rematch">Rematch</button>
+        <button class="btn btn--ghost btn--block" data-action="go-setup">New table</button>
+        <button class="btn btn--link btn--block" data-action="go-home">Home</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- ===================== CONFIRM ===================== -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal__backdrop" data-action="modal-cancel"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <h3 class="modal__title" id="modal-title">End the game?</h3>
+      <p class="modal__body">The biggest stack wins. Chips still in the pot stay there.</p>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" data-action="modal-cancel">Keep playing</button>
+        <button class="btn btn--primary" data-action="end">End game</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="js/rules.js"></script>
+  <script src="js/app.js"></script>
+  <script src="../theme.js"></script>
+</body>
+</html>

@@ -17,6 +17,7 @@ No backend, no build step — everything is plain HTML, CSS, and vanilla JavaScr
 | [Do You Really Know Your Friends?](friends/) | `friends/` | 3–8 | ✅ Playable |
 | [Get ChurchED](getchurched/) | `getchurched/` | 2+ teams | ✅ Playable |
 | [Flip 7 Scorer](flip7/) | `flip7/` | 2–12 | ✅ Playable |
+| [In-Between](inbetween/) | `inbetween/` | 2–8 (incl. computers) | ✅ Playable |
 | _More on the way…_ | — | — | 🛠️ Coming soon |
 
 ### Do You Really Know Your Friends?
@@ -48,6 +49,21 @@ doesn't lose the game. It even warns you when a round claims more copies of a
 card than the 94-card deck actually holds.
 See [`flip7/`](flip7/) to score a game.
 
+### In-Between
+
+The classic card game also known as **Acey-Deucey**. Everyone antes into a
+pot; on your turn two cards are dealt face up, and you bet anything up to the
+pot that the next card lands **strictly between** them. In between, you take
+your bet from the pot; outside, it goes in; **hit the post** (match either
+card) and you pay double. A first-card Ace can be called low or high,
+consecutive cards pass the turn, and a pair becomes a higher-or-lower bet
+(three of a kind costs triple). Clean out the pot and everyone antes again;
+run out of chips and you're out. Fill empty seats with **computer players**
+that bet from the live odds, optionally show your own odds counted from the
+cards left in the deck, and tune the house rules (post penalty, pairs, first-lap
+pot cap, ante every lap). The game survives a refresh.
+See [`inbetween/`](inbetween/) to play.
+
 ---
 
 ## Project structure
@@ -74,6 +90,12 @@ See [`flip7/`](flip7/) to score a game.
 │   └── js/
 │       ├── rules.js        # Deck definition + scoring maths (pure functions)
 │       └── app.js          # Board, scoring sheet, history, persistence
+├── inbetween/              # Game: In-Between (Acey-Deucey)
+│   ├── index.html
+│   ├── css/styles.css
+│   └── js/
+│       ├── rules.js        # Deck, hand judging, odds, computer betting (pure)
+│       └── app.js          # Table state machine, UI, persistence
 ├── README.md
 └── .gitignore
 ```
