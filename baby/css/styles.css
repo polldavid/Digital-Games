@@ -465,7 +465,14 @@ textarea.input { min-height: 80px; resize: vertical; }
 .stepper { display: flex; align-items: center; gap: 10px; }
 .stepper .btn { width: 54px; height: 54px; padding: 0; font-size: calc(24 * var(--u)); flex: none; }
 .stepper__v { flex: 1; min-width: 0; display: flex; align-items: baseline; justify-content: center; font-size: calc(36 * var(--u)); font-weight: 800; font-variant-numeric: tabular-nums; }
-.stepper-extra { display: flex; justify-content: center; margin-top: -4px; }
+.stepper-extra { display: flex; justify-content: center; gap: 8px; margin-top: -4px; }
+/* Milk on hand to feed from (forms.js milkPick): leftovers first, then "A new bottle". */
+.milkpick { display: grid; gap: 8px; }
+.milkpick__opt { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1.5px solid var(--stroke); border-radius: var(--radius-sm); background: var(--card); cursor: pointer; }
+.milkpick__opt:has(input:checked) { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, var(--card)); }
+.milkpick__opt input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--brand); }
+.milkpick__t { display: block; font-weight: 700; }
+.milkpick__s { display: block; color: var(--text-dim); font-size: calc(13 * var(--u)); }
 .stepper__v small { font-size: calc(16 * var(--u)); color: var(--text-dim); font-weight: 700; margin-left: 4px; }
 /* Tap the unit to switch it (ml ⇄ oz, °C ⇄ °F). */
 .unit-btn { align-self: center; margin-left: 6px; min-height: 44px; padding: 4px 10px; border-radius: 999px; font-size: calc(16 * var(--u)); font-weight: 800; color: var(--brand-2); background: var(--card-2); border: 1px dashed var(--stroke-strong); }

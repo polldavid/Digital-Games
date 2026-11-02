@@ -527,9 +527,11 @@
     },
     'breast-pause': function () { S.breastPause(); commit(); },
     'breast-finish': breastFinish,
-    'bottle-start': function () {
+    'bottle-start': function (n) {
+      // From the feed form: the milk on hand picked for this bottle, if any.
+      var pick = n && n.closest && n.closest('form') ? n.closest('form').querySelector('input[name="fromMilk"]:checked') : null;
       if (S.isAsleep()) { var t = S.stopTimer('sleep'); if (Date.now() - t.start >= MIN) S.addEvent({ type: 'sleep', time: t.start, end: Date.now(), data: {} }); }
-      S.bottleStart(); commit();
+      S.bottleStart(null, pick && pick.value || null); commit();
       if (!App.ui.sheet) h.toast('Bottle timer running 🍼');
     },
     'bottle-pause': function () { S.bottlePause(); commit(); },
@@ -566,7 +568,7 @@
         $all('[data-vol]', form).forEach(function (b) {
           var k = b.getAttribute('data-vol'), step = F.volStep(k.replace('-', ''));
           b.setAttribute('data-step', (k.charAt(0) === '-' ? '-' : '') + step);
-          if (k === 'big') b.textContent = '+' + step + ' ' + h.volUnit();
+          if (k === 'big' || k === '-big') b.textContent = (k === 'big' ? '+' : '−') + step + ' ' + h.volUnit();
         });
         n.textContent = h.volUnit();
       } else {

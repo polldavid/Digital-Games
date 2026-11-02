@@ -94,14 +94,15 @@
         '</div>' + (!ev ? '</details>' : '') + '</div>';
 
       // Bottle
-      html += '<div data-panel="bottle" class="form"' + (kind !== 'bottle' ? ' hidden' : '') + '>' + (ev ? '' : bottleLive()) +
+      html += '<div data-panel="bottle" class="form"' + (kind !== 'bottle' ? ' hidden' : '') + '>' + (ev || bt ? '' : milkPick()) + (ev ? '' : bottleLive()) +
         '<div data-bottle-fields' + (!ev && bt && !bt.done ? ' hidden' : '') + ' class="form">' +
         '<span class="field__label">Baby finished</span>' +
-        // ± nudge by 1 ml / 0.1 oz; the separate button jumps by 5 ml / 0.5 oz.
+        // ± nudge by 1 ml / 0.1 oz; the separate buttons jump by 5 ml / 0.5 oz.
         '<div class="stepper"><button type="button" class="btn" data-action="step" data-target="amount" data-vol="-fine" data-step="-' + volStep('fine') + '" aria-label="Less">−</button>' +
         '<div class="stepper__v"><input class="stepper__input" name="amount" type="number" inputmode="decimal" step="any" min="0" value="' + amount + '" aria-label="Amount" /><button type="button" class="unit-btn" data-action="unit-toggle" data-unit="volume" data-target="amount" aria-label="Switch between ml and oz">' + h.volUnit() + '</button></div>' +
         '<button type="button" class="btn" data-action="step" data-target="amount" data-vol="fine" data-step="' + volStep('fine') + '" aria-label="More">+</button></div>' +
-        '<div class="stepper-extra"><button type="button" class="btn btn--sm" data-action="step" data-target="amount" data-vol="big" data-step="' + volStep('big') + '">+' + volStep('big') + ' ' + h.volUnit() + '</button></div>' +
+        '<div class="stepper-extra"><button type="button" class="btn btn--sm" data-action="step" data-target="amount" data-vol="-big" data-step="-' + volStep('big') + '">−' + volStep('big') + ' ' + h.volUnit() + '</button>' +
+        '<button type="button" class="btn btn--sm" data-action="step" data-target="amount" data-vol="big" data-step="' + volStep('big') + '">+' + volStep('big') + ' ' + h.volUnit() + '</button></div>' +
         '<div class="field"><span class="field__label">What’s in the bottle?</span>' + seg('milk', [['breast', 'Breast milk'], ['formula', 'Formula']], d.milk || (!ev && bt && bt.milk) || (b.feeding === 'breast' ? 'breast' : 'formula')) + '</div>' +
         '<div class="field__row"><label class="field"><span class="field__label">Offered (' + h.volUnit() + ', optional)</span><input class="input" type="number" inputmode="decimal" step="any" min="0" name="offered" value="' + (d.offeredMl ? h.volToDisplay(d.offeredMl) : !ev && bt && bt.offeredMl ? h.volToDisplay(bt.offeredMl) : '') + '" /></label>' +
         '<label class="field"><span class="field__label">Took (min, optional)</span><input class="input" type="number" inputmode="decimal" step="any" min="0" max="180" name="bottleMin" value="' + bMin + '" /></label></div>' +
@@ -169,12 +170,42 @@
       };
       form.addEventListener('input', sync); form.addEventListener('stepped', sync);
       h.$all('input[name="kind"]', form).forEach(function (r) { r.addEventListener('change', sync); });
+      // Milk on hand: what's in the bottle, how much was offered, and (most often) all of it finished.
+      h.$all('input[name="fromMilk"]', form).forEach(function (r) {
+        r.addEventListener('change', function () {
+          var ml = +r.getAttribute('data-ml'), kind = r.getAttribute('data-kind');
+          form.elements.namedItem('offered').value = ml ? h.volToDisplay(ml) : '';
+          if (ml) form.elements.namedItem('amount').value = h.volToDisplay(ml);
+          if (kind) form.querySelector('input[name="milk"][value="' + kind + '"]').checked = true;
+          sync();
+        });
+      });
       var det = form.querySelector('details'); if (det) det.addEventListener('toggle', sync);
       sync();
     }
   };
 
   function volStep(kind) { var oz = h.volUnit() === 'oz'; return kind === 'big' ? (oz ? 0.5 : 5) : (oz ? 0.1 : 1); }
+  // Milk on hand that can go in this bottle (not frozen, not expired), leftovers
+  // first: picking one fills in the amount, and saving marks it used.
+  function milkOnHand(now) {
+    return S.milkActive().filter(function (m) { return m.where !== 'freezer' && G.milkExpiry(m).at > now; })
+      .sort(function (a, b) { return (a.leftoverAt ? 0 : 1) - (b.leftoverAt ? 0 : 1) || G.milkExpiry(a).at - G.milkExpiry(b).at; }).slice(0, 4);
+  }
+  function milkPick() {
+    var now = Date.now(), list = milkOnHand(now);
+    if (!list.length) return '';
+    var opt = function (value, ml, kind, t, s) {
+      return '<label class="milkpick__opt"><input type="radio" name="fromMilk" value="' + value + '" data-ml="' + ml + '" data-kind="' + kind + '"' + (value ? '' : ' checked') + ' />' +
+        '<span><span class="milkpick__t">' + t + '</span>' + (s ? '<span class="milkpick__s">' + s + '</span>' : '') + '</span></label>';
+    };
+    return '<div class="field"><span class="field__label">Use milk on hand?</span><div class="milkpick">' +
+      list.map(function (m) {
+        var at = G.milkExpiry(m).at;
+        return opt(m.id, m.ml || '', m.kind, esc((m.ml ? h.vol(m.ml) + ' ' : '') + (m.kind === 'formula' ? 'formula' : 'breast milk') + (m.leftoverAt ? ' · leftover' : m.thawedAt ? ' · thawed' : '')),
+          esc((G.MILK_WHERE[m.where] || m.where) + ' · use by ' + h.fmtTime(at) + ' · ' + h.until(at, now).replace(/^in /, '') + ' left'));
+      }).join('') + opt('', '', '', 'A new bottle', '') + '</div></div>';
+  }
   // Bottle timer, shown at the top of the Bottle panel (like the breast timer).
   function bottleLive() {
     var b = S.timers().bottle;
@@ -638,8 +669,10 @@
     api.lastMilk = null;
     if (type === 'feed' && r.data.kind === 'bottle') {
       var fromT = val(form, 'fromBottleTimer') ? S.stopTimer('bottle') : null;
-      api.lastMilk = S.milkAfterFeed(saved, fromT && fromT.milkId);
-      if (api.lastMilk) api.lastMilk.fromId = fromT && fromT.milkId;
+      var fromId = (fromT && fromT.milkId) || (!fromT && radio(form, 'fromMilk')) || null;
+      api.lastMilk = S.milkAfterFeed(saved, fromId);
+      // Kept even when it was all finished, so Undo puts the milk back.
+      if (fromId) { api.lastMilk = api.lastMilk || {}; api.lastMilk.fromId = fromId; }
     }
     if (type === 'pump') {
       var where = radio(form, 'store');

@@ -88,6 +88,58 @@ const shot = (page, name) => SHOTS ? page.screenshot({ path: path.join(SHOTS, na
     assert.deepStrictEqual(m.map((x) => [x.ml, x.left, x.where]), [[120, false, 'fridge']], 'undo restores the stored milk');
     step('Undo restores the stored milk and removes the leftover');
 
+    // A leftover can be fed straight from Feed → Bottle, long before its reminder.
+    const lid = await page.evaluate(() => { const now = Date.now(); const it = BabyStore.milkAdd({ kind: 'breast', ml: 50, where: 'room', madeAt: now - 3 * 3600e3, leftoverAt: now - 20 * 60000 }, now - 20 * 60000); BabyApp.commit(); return it.id; });
+    const lidAt = await page.evaluate((id) => BabyGuide.milkExpiry(BabyStore.milkItem(id)).at, lid);
+    await page.evaluate(() => BabyForms.open('feed'));
+    await page.click('#sheet-form label:has(input[name="kind"][value="bottle"])');
+    const opts = await page.$$eval('#sheet-form .milkpick__opt', (els) => els.map((e) => e.textContent));
+    assert.match(opts[0], /^50 ml breast milk · leftover/, 'the leftover is offered first');
+    assert.match(opts[opts.length - 1], /A new bottle/);
+    assert.ok(await page.isChecked('#sheet-form input[name="fromMilk"][value=""]'), 'a new bottle unless you pick the leftover');
+    await page.click('#sheet-form .milkpick__opt:has(input[value="' + lid + '"])');
+    assert.strictEqual(await page.inputValue('#sheet-form input[name="offered"]'), '50');
+    assert.strictEqual(await page.inputValue('#sheet-form input[name="amount"]'), '50');
+    await page.click('#sheet-form [data-vol="-big"]');
+    assert.strictEqual(await page.inputValue('#sheet-form input[name="amount"]'), '45', '−5 ml');
+    await page.click('#sheet-form [data-vol="big"]');
+    await page.click('#sheet-form [data-vol="-big"]');
+    assert.strictEqual(await page.inputValue('#sheet-form input[name="amount"]'), '45', '+5 then −5');
+    await shot(page, 'm3b-feed-leftover');
+    await page.click('#sheet-form [data-panel-save] button[type="submit"]');
+    await page.waitForSelector('#sheet', { state: 'hidden' });
+    assert.match(await page.textContent('#toasts'), /5 ml left over: use by/);
+    m = await milk();
+    assert.ok(!m.some((x) => x.id === lid), 'the leftover is used');
+    const rest = await page.evaluate(() => BabyStore.milkActive().filter((x) => x.leftoverAt && x.ml === 5).map((x) => BabyGuide.milkExpiry(x).at));
+    assert.strictEqual(rest.length, 1);
+    assert.ok(rest[0] <= lidAt, 'what’s left of a leftover keeps the leftover’s use-by');
+    await page.click('#toasts button');
+    m = await milk();
+    assert.deepStrictEqual(m.filter((x) => x.left).map((x) => x.ml), [50], 'Undo puts the leftover back');
+    step('Feed → Bottle offers the leftover first; picking it fills 50 ml; −5 ml; saving uses it; Undo puts it back');
+
+    // All of it finished, with the bottle timer: the leftover is used; Undo still puts it back.
+    await page.evaluate(() => BabyForms.open('feed'));
+    await page.click('#sheet-form label:has(input[name="kind"][value="bottle"])');
+    await page.click('#sheet-form .milkpick__opt:has(input[value="' + lid + '"])');
+    await page.click('#sheet-form [data-action="bottle-start"]');
+    await page.waitForSelector('#sheet-form [data-action="bottle-finish"]');
+    assert.strictEqual(await page.evaluate(() => BabyStore.timers().bottle.milkId), lid, 'the timer feeds from the leftover');
+    await page.click('#sheet-form [data-action="bottle-finish"]');
+    await page.waitForSelector('#sheet-form input[name="fromBottleTimer"]', { state: 'attached' });
+    assert.strictEqual(await page.inputValue('#sheet-form input[name="offered"]'), '50');
+    await page.fill('#sheet-form input[name="amount"]', '50');
+    await page.click('#sheet-form [data-panel-save] button[type="submit"]');
+    await page.waitForSelector('#sheet', { state: 'hidden' });
+    m = await milk();
+    assert.ok(!m.some((x) => x.left), 'all finished: no leftover left');
+    await page.click('#toasts button');
+    m = await milk();
+    assert.deepStrictEqual(m.filter((x) => x.left).map((x) => x.ml), [50], 'Undo puts the finished leftover back too');
+    await page.evaluate((id) => { BabyStore.milkDone(id, 'discarded'); BabyApp.commit(); }, lid);
+    step('with the bottle timer too; all finished uses it up, and Undo still puts it back');
+
     // Formula: made up, half finished -> throw out, no leftover.
     await page.click('.section-title:has-text("Milk") [data-action="milk-add"]');
     await page.click('#milk-form label:has(input[value="formula"])');
