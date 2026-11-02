@@ -663,7 +663,11 @@
     if (!r.time) { h.fieldError(form, 'time', 'Pick a time.'); return null; }
     if (r.time > Date.now() + 5 * MIN) { h.fieldError(form, 'time', 'That time is in the future — use Now or pick an earlier time.'); return null; }
     api.lastCopies = [];
-    if (ev) return S.updateEvent(id, { time: r.time, end: r.end !== undefined ? r.end : ev.end, data: r.data });
+    if (ev) {
+      var up = S.updateEvent(id, { time: r.time, end: r.end !== undefined ? r.end : ev.end, data: r.data });
+      if (type === 'feed') S.leftoverFollow(up); // the leftover takes the new amounts
+      return up;
+    }
     var saved = S.addEvent({ type: type, time: r.time, end: r.end || null, data: r.data });
     if (type === 'pump' && val(form, 'fromTimer')) S.stopTimer('pump'); // the timed session is now logged
     api.lastMilk = null;

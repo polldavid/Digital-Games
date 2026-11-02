@@ -140,6 +140,36 @@ const shot = (page, name) => SHOTS ? page.screenshot({ path: path.join(SHOTS, na
     await page.evaluate((id) => { BabyStore.milkDone(id, 'discarded'); BabyApp.commit(); }, lid);
     step('with the bottle timer too; all finished uses it up, and Undo still puts it back');
 
+    // Editing a bottle feed changes its leftover; deleting the feed throws the leftover out.
+    const left = () => page.evaluate(() => BabyStore.milkActive().filter((x) => x.leftoverAt).map((x) => x.ml));
+    await page.evaluate(() => BabyForms.open('feed'));
+    await page.click('#sheet-form label:has(input[name="kind"][value="bottle"])');
+    await page.fill('#sheet-form input[name="amount"]', '15');
+    await page.fill('#sheet-form input[name="offered"]', '90');
+    await page.click('#sheet-form label:has(input[name="milk"][value="breast"])');
+    await page.click('#sheet-form [data-panel-save] button[type="submit"]');
+    await page.waitForSelector('#sheet', { state: 'hidden' });
+    assert.deepStrictEqual(await left(), [75], 'offered 90, took 15: 75 left over');
+    const edit = async (ml) => {
+      await page.evaluate(() => BabyForms.open('feed', BabyStore.last('feed')));
+      await page.fill('#sheet-form input[name="amount"]', String(ml));
+      await page.click('#sheet-form [data-panel-save] button[type="submit"]');
+      await page.waitForSelector('#sheet', { state: 'hidden' });
+    };
+    await edit(30);
+    assert.deepStrictEqual(await left(), [60], 'edited to 30: the leftover is 60');
+    await edit(90);
+    assert.deepStrictEqual(await left(), [], 'edited to all 90: no leftover');
+    await edit(15);
+    assert.deepStrictEqual(await left(), [75], 'edited back: the leftover returns');
+    await page.evaluate(() => BabyForms.open('feed', BabyStore.last('feed')));
+    await page.click('#sheet-form [data-action="event-delete"]');
+    assert.deepStrictEqual(await left(), [], 'deleting the feed throws out its leftover');
+    await page.click('#toasts button');
+    assert.deepStrictEqual(await left(), [75], 'Undo brings back the feed and its leftover');
+    await page.evaluate(() => { BabyStore.milkActive().filter((x) => x.leftoverAt).forEach((x) => BabyStore.milkDone(x.id, 'discarded')); BabyApp.commit(); });
+    step('editing a bottle feed updates its leftover (and back); deleting the feed removes it; Undo restores');
+
     // Formula: made up, half finished -> throw out, no leftover.
     await page.click('.section-title:has-text("Milk") [data-action="milk-add"]');
     await page.click('#milk-form label:has(input[value="formula"])');

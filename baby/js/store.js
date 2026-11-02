@@ -532,6 +532,26 @@
     if (src && src.thawedAt) it.thawedAt = src.thawedAt;
     return { kind: 'breast', ml: left, leftover: it };
   }
+  /* A bottle feed was edited or deleted: its leftover follows. Edited, it takes
+     the new amounts and end time (gone when all was finished); deleted (gone),
+     it's thrown out. A leftover already fed or thrown out is left alone
+     (unless an edit took it away: the next edit can bring it back).
+     Returns the leftover as it was, so Undo can put it back. */
+  function leftoverFollow(ev, gone) {
+    var it = state.milk.filter(function (m) { return m.from === ev.id; })[0];
+    if (it && it.status !== 'active' && !it.byEdit) return null;
+    var was = it ? JSON.parse(JSON.stringify(it)) : null, d = ev.data;
+    var left = !gone && d.kind === 'bottle' && d.milk !== 'formula' ? (d.offeredMl || 0) - (d.amountMl || 0) : 0, end = ev.end || ev.time;
+    if (left <= 0) { if (it && it.status === 'active') { milkDone(it.id, 'discarded'); it.byEdit = true; } return was; }
+    if (it) { it.ml = left; it.leftoverAt = end; it.since = end; it.status = 'active'; delete it.doneAt; delete it.byEdit; }
+    else if (end + 2 * HOUR > Date.now()) milkAdd({ kind: 'breast', ml: left, where: 'room', madeAt: ev.time, leftoverAt: end, from: ev.id }, end);
+    return was;
+  }
+  // Undo: the milk item back exactly as it was.
+  function milkRestore(m) {
+    var it = m && milkItem(m.id);
+    if (it) { for (var k in it) delete it[k]; Object.assign(it, m); }
+  }
 
   /* ---------- Derived status ---------- */
   function isAsleep(id) { return !!timers(id).sleep; }
@@ -834,7 +854,7 @@
     timers: timers, startTimer: startTimer, stopTimer: stopTimer,
     breastSwitch: breastSwitch, breastPause: breastPause, breastTotals: breastTotals,
     pumpSide: pumpSide, pumpBoth: pumpBoth, pumpFinish: pumpFinish, pumpTotals: pumpTotals,
-    milkAdd: milkAdd, milkItem: milkItem, milkActive: milkActive, milkMove: milkMove, milkDone: milkDone, milkAfterFeed: milkAfterFeed,
+    milkAdd: milkAdd, milkItem: milkItem, milkActive: milkActive, milkMove: milkMove, milkDone: milkDone, milkAfterFeed: milkAfterFeed, leftoverFollow: leftoverFollow, milkRestore: milkRestore,
     bottleStart: bottleStart, bottlePause: bottlePause, bottleFinish: bottleFinish, bottleResume: bottleResume, bottleTotal: bottleTotal,
     isAsleep: isAsleep, awakeSince: awakeSince, lastFeedAnchor: lastFeedAnchor, feedIntervalH: feedIntervalH,
     daySummary: daySummary, last24: last24, medStatus: medStatus, medKeyOf: medKeyOf,

@@ -501,8 +501,9 @@
     'event-delete': function (n) {
       var e = S.findEvent(n.getAttribute('data-id'));
       if (!e) return;
+      var lo = e.type === 'feed' ? S.leftoverFollow(e, true) : null; // its leftover goes with it
       S.removeEvent(e.id); h.closeSheet(); commit();
-      h.toast('Deleted', { label: 'Undo', fn: function () { S.addEvent(e); commit(); } });
+      h.toast('Deleted', { label: 'Undo', fn: function () { S.addEvent(e); S.milkRestore(lo); commit(); } });
     },
     'add-past': function () {
       h.openSheet({
