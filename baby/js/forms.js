@@ -186,11 +186,11 @@
   };
 
   function volStep(kind) { var oz = h.volUnit() === 'oz'; return kind === 'big' ? (oz ? 0.5 : 5) : (oz ? 0.1 : 1); }
-  // Milk on hand that can go in this bottle (not frozen, not expired), leftovers
-  // first: picking one fills in the amount, and saving marks it used.
+  // Leftovers still good (soonest to expire first): picking one fills in the
+  // amount, and saving marks it used. Stored milk is fed from the Milk section.
   function milkOnHand(now) {
-    return S.milkActive().filter(function (m) { return m.where !== 'freezer' && G.milkExpiry(m).at > now; })
-      .sort(function (a, b) { return (a.leftoverAt ? 0 : 1) - (b.leftoverAt ? 0 : 1) || G.milkExpiry(a).at - G.milkExpiry(b).at; }).slice(0, 4);
+    return S.milkActive().filter(function (m) { return m.leftoverAt && m.where !== 'freezer' && G.milkExpiry(m).at > now; })
+      .sort(function (a, b) { return G.milkExpiry(a).at - G.milkExpiry(b).at; }).slice(0, 4);
   }
   function milkPick() {
     var now = Date.now(), list = milkOnHand(now);
@@ -199,7 +199,7 @@
       return '<label class="milkpick__opt"><input type="radio" name="fromMilk" value="' + value + '" data-ml="' + ml + '" data-kind="' + kind + '"' + (value ? '' : ' checked') + ' />' +
         '<span><span class="milkpick__t">' + t + '</span>' + (s ? '<span class="milkpick__s">' + s + '</span>' : '') + '</span></label>';
     };
-    return '<div class="field"><span class="field__label">Use milk on hand?</span><div class="milkpick">' +
+    return '<div class="field"><span class="field__label">Use the leftover?</span><div class="milkpick">' +
       list.map(function (m) {
         var at = G.milkExpiry(m).at;
         return opt(m.id, m.ml || '', m.kind, esc((m.ml ? h.vol(m.ml) + ' ' : '') + (m.kind === 'formula' ? 'formula' : 'breast milk') + (m.leftoverAt ? ' · leftover' : m.thawedAt ? ' · thawed' : '')),

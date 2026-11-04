@@ -94,8 +94,9 @@ const shot = (page, name) => SHOTS ? page.screenshot({ path: path.join(SHOTS, na
     await page.evaluate(() => BabyForms.open('feed'));
     await page.click('#sheet-form label:has(input[name="kind"][value="bottle"])');
     const opts = await page.$$eval('#sheet-form .milkpick__opt', (els) => els.map((e) => e.textContent));
-    assert.match(opts[0], /^50 ml breast milk · leftover/, 'the leftover is offered first');
-    assert.match(opts[opts.length - 1], /A new bottle/);
+    assert.strictEqual(opts.length, 2, 'only the leftover (not the 120 ml in the fridge) and a new bottle');
+    assert.match(opts[0], /^50 ml breast milk · leftover/);
+    assert.match(opts[1], /A new bottle/);
     assert.ok(await page.isChecked('#sheet-form input[name="fromMilk"][value=""]'), 'a new bottle unless you pick the leftover');
     await page.click('#sheet-form .milkpick__opt:has(input[value="' + lid + '"])');
     assert.strictEqual(await page.inputValue('#sheet-form input[name="offered"]'), '50');
