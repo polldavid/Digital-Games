@@ -50,14 +50,18 @@ const MIN = 60000;
     await page.waitForSelector('#sheet-form[data-type="feed"]');
     assert.strictEqual(await page.isChecked('#sheet-form input[name="kind"][value="bottle"]'), true, 'formula baby opens on Bottle');
     await shot(page, 'b1-start');
+    const top = await page.$eval('#sheet-form [data-panel="bottle"]', (p) => { const o = p.querySelector('input[name="offered"]'), b = p.querySelector('[data-action="bottle-start"]'); return o.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING; });
+    assert.ok(top, 'Offered comes before Start bottle timer');
+    await page.fill('#sheet-form input[name="offered"]', '30');
     await page.click('[data-action="bottle-start"]');
     await page.waitForSelector('[data-action="bottle-finish"]');
+    assert.strictEqual(await page.evaluate(() => BabyStore.timers().bottle.offeredMl), 30, 'the timer remembers what was offered');
     assert.ok(await page.isHidden('#sheet-form [data-panel-save]'), 'no Save while timing');
     await shot(page, 'b2-timing');
     await page.click('[data-action="sheet-close"] >> nth=-1');
     await page.waitForSelector('.live [data-bottle]');
     assert.match(await page.textContent('.quick, body'), /Feeding…/);
-    step('Start bottle timer from the Feed form; Today shows it running');
+    step('Offered 30 ml above the Start button; the timer keeps it; Today shows it running');
 
     // Pretend 28 minutes passed with a 3-minute burp pause, then finish from Today.
     await page.click('.live [data-action="bottle-pause"]');
@@ -68,8 +72,28 @@ const MIN = 60000;
     await page.waitForSelector('#sheet-form input[name="fromBottleTimer"]', { state: 'attached' });
     assert.strictEqual(await page.inputValue('#sheet-form input[name="bottleMin"]'), '28');
     assert.strictEqual(await page.inputValue('#sheet-form input[name="nipple"]'), 'SS', 'remembers the last nipple');
+    assert.deepStrictEqual([await page.inputValue('#sheet-form input[name="offered"]'), await page.inputValue('#sheet-form input[name="amount"]'), await page.inputValue('#sheet-form input[name="remain"]')], ['30', '30', ''], 'offered from the start; all finished until you say what’s left');
+    await page.fill('#sheet-form input[name="remain"]', '10');
+    assert.strictEqual(await page.inputValue('#sheet-form input[name="amount"]'), '20', '30 − 10 left');
     await page.fill('#sheet-form input[name="amount"]', '15');
     await page.fill('#sheet-form input[name="offered"]', '30');
+    assert.strictEqual(await page.inputValue('#sheet-form input[name="remain"]'), '15', 'finished typed first: left in bottle is worked out');
+    // Or the other way: what's left in the bottle works out what baby finished.
+    await page.fill('#sheet-form input[name="offered"]', '90');
+    await page.fill('#sheet-form input[name="remain"]', '15');
+    assert.strictEqual(await page.inputValue('#sheet-form input[name="amount"]'), '75', '90 offered − 15 left');
+    await page.fill('#sheet-form input[name="offered"]', '100');
+    assert.strictEqual(await page.inputValue('#sheet-form input[name="amount"]'), '85', 'a new offered keeps the 15 left');
+    await page.click('#sheet-form [data-vol="-big"]');
+    assert.strictEqual(await page.inputValue('#sheet-form input[name="remain"]'), '20', '−5 ml finished: 20 left');
+    await shot(page, 'b3-subtract');
+    await page.click('#sheet-form .unit-btn[data-target="amount"]');
+    assert.deepStrictEqual([await page.inputValue('#sheet-form input[name="offered"]'), await page.inputValue('#sheet-form input[name="remain"]'), await page.textContent('#sheet-form [data-volunit]')], ['3.4', '0.7', 'oz'], 'switching to oz converts them too');
+    await page.click('#sheet-form .unit-btn[data-target="amount"]');
+    step('Offered − left in bottle = finished, worked out both ways (and in oz)');
+    await page.fill('#sheet-form input[name="offered"]', '30');
+    await page.fill('#sheet-form input[name="amount"]', '15');
+    assert.strictEqual(await page.inputValue('#sheet-form input[name="remain"]'), '15');
     await page.waitForSelector('#bottle-feedback .note');
     const fb = await page.textContent('#bottle-feedback');
     assert.match(fb, /Slow feed/); assert.match(fb, /0\.5 ml\/min/); assert.match(fb, /Earlier on “SS”: 0\.7 ml\/min over 2 feeds/);
@@ -95,6 +119,19 @@ const MIN = 60000;
     assert.match(txt, /SS/); assert.match(txt, /2\.5/); // S: 30 ml / 12 min
     await card.screenshot({ path: SHOTS ? path.join(SHOTS, 'b4-trends.png') : undefined }).catch(() => {});
     step('History shows the pace; Trends compares SS vs S');
+
+    // No timer: a new bottle typed in after the feed.
+    await page.evaluate(() => BabyForms.open('feed'));
+    await page.click('#sheet-form label:has(input[name="kind"][value="bottle"])');
+    await page.fill('#sheet-form input[name="offered"]', '90');
+    assert.deepStrictEqual([await page.inputValue('#sheet-form input[name="amount"]'), await page.inputValue('#sheet-form input[name="remain"]')], ['90', ''], 'new bottle: all finished, nothing left');
+    await page.fill('#sheet-form input[name="remain"]', '15');
+    assert.strictEqual(await page.inputValue('#sheet-form input[name="amount"]'), '75');
+    await page.click('#sheet-form [data-panel-save] button[type="submit"]');
+    await page.waitForSelector('#sheet', { state: 'hidden' });
+    const nb = await page.evaluate(() => BabyStore.last('feed'));
+    assert.deepStrictEqual([nb.data.amountMl, nb.data.offeredMl], [75, 90]);
+    step('No timer: offered 90, 15 left → saved 75 of 90 ml');
 
     assert.deepStrictEqual(errors, [], 'no page errors');
     console.log('bottle e2e passed');

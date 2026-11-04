@@ -530,9 +530,10 @@
     'breast-finish': breastFinish,
     'bottle-start': function (n) {
       // From the feed form: the milk on hand picked for this bottle, if any.
-      var pick = n && n.closest && n.closest('form') ? n.closest('form').querySelector('input[name="fromMilk"]:checked') : null;
+      var form = n && n.closest && n.closest('form'), pick = form ? form.querySelector('input[name="fromMilk"]:checked') : null;
+      var off = form && form.elements.namedItem('offered') ? h.volFromDisplay(form.elements.namedItem('offered').value) : 0; // how much is in it
       if (S.isAsleep()) { var t = S.stopTimer('sleep'); if (Date.now() - t.start >= MIN) S.addEvent({ type: 'sleep', time: t.start, end: Date.now(), data: {} }); }
-      S.bottleStart(null, pick && pick.value || null); commit();
+      S.bottleStart(null, pick && pick.value || null, Math.round(off) || null); commit();
       if (!App.ui.sheet) h.toast('Bottle timer running 🍼');
     },
     'bottle-pause': function () { S.bottlePause(); commit(); },
@@ -566,6 +567,9 @@
         var ml = inp ? h.volFromDisplay(inp.value) : 0;
         st.volume = st.volume === 'oz' ? 'ml' : 'oz';
         if (inp && ml) inp.value = h.volToDisplay(ml);
+        // Was in the old unit, so convert back with the old one: flip, read, flip.
+        $all('[data-volfield]', form).forEach(function (f) { if (f === inp || f.value === '') return; st.volume = st.volume === 'oz' ? 'ml' : 'oz'; var v = h.volFromDisplay(f.value); st.volume = st.volume === 'oz' ? 'ml' : 'oz'; f.value = h.volToDisplay(v); });
+        $all('[data-volunit]', form).forEach(function (u) { u.textContent = h.volUnit(); });
         $all('[data-vol]', form).forEach(function (b) {
           var k = b.getAttribute('data-vol'), step = F.volStep(k.replace('-', ''));
           b.setAttribute('data-step', (k.charAt(0) === '-' ? '-' : '') + step);

@@ -81,6 +81,10 @@
       var time = ev ? ev.time : bt && bt.done ? bt.start : Date.now();
       var bMin = d.durationMs ? Math.round(d.durationMs / MIN * 10) / 10 : !ev && bt && bt.done ? Math.max(1, Math.round(bt.acc / MIN)) : '';
       var amount = d.amountMl != null ? h.volToDisplay(d.amountMl) : h.volToDisplay(lastBottleMl() || G.feedingFor(days(), b.feeding).ml[0] || 60);
+      var offMl = d.offeredMl || (!ev && bt && bt.offeredMl) || 0;
+      if (!ev && offMl) amount = h.volToDisplay(offMl); // all of it, until you say what's left
+      var offerTop = !ev && !bt; // a new bottle: say how much is in it before starting the timer
+      var offered = offMl ? h.volToDisplay(offMl) : '', remain = d.offeredMl && d.amountMl != null && d.offeredMl > d.amountMl ? h.volToDisplay(d.offeredMl - d.amountMl) : '';
       var html = days() >= 365 ? seg('kind', [['solids', '🍽️ Meal'], ['breast', '🤱 Breast'], ['bottle', '🥛 Milk / bottle']], kind)
         : seg('kind', [['breast', '🤱 Breast'], ['bottle', '🍼 Bottle'], ['solids', '🥣 Solids']], kind);
 
@@ -94,8 +98,11 @@
         '</div>' + (!ev ? '</details>' : '') + '</div>';
 
       // Bottle
-      html += '<div data-panel="bottle" class="form"' + (kind !== 'bottle' ? ' hidden' : '') + '>' + (ev || bt ? '' : milkPick()) + (ev ? '' : bottleLive()) +
+      html += '<div data-panel="bottle" class="form"' + (kind !== 'bottle' ? ' hidden' : '') + '>' + (ev || bt ? '' : milkPick()) + (offerTop ? offeredBox(offered) : '') + (ev ? '' : bottleLive()) +
         '<div data-bottle-fields' + (!ev && bt && !bt.done ? ' hidden' : '') + ' class="form">' +
+        // Offered − left in the bottle = finished, worked out as you type.
+        '<div class="field__row">' + (offerTop ? '' : offeredBox(offered)) +
+        '<label class="field"><span class="field__label">Left in bottle</span><input class="input" type="number" inputmode="decimal" step="any" min="0" name="remain" data-volfield placeholder="0" value="' + remain + '" /></label></div>' +
         '<span class="field__label">Baby finished</span>' +
         // ± nudge by 1 ml / 0.1 oz; the separate buttons jump by 5 ml / 0.5 oz.
         '<div class="stepper"><button type="button" class="btn" data-action="step" data-target="amount" data-vol="-fine" data-step="-' + volStep('fine') + '" aria-label="Less">−</button>' +
@@ -104,9 +111,8 @@
         '<div class="stepper-extra"><button type="button" class="btn btn--sm" data-action="step" data-target="amount" data-vol="-big" data-step="-' + volStep('big') + '">−' + volStep('big') + ' ' + h.volUnit() + '</button>' +
         '<button type="button" class="btn btn--sm" data-action="step" data-target="amount" data-vol="big" data-step="' + volStep('big') + '">+' + volStep('big') + ' ' + h.volUnit() + '</button></div>' +
         '<div class="field"><span class="field__label">What’s in the bottle?</span>' + seg('milk', [['breast', 'Breast milk'], ['formula', 'Formula']], d.milk || (!ev && bt && bt.milk) || (b.feeding === 'breast' ? 'breast' : 'formula')) + '</div>' +
-        '<div class="field__row"><label class="field"><span class="field__label">Offered (' + h.volUnit() + ', optional)</span><input class="input" type="number" inputmode="decimal" step="any" min="0" name="offered" value="' + (d.offeredMl ? h.volToDisplay(d.offeredMl) : !ev && bt && bt.offeredMl ? h.volToDisplay(bt.offeredMl) : '') + '" /></label>' +
-        '<label class="field"><span class="field__label">Took (min, optional)</span><input class="input" type="number" inputmode="decimal" step="any" min="0" max="180" name="bottleMin" value="' + bMin + '" /></label></div>' +
-        '<label class="field"><span class="field__label">Nipple / flow size (optional)</span><input class="input" name="nipple" maxlength="20" list="nipples" value="' + esc(ev ? d.nipple || '' : lastNipple()) + '" placeholder="e.g. SS, S, M, Level 1" autocomplete="off" /></label>' +
+        '<div class="field__row"><label class="field"><span class="field__label">Took (min)</span><input class="input" type="number" inputmode="decimal" step="any" min="0" max="180" name="bottleMin" value="' + bMin + '" /></label>' +
+        '<label class="field"><span class="field__label">Nipple / flow</span><input class="input" name="nipple" maxlength="20" list="nipples" value="' + esc(ev ? d.nipple || '' : lastNipple()) + '" placeholder="e.g. SS, M" autocomplete="off" /></label></div>' +
         '<datalist id="nipples">' + nipplesUsed().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
         '<div id="bottle-feedback"></div>' +
         '<p class="faint">Typical at this age: ' + bottleRange() + ' per feed. Follow baby’s cues — stopping, turning away and relaxed hands mean full.</p>' +
@@ -170,11 +176,27 @@
       };
       form.addEventListener('input', sync); form.addEventListener('stepped', sync);
       h.$all('input[name="kind"]', form).forEach(function (r) { r.addEventListener('change', sync); });
+      // Offered − left in the bottle = baby finished, kept in step both ways.
+      var offIn = form.elements.namedItem('offered'), remIn = form.elements.namedItem('remain'), amtIn = form.elements.namedItem('amount');
+      // Changing Offered redoes whichever of the two you didn't type last. On a
+      // new bottle before either is typed, it's all finished (nothing left).
+      var typed = form.getAttribute('data-id') ? 'amount' : null;
+      var subtract = function (e) {
+        var n = e.target && e.target.name;
+        if (n === 'amount' || n === 'remain') typed = n; else if (n !== 'offered') return;
+        var off = h.volFromDisplay(offIn.value), rem = h.volFromDisplay(remIn.value), amt = h.volFromDisplay(amtIn.value);
+        if (!off) return;
+        if (!typed) { amtIn.value = h.volToDisplay(off); remIn.value = ''; }
+        else if (typed === 'remain') { if (rem <= off) amtIn.value = h.volToDisplay(off - rem); }
+        else if (amt <= off) remIn.value = off - amt > 0.5 ? h.volToDisplay(off - amt) : '';
+      };
+      if (offIn && remIn) form.addEventListener('input', subtract);
       // Milk on hand: what's in the bottle, how much was offered, and (most often) all of it finished.
       h.$all('input[name="fromMilk"]', form).forEach(function (r) {
         r.addEventListener('change', function () {
           var ml = +r.getAttribute('data-ml'), kind = r.getAttribute('data-kind');
           form.elements.namedItem('offered').value = ml ? h.volToDisplay(ml) : '';
+          remIn.value = ''; typed = null;
           if (ml) form.elements.namedItem('amount').value = h.volToDisplay(ml);
           if (kind) form.querySelector('input[name="milk"][value="' + kind + '"]').checked = true;
           sync();
@@ -206,11 +228,14 @@
           esc((G.MILK_WHERE[m.where] || m.where) + ' · use by ' + h.fmtTime(at) + ' · ' + h.until(at, now).replace(/^in /, '') + ' left'));
       }).join('') + opt('', '', '', 'A new bottle', '') + '</div></div>';
   }
+  function offeredBox(v) {
+    return '<label class="field"><span class="field__label">Offered (<span data-volunit>' + h.volUnit() + '</span>)</span><input class="input" type="number" inputmode="decimal" step="any" min="0" name="offered" data-volfield value="' + v + '" /></label>';
+  }
   // Bottle timer, shown at the top of the Bottle panel (like the breast timer).
   function bottleLive() {
     var b = S.timers().bottle;
     if (!b) return '<button type="button" class="btn btn--go btn--block btn--lg" data-action="bottle-start">▶ Start bottle timer</button>' +
-      '<p class="faint" style="text-align:center">Times the feed, so you can see whether the nipple flow suits baby. Or just enter the amount below.</p>';
+      '<p class="faint" style="text-align:center">Times the feed, so you can see whether the nipple flow suits baby. After, just enter what’s left in the bottle — or skip the timer and enter it below.</p>';
     if (!b.done) return '<p class="bottle-clock"><span data-bottle>' + h.clock(S.bottleTotal(b)) + '</span></p>' +
       '<p class="faint" style="text-align:center">Started ' + h.fmtTime(b.start) + (b.paused ? ' · <strong>paused</strong>' : '') + '</p>' +
       '<div class="btn-row"><button type="button" class="btn" data-action="bottle-pause">' + (b.paused ? '▶ Resume' : '⏸ Pause (burping)') + '</button>' +

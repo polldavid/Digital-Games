@@ -440,7 +440,7 @@
      Times a bottle so a slow nipple (or a tired baby) shows up as minutes
      per ml. Finishing keeps the session until the amount is saved, so
      closing the sheet never loses it. */
-  function bottleStart(now, from) {
+  function bottleStart(now, from, offeredMl) {
     now = now || Date.now();
     var t = timers();
     t.bottle = Object.assign({ start: now, seg: now, acc: 0, paused: false }, stamp());
@@ -449,6 +449,7 @@
       t.bottle.milkId = m.id; t.bottle.offeredMl = m.ml; t.bottle.milk = m.kind;
       m.feedStartAt = now; // formula: 1 hour once a feed starts
     }
+    if (offeredMl) t.bottle.offeredMl = offeredMl;
     return t.bottle;
   }
   function bottlePause(now) {
