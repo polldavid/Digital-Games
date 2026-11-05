@@ -618,5 +618,6 @@
   }
   function stat(v, k) { return '<div class="stat"><div class="stat__v">' + v + '</div><div class="stat__k">' + k + '</div></div>'; }
 
-  window.BabyViews = { sectionEditor: sectionEditor, sectionOrder: sectionOrder, hiddenList: hiddenList, SECTIONS: SECTIONS, lenLabel: lenLabel, quickEditor: quickEditor, quickIds: quickIds, ITEM_ORDER: ITEM_ORDER, moreActions: moreActions, today: today, history: history, trends: trends, checks: checks, reminderRows: reminderRows, dayStats: dayStats };
+  window.BabyViews = { sectionEditor: sectionEditor, sectionOrder: sectionOrder, hiddenList: hiddenList, SECTIONS: SECTIONS, lenLabel: lenLabel, quickEditor: quickEditor, quickIds: quickIds, ITEM_ORDER: ITEM_ORDER, moreActions: moreActions, today: today, history: history, trends: trends, checks: checks, reminderRows: reminderRows, dayStats: dayStats,
+    napShown: function (now) { return !!napCard(now, S.ageDays(now)); } };
 })();

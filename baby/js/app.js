@@ -120,7 +120,12 @@
   }
 
   function renderBanner() {
-    var el = $('#banner'), a = App.ui.alerts[0], n = App.ui.alerts.length;
+    // On Today the nap card already says it (with Start sleep), so the nap reminder waits in the bell.
+    // "Not now" on the card quiets it until the next wake-up.
+    var now = Date.now(), act0 = S.get().activeBaby;
+    var napQuiet = (App.ui.view === 'today' && V.napShown(now)) || (App.ui.napHidden && App.ui.napHidden === S.awakeSince(now));
+    var el = $('#banner'), n = App.ui.alerts.length;
+    var a = App.ui.alerts.filter(function (x) { return !(napQuiet && x.kind === 'nap' && x.baby === act0); })[0];
     var badge = $('#bell-badge');
     badge.hidden = !n; badge.textContent = n;
     $('#bell').setAttribute('aria-label', n ? 'Reminders — ' + n + ' due' : 'Reminders');
@@ -131,7 +136,7 @@
     var html = '<span class="banner__icon" aria-hidden="true">' + h.faceIcon(a.icon) + '</span><div class="banner__text"><div class="banner__title">' + esc(a.title) + (many && b ? ' · ' + esc(b.name) : '') + '</div><div class="banner__sub">' + esc(a.text) + '</div></div>' +
       '<div class="banner__actions">' + (act ? '<button class="btn btn--sm btn--primary" data-action="alert-act" data-key="' + esc(a.key) + '" data-do="' + act[1] + '" data-type="' + act[2] + '" data-id="' + esc(actId) + '">' + act[0] + '</button>' : '') +
       '<button class="btn btn--sm" data-action="snooze" data-key="' + esc(a.key) + '">Snooze 15m</button>' +
-      '<button class="btn btn--sm btn--ghost" data-action="alert-dismiss" data-key="' + esc(a.key) + '">Dismiss</button></div>';
+      '<button class="btn btn--sm btn--ghost banner__x" data-action="alert-dismiss" data-key="' + esc(a.key) + '" aria-label="Dismiss" title="Dismiss">✕</button></div>';
     el.hidden = false;
     // role="alert" re-announces whenever its content is rewritten — only rewrite on a real change.
     if (el._src !== html) { el._src = html; el.innerHTML = html; }
@@ -640,7 +645,10 @@
     },
 
     'notify-enable': requestNotify,
-    'nap-hide': function (n) { App.ui.napHidden = +n.dataset.woke; render(); },
+    'nap-hide': function (n) { // "Not now" also clears the nap reminder, so it doesn't pop up as a banner instead
+      App.ui.napHidden = +n.dataset.woke; var id = S.get().activeBaby;
+      App.ui.alerts = App.ui.alerts.filter(function (a) { return !(a.kind === 'nap' && a.baby === id); }); render();
+    },
     'install-dismiss': function () { S.get().settings.installTipDismissed = true; commit(); },
     'install-prompt': function () {
       var ev = App.installPrompt; if (!ev) return;
