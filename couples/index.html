@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1d0f19" />
+  <meta name="description" content="Heart to Heart — a couples app for catching up on life, faith and your relationship. Weekly check-ins, conversation cards, a shared prayer list and games for two." />
+  <title>Heart to Heart</title>
+  <script>try{var t=localStorage.getItem('dg-theme')||((window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="../theme.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%9E%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <button class="theme-toggle" data-theme-toggle aria-label="Toggle light or dark mode">🌙</button>
+
+  <div class="app">
+    <!-- Every view renders into #view; app.js owns the markup. -->
+    <main id="view" class="view" tabindex="-1"></main>
+
+    <nav class="tabbar" id="tabbar" aria-label="Sections" hidden>
+      <button class="tab" data-act="tab" data-tab="home"><span class="tab__icon" aria-hidden="true">🏡</span><span class="tab__label">Home</span></button>
+      <button class="tab" data-act="tab" data-tab="checkin"><span class="tab__icon" aria-hidden="true">☕</span><span class="tab__label">Catch up</span></button>
+      <button class="tab" data-act="tab" data-tab="talk"><span class="tab__icon" aria-hidden="true">💬</span><span class="tab__label">Talk</span></button>
+      <button class="tab" data-act="tab" data-tab="play"><span class="tab__icon" aria-hidden="true">🎲</span><span class="tab__label">Play</span></button>
+      <button class="tab" data-act="tab" data-tab="pray"><span class="tab__icon" aria-hidden="true">🙏</span><span class="tab__label">Pray</span></button>
+    </nav>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <noscript><p style="padding:24px;text-align:center">Heart to Heart needs JavaScript turned on.</p></noscript>
+
+  <script src="js/content.js"></script>
+  <script src="js/app.js"></script>
+  <script src="../theme.js"></script>
+</body>
+</html>

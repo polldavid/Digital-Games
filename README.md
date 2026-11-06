@@ -17,6 +17,7 @@ No backend, no build step — everything is plain HTML, CSS, and vanilla JavaScr
 | [Do You Really Know Your Friends?](friends/) | `friends/` | 3–8 | ✅ Playable |
 | [Get ChurchED](getchurched/) | `getchurched/` | 2+ teams | ✅ Playable |
 | [Flip 7 Scorer](flip7/) | `flip7/` | 2–12 | ✅ Playable |
+| [Heart to Heart](couples/) | `couples/` | 2 (a couple) | ✅ Playable |
 | _More on the way…_ | — | — | 🛠️ Coming soon |
 
 ### Do You Really Know Your Friends?
@@ -48,6 +49,31 @@ doesn't lose the game. It even warns you when a round claims more copies of a
 card than the 94-card deck actually holds.
 See [`flip7/`](flip7/) to score a game.
 
+### Heart to Heart
+
+An app for couples to catch up on **life, faith and their relationship** — and
+have some fun doing it. Everything stays on the phone (localStorage); there are
+no accounts.
+
+- **Catch up** — a guided ~15-minute weekly check-in: how you're each feeling,
+  one question each on *Life*, *Faith* and *Us* (shuffle for another), what you
+  appreciated about each other, prayer requests, then a short guide to pray
+  together and a closing blessing. Saved to a journal.
+- **Talk** — six decks of conversation cards (Life, Faith, Us, Dreams, Memory
+  Lane, Just for Fun), filterable by depth, with a Favourites deck.
+- **Play** — five games for two:
+  *How Well Do You Know Me?* (answer secretly, partner guesses),
+  *In Sync* (this-or-that, see how often you match),
+  *Couples of the Bible* (quiz — take turns or team up),
+  *Verse Builder* (unscramble verses about love), and a
+  *Date Night Spinner* with a saved date list.
+- **Pray** — a shared prayer list (for either of you, or for both of you) that
+  you can mark answered, plus the check-in journal.
+
+Scripture is quoted from the King James Version (public domain).
+See [`couples/`](couples/) — all prompts and questions live in
+`couples/js/content.js` so they're easy to edit.
+
 ---
 
 ## Project structure
@@ -74,6 +100,12 @@ See [`flip7/`](flip7/) to score a game.
 │   └── js/
 │       ├── rules.js        # Deck definition + scoring maths (pure functions)
 │       └── app.js          # Board, scoring sheet, history, persistence
+├── couples/                # App: Heart to Heart (for couples)
+│   ├── index.html
+│   ├── css/styles.css
+│   └── js/
+│       ├── content.js      # Check-in prompts, card decks, quiz, verses, date ideas
+│       └── app.js          # Views, games, prayer list, journal, persistence
 ├── README.md
 └── .gitignore
 ```
