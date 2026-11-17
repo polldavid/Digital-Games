@@ -644,6 +644,9 @@
     return d.getTime();
   }
   function dayKey(t) { var d = new Date(t); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+  // "3h ago (7:10 AM)". The clock time matters in a notification written ahead
+  // of time: if it went stale (the other parent logged since), it's easy to tell.
+  function agoAt(t, now) { return G.fmtDur((now - t) / MIN) + ' ago (' + new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ')'; }
 
   function reminders(now, id) {
     now = now || Date.now();
@@ -664,10 +667,10 @@
       if (lf && !lf.live) {
         var iv = feedIntervalH(now, id);
         if (!asleep) {
-          out.push({ key: 'feed:' + lf.id, kind: 'feed', icon: '🍼', title: 'Feed due', text: name + ' last fed ' + G.fmtDur((now - lf.time) / MIN) + ' ago (every ~' + G.fmtHours(iv) + ').', at: lf.time + iv * HOUR });
+          out.push({ key: 'feed:' + lf.id, kind: 'feed', icon: '🍼', title: 'Feed due', text: name + ' last fed ' + agoAt(lf.time, now) + '. Usually every ~' + G.fmtHours(iv) + '.', at: lf.time + iv * HOUR });
         } else if (days < 14) {
           // Newborns shouldn't go more than ~4 hours between feeds until back to birth weight.
-          out.push({ key: 'feedwake:' + lf.id, kind: 'feed', icon: '🍼', title: 'Time to wake for a feed', text: name + ' last fed ' + G.fmtDur((now - lf.time) / MIN) + ' ago. Newborns under 2 weeks shouldn’t go more than about 4 hours between feeds.', at: Math.max(lf.time + iv * HOUR, lf.time + 4 * HOUR) });
+          out.push({ key: 'feedwake:' + lf.id, kind: 'feed', icon: '🍼', title: 'Time to wake for a feed', text: name + ' last fed ' + agoAt(lf.time, now) + '. Newborns under 2 weeks shouldn’t go more than about 4 hours between feeds.', at: Math.max(lf.time + iv * HOUR, lf.time + 4 * HOUR) });
         }
       }
     }
@@ -675,7 +678,7 @@
     // Diaper check.
     if (st.diaperRemind && !asleep) {
       var ld = last('diaper', null, id);
-      if (ld && !ld.data.where) out.push({ key: 'diaper:' + ld.id, kind: 'diaper', icon: '🧷', title: 'Diaper check', text: 'Last change was ' + G.fmtDur((now - ld.time) / MIN) + ' ago.', at: ld.time + st.diaperIntervalH * HOUR });
+      if (ld && !ld.data.where) out.push({ key: 'diaper:' + ld.id, kind: 'diaper', icon: '🧷', title: 'Diaper check', text: 'Last change ' + agoAt(ld.time, now) + '.', at: ld.time + st.diaperIntervalH * HOUR });
     }
 
     // Nap window — when the wake window starts closing.
@@ -683,7 +686,7 @@
       var woke = awakeSince(now, id);
       if (woke) {
         var nap = G.nextNap(days, woke, now);
-        if (nap) out.push({ key: 'nap:' + woke, kind: 'nap', icon: '😴', title: 'Nap window', text: name + ' has been awake ' + G.fmtDur((now - woke) / MIN) + '. Watch for sleepy cues and start winding down.', at: nap.from + Math.round((nap.to - nap.from) / 2) });
+        if (nap) out.push({ key: 'nap:' + woke, kind: 'nap', icon: '😴', title: 'Nap window', text: name + ' has been awake ' + G.fmtDur((now - woke) / MIN) + ' (since ' + new Date(woke).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '). Watch for sleepy cues and start winding down.', at: nap.from + Math.round((nap.to - nap.from) / 2) });
       }
     }
 
@@ -696,7 +699,7 @@
     Object.keys(seen).forEach(function (k) {
       var e = seen[k];
       if (!e.data.remind || !e.data.intervalH) return;
-      out.push({ key: 'med:' + e.id, kind: 'med', icon: '💊', title: (e.data.name || 'Medicine') + ' — next dose allowed', text: 'Last dose ' + G.fmtDur((now - e.time) / MIN) + ' ago. Check the dose before giving.', at: e.time + e.data.intervalH * HOUR });
+      out.push({ key: 'med:' + e.id, kind: 'med', icon: '💊', title: (e.data.name || 'Medicine') + ' — next dose allowed', text: 'Last dose ' + agoAt(e.time, now) + '. Check the dose before giving.', at: e.time + e.data.intervalH * HOUR });
     });
 
     // Daily vitamin D (skipped if already logged today).

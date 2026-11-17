@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
+import android.service.notification.StatusBarNotification;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
@@ -31,32 +32,46 @@ import java.util.Set;
  * button on the Today screen.
  *
  * JS: TimerNotification.sync({ timers: [{ key, title, text, base, running, actions: [{ title, url }] }] })
- * Shows exactly the timers given; clears any others it showed before.
+ * Shows exactly the timers given; clears any others it showed before. NudgeService
+ * calls show() too, when the other parent started or stopped a timer.
  */
 @CapacitorPlugin(name = "TimerNotification")
 public class TimerNotificationPlugin extends Plugin {
     private static final String CHANNEL = "timers";
-    private final Set<Integer> shown = new HashSet<>();
+    private static final int FIRST_ID = 70000, LAST_ID = 90000; // see idFor()
 
     @Override
     public void load() {
+        channel(getContext());
+    }
+
+    private static void channel(Context ctx) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel ch = new NotificationChannel(CHANNEL, "Running timers", NotificationManager.IMPORTANCE_LOW);
             ch.setDescription("Sleep, feeding, bottle, pumping and tummy-time timers");
             ch.setShowBadge(false);
             ch.setSound(null, null);
             ch.enableVibration(false);
-            getContext().getSystemService(NotificationManager.class).createNotificationChannel(ch);
+            ctx.getSystemService(NotificationManager.class).createNotificationChannel(ch);
         }
     }
 
     @PluginMethod
     public void sync(PluginCall call) {
-        Context ctx = getContext();
-        NotificationManagerCompat nm = NotificationManagerCompat.from(ctx);
-        JSArray timers = call.getArray("timers", new JSArray());
-        Set<Integer> now = new HashSet<>();
         try {
+            show(getContext(), call.getArray("timers", new JSArray()));
+        } catch (Exception e) {
+            call.reject("Bad timer list: " + e.getMessage());
+            return;
+        }
+        call.resolve();
+    }
+
+    static synchronized void show(Context ctx, org.json.JSONArray timers) throws Exception {
+        channel(ctx);
+        NotificationManagerCompat nm = NotificationManagerCompat.from(ctx);
+        Set<Integer> now = new HashSet<>();
+        {
             for (int i = 0; i < timers.length(); i++) {
                 JSONObject t = timers.getJSONObject(i);
                 int id = idFor(t.optString("key"));
@@ -83,14 +98,14 @@ public class TimerNotificationPlugin extends Plugin {
                 }
                 try { nm.notify(id, b.build()); } catch (SecurityException e) { /* notifications not allowed */ }
             }
-        } catch (Exception e) {
-            call.reject("Bad timer list: " + e.getMessage());
-            return;
         }
-        for (Integer old : shown) if (!now.contains(old)) nm.cancel(old);
-        shown.clear();
-        shown.addAll(now);
-        call.resolve();
+        // Take down timers that stopped (ours are the untagged ones in the id range).
+        try {
+            for (StatusBarNotification s : ((NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE)).getActiveNotifications()) {
+                int id = s.getId();
+                if (s.getTag() == null && id >= FIRST_ID && id < LAST_ID && !now.contains(id)) nm.cancel(id);
+            }
+        } catch (Exception e) { /* nothing showing */ }
     }
 
     private static JSONObject[] toArray(org.json.JSONArray arr) {

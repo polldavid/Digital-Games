@@ -48,6 +48,27 @@ Local tests run `wrangler dev --test-scheduled --var PUSH_TEST:1` (`/__scheduled
 runs the job; `PUSH_TEST` lets it post to the test's pretend push service on
 127.0.0.1). `../tests/run-all.js` does this for you.
 
+## Keeping the partner's phone up to date (Android app)
+
+`nudge.js`: when a phone logs something, it works out what each other phone
+in the family should show (reminders, widget, timer notifications) with that
+phone's own settings, seals it with the family key and sends it here. The server
+keeps the latest one per phone and sends that phone a silent Firebase (FCM)
+data message; `NudgeService.java` fetches and applies it with the app closed.
+The server can't read any of it.
+
+Needs the Firebase service account as a secret (once; the key file is private
+and stays off git and Drive):
+
+```
+npx wrangler secret put FCM_SERVICE_ACCOUNT < "path/to/alaga-…-firebase-adminsdk-….json"
+```
+
+Without it, states are still kept but no message is sent. The `nudge_devices`
+table is in `schema.sql`. Local tests (`../tests/run-all.js nudge`) make a
+throwaway service account and pass `NUDGE_TEST=1` and `FCM_URL` so the server
+talks to a pretend Google on 127.0.0.1.
+
 ## Usage stats
 
 The Worker also keeps the anonymous daily usage count (`../js/ping.js`): daily

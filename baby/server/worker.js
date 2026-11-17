@@ -18,12 +18,14 @@
    GET  /stats                              -> the private stats page (asks for the key)
    /v1/remind…                              -> reminders with the app closed (push.js)
    /v1/photo?k=<name>  PUT / GET / DELETE   -> shared photos, encrypted (photos.js)
+   /v1/nudge/…                              -> keeping the other phones up to date (nudge.js)
    A deleted family keeps only its id, marked gone, so phones that still
    have the code get 410 and stop — instead of re-uploading their copy.
    ========================================================= */
 import { STATS_PAGE } from './stats-page.js';
 import { handlePush, sendDue } from './push.js';
 import { handlePhoto, deleteFamilyPhotos, emptyTrash } from './photos.js';
+import { handleNudge, forgetFamily, forgetIdle } from './nudge.js';
 
 const MAX_ROWS = 200;          // per push
 const MAX_BLOB = 64 * 1024;    // per record (photos go to R2: photos.js)
@@ -82,7 +84,7 @@ async function stats(req, env) {
 }
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     const url = new URL(req.url);
     if (url.pathname === '/' || url.pathname === '/health') return json({ ok: true, app: 'baby-log-sync' });
@@ -112,6 +114,7 @@ export default {
 
     try {
       if (url.pathname === '/v1/photo') return await handlePhoto(req, env, url, family, json, created);
+      if (url.pathname.startsWith('/v1/nudge/')) return await handleNudge(req, env, url, family, fam, json, ctx);
 
       if (url.pathname === '/v1/pull' && req.method === 'GET') {
         if (!fam) return json({ rows: [], more: false });
@@ -166,6 +169,7 @@ export default {
         if (fam) await env.DB.batch([
           env.DB.prepare('DELETE FROM records_history WHERE family = ?').bind(family),
           env.DB.prepare('DELETE FROM records WHERE family = ?').bind(family),
+          forgetFamily(env, family),
           env.DB.prepare("UPDATE families SET auth = 'gone', seq = 0, updated = ? WHERE id = ?").bind(Date.now(), family),
         ]);
         return json({ ok: true });
@@ -179,5 +183,6 @@ export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(sendDue(env));
     if (new Date(event.scheduledTime).getUTCMinutes() === 7) ctx.waitUntil(emptyTrash(env)); // hourly is plenty
+    if (new Date(event.scheduledTime).getUTCMinutes() === 37) ctx.waitUntil(forgetIdle(env));
   },
 };

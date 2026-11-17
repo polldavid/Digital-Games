@@ -15,9 +15,13 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 public class WidgetPlugin extends Plugin {
     @PluginMethod
     public void update(PluginCall call) {
-        Context ctx = getContext();
-        ctx.getSharedPreferences(AlagaWidget.PREFS, Context.MODE_PRIVATE).edit().putString("data", call.getData().toString()).apply();
-        AlagaWidget.refresh(ctx);
+        save(getContext(), call.getData().toString());
         call.resolve();
+    }
+
+    // Also from NudgeService, when the other parent logged something.
+    static void save(Context ctx, String json) {
+        ctx.getSharedPreferences(AlagaWidget.PREFS, Context.MODE_PRIVATE).edit().putString("data", json).apply();
+        AlagaWidget.refresh(ctx);
     }
 }

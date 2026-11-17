@@ -70,3 +70,17 @@ CREATE TABLE IF NOT EXISTS photo_trash (
   PRIMARY KEY (family, k)
 );
 CREATE INDEX IF NOT EXISTS photo_trash_by_time ON photo_trash (deleted);
+
+-- Keeping the other phones up to date (nudge.js): each Android phone in a
+-- shared log, its Firebase token, its reminder settings and the latest state
+-- worked out for it by another phone (both sealed with the family key).
+CREATE TABLE IF NOT EXISTS nudge_devices (
+  family    TEXT NOT NULL,
+  device    TEXT NOT NULL,            -- 32 hex chars, random per phone
+  token     TEXT,                     -- Firebase registration token ('' = stopped working)
+  profile   TEXT,                     -- AES-GCM ciphertext, base64url
+  state     TEXT,                     -- AES-GCM ciphertext, base64url
+  state_seq INTEGER NOT NULL DEFAULT 0, -- the family's write number the state was worked out from
+  updated   INTEGER NOT NULL,         -- last heard from this phone (ms)
+  PRIMARY KEY (family, device)
+);

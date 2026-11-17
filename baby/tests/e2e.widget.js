@@ -62,6 +62,11 @@ const step = (t) => console.log('• ' + t);
     assert.match(w.next, /^Next feed ~(?:\w{3} )?\d{1,2}:\d\d.* · 🧷 (?:\w{3} )?\d{1,2}:\d\d/);
     step('after a bottle and a diaper: counter from the feed, next feed, last diaper');
 
+    await page.evaluate(() => { BabyStore.addEvent({ type: 'feed', time: Date.now() - 10 * 60e3, end: Date.now() - 60e3, data: { kind: 'breast', left: 9 * 60e3, startSide: 'L' } }); BabyApp.commit(); });
+    w = await last();
+    assert.match(w.feed, /^🤱 /, 'a breastfeed shows 🤱, not the bottle');
+    step('a breastfeed gets its own icon');
+
     const n = await count();
     await page.evaluate(() => BabyApp.commit());
     assert.strictEqual(await count(), n, 'nothing changed: no redraw');

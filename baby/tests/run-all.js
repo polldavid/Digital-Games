@@ -11,7 +11,17 @@ const path = require('path');
 const TESTS = __dirname;
 const SERVER_DIR = path.join(__dirname, '..', 'server');
 const PORT = 8787, SYNC_URL = 'http://127.0.0.1:' + PORT;
-const NEEDS_SERVER = ['e2e.sync.js', 'e2e.copies.js', 'e2e.push.js', 'e2e.photos.js'];
+const NEEDS_SERVER = ['e2e.sync.js', 'e2e.copies.js', 'e2e.push.js', 'e2e.photos.js', 'nudge.test.js', 'e2e.nudge.js'];
+// nudge: a made-up Firebase service account (a fresh key each run) and a pretend
+// Google on this machine (FCM_TEST_PORT), so the server's messages can be checked.
+const FCM_TEST_PORT = 8799;
+function testAccount() {
+  const { privateKey } = require('crypto').generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const sa = { type: 'service_account', project_id: 'alaga-test', client_email: 'nudge@alaga-test.iam.gserviceaccount.com',
+    private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }), token_uri: 'http://127.0.0.1:' + FCM_TEST_PORT + '/token' };
+  return Buffer.from(JSON.stringify(sa)).toString('base64');
+}
+const FCM_TEST_SA = testAccount();
 const filters = process.argv.slice(2);
 
 const files = fs.readdirSync(TESTS)
@@ -34,14 +44,14 @@ async function up() {
     const schema = spawnSync('npx wrangler d1 execute babylog-sync --local --file=schema.sql', { cwd: SERVER_DIR, shell: true, encoding: 'utf8' });
     if (schema.status !== 0) { console.error(schema.stdout + schema.stderr); process.exit(1); }
     // --test-scheduled: /__scheduled runs the cron job; PUSH_TEST lets it post to the test's pretend push service.
-    server = spawn('npx wrangler dev --local --test-scheduled --var PUSH_TEST:1 --port ' + PORT, { cwd: SERVER_DIR, shell: true, stdio: 'ignore' });
+    server = spawn('npx wrangler dev --local --test-scheduled --var PUSH_TEST:1 --var NUDGE_TEST:1 --var FCM_URL:http://127.0.0.1:' + FCM_TEST_PORT + ' --var FCM_SERVICE_ACCOUNT:' + FCM_TEST_SA + ' --port ' + PORT, { cwd: SERVER_DIR, shell: true, stdio: 'ignore' });
     if (!(await up())) { console.error('The local sync server did not start on ' + SYNC_URL); stop(server); process.exit(1); }
   }
   const results = [];
   for (const f of files) {
     if (!wantServer && NEEDS_SERVER.includes(f)) { results.push([f, 'SKIP']); console.log('SKIP ' + f + ' (needs the local sync server)'); continue; }
     const t0 = Date.now();
-    const r = spawnSync(process.execPath, [path.join(TESTS, f)], { env: { ...process.env, SYNC_URL }, encoding: 'utf8' });
+    const r = spawnSync(process.execPath, [path.join(TESTS, f)], { env: { ...process.env, SYNC_URL, FCM_TEST_PORT: String(FCM_TEST_PORT), FCM_TEST_SA }, encoding: 'utf8' });
     const ok = r.status === 0;
     results.push([f, ok ? 'PASS' : 'FAIL']);
     console.log((ok ? 'PASS ' : 'FAIL ') + f + '  (' + Math.round((Date.now() - t0) / 1000) + 's)');

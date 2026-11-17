@@ -181,6 +181,14 @@
     }).then(function (r) { return { family: hex(r[0]), token: b64u(r[1]), aes: r[2], mac: r[3] }; });
   }
 
+  // The key for what one phone works out for another (native.js, the Android
+  // app's NudgeService). Raw bytes, because the Android side needs them too.
+  function nudgeKey(secret) {
+    return subtle.importKey('raw', unb64u(secret), 'HKDF', false, ['deriveBits']).then(function (base) {
+      return subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: enc.encode('baby-log-sync-v1'), info: enc.encode('nudge') }, base, 256);
+    }).then(function (bits) { return new Uint8Array(bits); });
+  }
+
   // The server sees a hashed name, never 'e:<entry id>'.
   function nameOf(keys, k) { return subtle.sign('HMAC', keys.mac, enc.encode(k)).then(function (sig) { return b64u(new Uint8Array(sig).slice(0, 16)); }); }
 
@@ -416,6 +424,7 @@
         res.applied = n;
         status({ lastOk: Date.now(), error: '' });
         if (n && self.onApplied) self.onApplied(n);
+        if (self.onSynced && !meta.joining) self.onSynced(res, meta.after || 0);
         syncPhotos(); // in the background: photos never hold up the log
         return res;
       }, function (e) {
@@ -490,7 +499,7 @@
       return St.get().babies.filter(function (b) { return meta.known['b:' + b.id] !== undefined; });
     };
     // Stop sharing on this phone. The log stays here; the partner keeps theirs.
-    self.leave = function () { meta = null; keys = null; saveMeta(); self.stop(); };
+    self.leave = function () { if (meta && self.onLeave) self.onLeave(); meta = null; keys = null; saveMeta(); self.stop(); };
     // Erase the shared copy from the server (every phone stops syncing; their own logs stay).
     self.destroy = function () {
       if (!loadMeta()) return Promise.resolve(false);
@@ -509,7 +518,7 @@
   var api = {
     records: records, changes: changes, put: put, hash: hash, mergeBaby: mergeBaby,
     newSecret: newSecret, validSecret: validSecret, parseSecret: parseSecret,
-    deriveKeys: deriveKeys, seal: seal, open: open, nameOf: nameOf,
+    deriveKeys: deriveKeys, nudgeKey: nudgeKey, seal: seal, open: open, nameOf: nameOf,
     Client: Client, serverUrl: serverUrl
   };
 

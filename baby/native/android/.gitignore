@@ -62,7 +62,8 @@ captures/
 .cxx/
 
 # Google Services (e.g. APIs or Firebase)
-# google-services.json
+# Kept out of git (the repo is public); build-www.js copies it from Drive (Alaga folder).
+google-services.json
 
 # Freeline
 freeline.py

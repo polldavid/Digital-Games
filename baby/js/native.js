@@ -9,6 +9,8 @@
      @capacitor/filesystem + share   backups and CSV exports
      @capacitor/preferences          a durable copy of the log
      Widget (WidgetPlugin.java)      the home-screen widget
+     Nudge (NudgePlugin.java)        reminders (Alaga's own scheduler), and
+                                     keeping the partner's phone up to date
 
    Nothing here is required: a missing plugin means the web path.
    ========================================================= */
@@ -95,6 +97,7 @@
     return Notification.requestPermission();
   }
 
+
   // Native reminders are scheduled ahead of time, so they fire with the app
   // closed. Recomputed (debounced) after every change: logging a feed moves
   // the next "feed due", starting the sleep timer holds diaper reminders.
@@ -103,7 +106,7 @@
     syncTimers();
     syncWidget();
     if (window.BabyPush) window.BabyPush.sync(); // the web: reminders with the app closed
-    if (!LN()) return;
+    if (!LN() && !plugin('Nudge')) return;
     clearTimeout(syncTimer);
     syncTimer = setTimeout(scheduleNow, 800);
   }
@@ -112,10 +115,8 @@
      One ongoing notification per running timer, counting up by itself. Its
      buttons open babylog://timer?baby=…&do=<action> — the same actions as the
      buttons on Today. */
-  function syncTimers() {
-    var TN = plugin('TimerNotification');
-    if (!TN) return;
-    var st = S.get(), now = Date.now(), many = st.babies.length > 1, list = [];
+  function timerList(now) {
+    var st = S.get(), many = st.babies.length > 1, list = [];
     st.babies.forEach(function (b) {
       var T = st.timers[b.id] || {}, who = many ? ' · ' + b.name : '';
       var url = function (d, side) { return 'babylog://timer?baby=' + encodeURIComponent(b.id) + '&do=' + d + (side ? '&side=' + side : ''); };
@@ -137,6 +138,12 @@
       }
       if (T.tummy) add('tummy', '🤸 Tummy time', 'Since ' + h.fmtTime(T.tummy.start), now - T.tummy.start, true, [{ title: '■ Stop', url: url('tummy-stop') }]);
     });
+    return list;
+  }
+  function syncTimers() {
+    var TN = plugin('TimerNotification');
+    if (!TN) return;
+    var list = timerList(Date.now());
     var sig = JSON.stringify(list.map(function (x) { return [x.key, x.title, x.text, Math.round(x.base / 1000), x.running]; }));
     // The first running timer is a natural moment to ask for notifications (Android 13+).
     if (list.length && !askedPerm && LN()) {
@@ -166,7 +173,7 @@
     else if (lf) {
       d.sinceAt = lf.time; d.sinceLabel = 'since last feed';
       var ds = h.describe(lf.event);
-      d.feed = '🍼 ' + at(lf.time, now) + ' · ' + ds.title + (ds.sub ? ', ' + ds.sub : ''); // the time first, so it never gets cut off
+      d.feed = (ds.icon || '🍼') + ' ' + at(lf.time, now) + ' · ' + ds.title + (ds.sub ? ', ' + ds.sub : ''); // the time first, so it never gets cut off
       if (S.ageDays(now) < 365) d.next = 'Next feed ~' + at(lf.time + S.feedIntervalH(now) * HOUR, now);
     }
     if (ld) d.next = (d.next ? d.next + ' · ' : '') + '🧷 ' + at(ld.time, now);
@@ -182,11 +189,13 @@
   }
   var lastWidget = '';
 
-  /* ---------- babylog:// links (shortcuts, timer buttons) ---------- */
+  /* ---------- babylog:// links (shortcuts, timer buttons, reminders) ---------- */
+  var onTap = null;
   function openUrl(u) {
     var m;
     if (!u) return;
     if ((m = /^babylog:\/\/do\/(\w+)/.exec(u))) { App.runShortcut(m[1]); return; }
+    if (/^babylog:\/\/remind/.test(u)) { if (onTap) onTap(); return; }
     if (/^babylog:\/\/timer/.test(u)) {
       var q = {};
       (u.split('?')[1] || '').split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) q[p[0]] = decodeURIComponent(p[1] || ''); });
@@ -214,8 +223,35 @@
     });
     return list.sort(function (a, b) { return a.at - b.at; });
   }
+  /* What the Android app's own scheduler (Reminders.java) is given:
+       n  reminders on (0: cancel them all, and take down any showing)
+       r  the next ones: { i: notification id, k: key, at, t: title, b: text, q: quiet }
+       k  every reminder that still stands, due or not — one showing in the
+          shade whose key isn't here (a newer feed came in, baby fell asleep,
+          the dose was given) is taken down. */
+  function reminderState(now) {
+    var st = S.get(), on = !!st.settings.notify, keys = [];
+    st.babies.forEach(function (b) { S.reminders(now, b.id).forEach(function (r) { if (!r.done) keys.push(r.key); }); });
+    return {
+      n: on ? 1 : 0, k: keys,
+      r: !on ? [] : upcoming(now).slice(0, 60).map(function (r) { return { i: hashId(r.key + '@' + r.at), k: r.key, at: r.at, t: r.title, b: r.body, q: r.quiet ? 1 : 0 }; })
+    };
+  }
+  var MIGRATED = 'dg-babylog-reminders-native';
   function scheduleNow() {
-    var ln = LN(), st = S.get(), now = Date.now();
+    var Nu = plugin('Nudge'), ln = LN(), now = Date.now();
+    if (Nu) {
+      // Reminders used to go through @capacitor/local-notifications: cancel what it still has pending, once.
+      var moved = false;
+      try { moved = localStorage.getItem(MIGRATED) === '1'; } catch (e) {}
+      if (!moved && ln) ln.getPending().then(function (p) {
+        var old = (p && p.notifications || []).map(function (n) { return { id: n.id }; });
+        return old.length ? ln.cancel({ notifications: old }) : null;
+      }).then(function () { try { localStorage.setItem(MIGRATED, '1'); } catch (e) {} }).catch(function () {});
+      Nu.reminders(reminderState(now)).catch(function () {});
+      return;
+    }
+    var st = S.get();
     var setup = channelsMade || !ln.createChannel ? Promise.resolve() : Promise.all([
       ln.createChannel({ id: 'reminders', name: 'Reminders', description: 'Feeds, diapers, naps, medicine and visits', importance: 4, vibration: true }),
       ln.createChannel({ id: 'quiet', name: 'Night reminders (no sound)', description: 'Reminders during quiet hours', importance: 2, vibration: true })
@@ -231,15 +267,170 @@
     }).catch(function () {});
   }
 
+  /* ---------- Keeping the partner's phone up to date (Android app) ----------
+     Reminders, the widget and timer notifications are worked out on each
+     phone from its own copy of the log, so the partner's go stale until Alaga
+     opens there. So after this phone sends a change, it works out what every
+     other phone in the family should show — with that phone's own reminder
+     settings, which each phone shares (sealed) as its "profile" — and sends it
+     through the sync server (server/nudge.js). A silent Firebase message wakes
+     the Android code on the other phone (NudgeService.java), which fetches
+     it, opens it with the family key and applies it, even with Alaga closed.
+
+     Everything is sealed with a key from the family secret (BabySync.nudgeKey);
+     the server can't read it. Only phones running the Android app take part. */
+  var NUDGE_ID = 'dg-babylog-nudge';
+  var PROFILE_SETTINGS = ['notify', 'feedRemind', 'feedIntervalH', 'diaperRemind', 'diaperIntervalH', 'napRemind', 'vitdRemind', 'vitdTime', 'tummyRemind', 'tummyTime', 'quietNight'];
+  var nk = null, lastMe = '', lastCfg = '', resend = false, tries = 0, tok = { v: '', at: 0 };
+
+  function client() { return window.BabyShare && window.BabyShare.client; }
+  function nudgeOn() {
+    var c = client();
+    return !!(plugin('Nudge') && window.BabySync && c && c.on() && !c.meta().joining && window.crypto && crypto.subtle);
+  }
+  function myId() {
+    var id = '';
+    try { id = localStorage.getItem(NUDGE_ID) || ''; } catch (e) {}
+    if (!/^[0-9a-f]{32}$/.test(id)) {
+      id = Array.prototype.map.call(crypto.getRandomValues(new Uint8Array(16)), function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+      try { localStorage.setItem(NUDGE_ID, id); } catch (e) {}
+    }
+    return id;
+  }
+  function b64u(bytes) { var s = ''; for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  function unb64u(str) { var s = atob(str.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((str.length + 3) % 4)), a = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }
+  function nudgeKeys() {
+    var secret = client().secret();
+    if (nk && nk.secret === secret) return Promise.resolve(nk);
+    return Promise.all([BabySync.deriveKeys(secret), BabySync.nudgeKey(secret)]).then(function (r) {
+      return crypto.subtle.importKey('raw', r[1], 'AES-GCM', false, ['encrypt', 'decrypt']).then(function (key) {
+        nk = { secret: secret, auth: r[0].family + '.' + r[0].token, key: key, raw: b64u(r[1]) };
+        return nk;
+      });
+    });
+  }
+  function seal(obj) {
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, nk.key, new TextEncoder().encode(JSON.stringify(obj))).then(function (ct) {
+      var out = new Uint8Array(12 + ct.byteLength); out.set(iv, 0); out.set(new Uint8Array(ct), 12);
+      return b64u(out);
+    });
+  }
+  function unseal(blob) {
+    var a = unb64u(blob);
+    return crypto.subtle.decrypt({ name: 'AES-GCM', iv: a.slice(0, 12) }, nk.key, a.slice(12)).then(function (pt) { return JSON.parse(new TextDecoder().decode(pt)); });
+  }
+  function nudgeCall(method, path, body, auth) {
+    return fetch(BabySync.serverUrl() + path, {
+      method: method,
+      headers: { Authorization: 'Bearer ' + (auth || nk.auth), 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function (res) {
+      if (res.status === 409) return res.json().then(function (j) { var e = new Error('stale'); e.stale = true; e.seq = j && j.seq; throw e; });
+      if (!res.ok) throw new Error('nudge ' + res.status);
+      return res.json();
+    });
+  }
+
+  // This phone's reminder settings, which baby it shows, and its fired and
+  // snoozed reminders: what another phone needs to work out its reminders.
+  function profile(now) {
+    var st = S.get(), s = {}, f = {}, z = {};
+    PROFILE_SETTINGS.forEach(function (k) { s[k] = st.settings[k]; });
+    Object.keys(st.fired || {}).forEach(function (k) { if (st.fired[k] > now - 3 * 24 * HOUR) f[k] = st.fired[k]; });
+    Object.keys(st.snoozed || {}).forEach(function (k) { if (st.snoozed[k] > now) z[k] = st.snoozed[k]; });
+    return { s: s, a: st.activeBaby, f: f, z: z };
+  }
+  // Runs fn as if this were the phone `p` describes, then puts everything back.
+  function asPhone(p, fn) {
+    var st = S.get(), keep = { settings: st.settings, active: st.activeBaby, fired: st.fired, snoozed: st.snoozed }, s2 = {}, k;
+    for (k in st.settings) s2[k] = st.settings[k];
+    PROFILE_SETTINGS.forEach(function (x) { if (p.s && p.s[x] !== undefined) s2[x] = p.s[x]; });
+    st.settings = s2;
+    if (p.a && S.baby(p.a)) st.activeBaby = p.a;
+    st.fired = p.f || {}; st.snoozed = p.z || {};
+    try { return fn(); } finally { st.settings = keep.settings; st.activeBaby = keep.active; st.fired = keep.fired; st.snoozed = keep.snoozed; }
+  }
+  // Everything one phone shows by itself: reminders, the widget, timer notifications.
+  function phoneState(now) {
+    var rs = reminderState(now);
+    rs.w = widgetData(now);
+    rs.t = timerList(now);
+    return rs;
+  }
+  function stateFor(p, now) { return asPhone(p, function () { return phoneState(now); }); }
+
+  // Tell the Android side how to fetch and open states (it keeps them in its
+  // private storage), and the server this phone's token and profile.
+  function hello() {
+    var Nu = plugin('Nudge'), me = myId();
+    return nudgeKeys().then(function () {
+      var cfg = JSON.stringify([BabySync.serverUrl(), nk.auth, me, nk.raw]);
+      var told = cfg === lastCfg ? null : Nu.config({ server: BabySync.serverUrl(), auth: nk.auth, device: me, key: nk.raw }).then(function () { lastCfg = cfg; });
+      // Sync runs every 10 s while open; Firebase's token rarely changes (NudgeService reports a new one itself).
+      var fresh = Date.now() - tok.at < 30 * 60e3 ? Promise.resolve({ token: tok.v }) : Nu.token().then(function (r) { tok = { v: (r && r.token) || '', at: Date.now() }; return r; });
+      return Promise.all([fresh.catch(function () { return {}; }), told]);
+    }).then(function (r) {
+      var token = (r[0] && r[0].token) || '', p = profile(Date.now()), sig = token + '|' + JSON.stringify(p);
+      if (sig === lastMe) return;
+      return seal(p).then(function (b) { return nudgeCall('PUT', '/v1/nudge/me', { d: me, t: token, p: b }); }).then(function () { lastMe = sig; });
+    });
+  }
+  // After a sync round. `seq`: the family's last write this phone has seen.
+  function afterSync(res, seq) {
+    var Nu = plugin('Nudge');
+    if (!nudgeOn()) return Promise.resolve();
+    Nu.seen({ seq: seq }).catch(function () {}); // states older than this phone's own view are ignored
+    return hello().then(function () {
+      if (!(res && res.sent) && !resend) return;
+      resend = false;
+      return sendStates(seq);
+    }).catch(function (e) {
+      // Someone else's change landed first: pull it, then work it out again.
+      if (e && e.stale && tries++ < 3) { resend = true; client().soon(500); }
+    });
+  }
+  function sendStates(seq) {
+    var me = myId(), now = Date.now();
+    return nudgeCall('GET', '/v1/nudge/devices').then(function (res) {
+      var others = (res.rows || []).filter(function (r) { return r.d !== me && r.p; });
+      if (!others.length) return;
+      return Promise.all(others.map(function (o) {
+        return unseal(o.p).then(function (p) { return seal(stateFor(p, now)); }).then(function (b) { return { d: o.d, b: b }; }, function () { return null; });
+      })).then(function (items) {
+        items = items.filter(Boolean);
+        if (items.length) return nudgeCall('POST', '/v1/nudge/state', { from: me, based: seq, items: items }).then(function () { tries = 0; });
+      });
+    });
+  }
+  // Stopped sharing here: the server forgets this phone, the Android side forgets the key.
+  function goodbye() {
+    var Nu = plugin('Nudge');
+    if (!Nu) return;
+    var auth = nk && nk.auth;
+    if (auth) nudgeCall('DELETE', '/v1/nudge/me?d=' + myId(), null, auth).catch(function () {});
+    Nu.config({ clear: true }).catch(function () {});
+    nk = null; lastMe = ''; lastCfg = ''; tok = { v: '', at: 0 };
+  }
+
   function init(onReminderTap) {
     protectStorage();
+    onTap = onReminderTap;
     var ln = LN();
     if (ln && ln.addListener) ln.addListener('localNotificationActionPerformed', function () { if (onReminderTap) onReminderTap(); });
+    var c = client();
+    if (c && plugin('Nudge')) { c.onSynced = afterSync; c.onLeave = goodbye; }
     // Android back button inside the shell behaves like the browser's Back.
     var AppPlugin = plugin('App');
     if (AppPlugin && AppPlugin.addListener) {
       AppPlugin.addListener('backButton', function (e) { if (e && e.canGoBack) history.back(); else if (AppPlugin.exitApp) AppPlugin.exitApp(); });
-      AppPlugin.addListener('appStateChange', function (s) { if (!s.isActive) S.flush(); });
+      // Back in front: redo the widget, the timer notifications and the
+      // reminders (the Android side may have changed them meanwhile).
+      AppPlugin.addListener('appStateChange', function (s) {
+        if (!s.isActive) { S.flush(); return; }
+        lastWidget = ''; lastTimers = '';
+        syncReminders();
+      });
       AppPlugin.addListener('appUrlOpen', function (e) { openUrl(e && e.url); });
       // Started from a shortcut or a notification button while closed.
       if (AppPlugin.getLaunchUrl) AppPlugin.getLaunchUrl().then(function (r) { if (r && r.url) setTimeout(function () { openUrl(r.url); }, 300); }).catch(function () {});
@@ -250,7 +441,8 @@
     saveFile: saveFile, shareText: shareText,
     permission: permission, requestPermission: requestPermission,
     syncReminders: syncReminders, restoreIfEmpty: restoreIfEmpty, upcoming: upcoming,
-    nativeReminders: function () { return !!LN(); },
+    nativeReminders: function () { return !!LN() || !!plugin('Nudge'); },
+    stateFor: stateFor, profile: profile, // for tests
     init: init
   };
 })();
